@@ -29,7 +29,7 @@ except:
     print "VTK not found"
     
 try:
-    from mpl_toolkits.mplot3d import Axes3D
+    #from mpl_toolkits.mplot3d import Axes3D
     from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
     import matplotlib.pyplot as plt
     MPL_PRESENT = True

@@ -26,6 +26,7 @@ MEMSIZE     = 1e6
 MEM_SAFETY  = 8
 STD_PARAM   = 0.040
 GLOBAL_TOL  = 1e-6
+GLOBAL_NDIM = 3
 
 class Mirror(Core.Plane):
     """
@@ -416,21 +417,46 @@ class Objective(Core.Part):
         self.length                     = 0.091
         self.createPoints()
         # Main planes model
-        self.flangeFocalDistance        =  0.0440
-        self.F                          =  0.0350
-        self.H                          =  0.0287
-        self.H_line                     = -0.0090
-        self.E                          =  0.0420
-        self.X                          =  0.0124
-        self.Edim                       =  0.0350
-        self.Xdim                       =  0.0564
-        self.focusingDistance           =  10
+        self.flangeFocalDistance         =  0.0440
+        self.F                           =  0.0350
+        self.H                           =  0.0287
+        self.H_line                      = -0.0090
+        self.E                           =  0.0420
+        self.X                           =  0.0124
+        self._Edim                       =  0.0350
+        self._Xdim                       =  0.0564
+        # Adjustable parameters
+        self._focusingDistance           =  10
+        self.aperture                    =  2
         #Calculated parameters
         self.PEcenter                   = None
         self.PXcenter                   = None
         self.Ecenter                    = None
         self.Xcenter                    = None
+        self.calculatePositions()
+              
+    @property
+    def focusingDistance(self):
+        return self._focusingDistance
+    @focusingDistance.setter
+    def focusingDistance(self,distance):
+        self._focusingDistance = distance
+        self.calculatePositions()
         
+    @property
+    def Edim(self):
+        return self._Edim * self.aperture
+    @Edim.setter
+    def Edim(self, entrancePupilDiameter):
+        self._Edim = entrancePupilDiameter
+        
+    @property
+    def Xdim(self):
+        return self._Xdim* self.aperture
+    @Xdim.setter
+    def Xdim(self, entrancePupilDiameter):
+        self._Xdim = entrancePupilDiameter        
+               
     def calculatePositions(self):
         """
         Calculate some important points, must be called whenever the lens 
@@ -446,7 +472,7 @@ class Objective(Core.Part):
         # has to offset to focus at the given "focusingDistance"
         #   1            1                     1
         # -----  =  ----------- + ----------------------------
-        #   F         F + d'       focusingDistance - SH - d'
+        #   F          F + d'      focusingDistance - SH - d'
         SH      = self.H + self.flangeFocalDistance
         c       = self.F * (self.focusingDistance - SH + self.F)
         b       = self.focusingDistance - SH
@@ -464,7 +490,14 @@ class Objective(Core.Part):
         self.Ecenter     = self.origin + self.x * self.E
         self.Xcenter     = self.origin + self.x * self.X
         
-       
+    def clearData(self):
+        """
+        As the data from the Core.Part class that has to be cleaned is 
+        used only for ray tracing, the parent method is not called.
+        
+        The notable points, however, are recalculated.
+        """
+        self.createPoints()
         
     def createPoints(self):
         """
@@ -488,6 +521,26 @@ class Objective(Core.Part):
         self.points       = np.array(pts)
         self.connectivity = np.array(conn)
         
+    def rayVector(self,p):
+        """
+        Given a set of points (e.g. in the sensor), will return a list of
+        vectors representing the direction to be followed by ray tracing.       
+        """
+        return self.lensDistortion(Utils.normalize(self.PXcenter - p))
+    
+    def lensDistortion(self,v):
+        """
+        Implementation of radial distortion model
+        """ 
+        npts = np.size(v,0)
+        # Gets the angle between v and the optical axis
+        Ti = np.arccos(np.sum(self.x * \
+                              np.reshape(v,(npts,1,GLOBAL_NDIM)),2)).squeeze()
+        To = np.sum(self.distortionParameters * \
+                    np.array([Ti**4,Ti**3,Ti**2,Ti]),2)
+        
+        axis = Utils.normalize(np.cross(self.x,v))
+        return Utils.rotateVector(v,(To-Ti),axis)
             
 if __name__=='__main__':
     import System
