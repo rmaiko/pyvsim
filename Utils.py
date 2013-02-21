@@ -206,6 +206,9 @@ class Tictoc:
         
         """
         t = (time.clock()-self.begin)
+        if t == 0:
+            print "Elapsed time too short to measure"
+            return 0
         if n is None:
             print "Elapsed time: %f seconds" % t
             return t
