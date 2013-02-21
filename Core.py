@@ -968,6 +968,7 @@ class RayBundle(Assembly):
         # Raytracing statistics
         self.rayLength                  = None
         self.steps                      = None
+        self.finalIntersections         = None
         
     @property
     def bounds(self):
@@ -1093,8 +1094,9 @@ class RayBundle(Assembly):
         nrays = np.size(self.startingPoints, 0)
         
         # Initialize variables
-        distance   = np.zeros(nrays)
-        currVector = copy.deepcopy(self.initialVectors)
+        distance                    = np.zeros(nrays)
+        currVector                  = copy.deepcopy(self.initialVectors)
+        self.finalIntersections     = np.empty(nrays,dtype='object')
         # Do matrix pre-allocation to store ray paths
         rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM))
         step        = 0
@@ -1126,6 +1128,8 @@ class RayBundle(Assembly):
             surfaceRef] = topComponent.intersections(rayPoints[step], \
                                                      rayPoints[step+1], \
                                                      GLOBAL_TOL)
+            self.finalIntersections[t <= 1] = \
+                                            surfaceRef[t <= 1]
         
             # Calculate the distance ran by the rays
             distance = distance + \
@@ -1157,6 +1161,7 @@ class RayBundle(Assembly):
         # Save raytracing statistics
         self.rayLength                  = distance
         self.steps                      = step
+        self.finalIntersections         = surfaceRef
         # And create lines to represent the rays
         self._items = np.empty(nrays,"object")
         for n in range(nrays):
