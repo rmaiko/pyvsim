@@ -18,7 +18,10 @@ limitations under the License.
 
 if __name__=="__main__":
     """
-    This is a demo run of PyVSim
+    This is a demo run of PyVSim, using the classes that were already 
+    implemented. 
+    
+    Usage: python demo.py
     """
     import Core
     import System
