@@ -37,6 +37,39 @@ except:
     MPL_PRESENT = False
     print "Matplotlib not found or not compatible"
 
+def Plotter(mode="vtk"):
+    """
+    This is a factory that returns a plotter visitor.
+    
+    It uses information about the python installation to return a 
+    compatible plotter.
+    
+    mode can be either "vtk" or "mpl"
+    
+    "vtk"
+        Uses the Python wrapping of the Visualization Toolkit (VTK) to plot
+        the environment
+        
+    "mpl"
+        Uses Matplotlib to plot the environment
+    """
+    if mode == "vtk" and VTK_PRESENT:
+        return VTKPlotter()
+    
+    if mode == "vtk" and not VTK_PRESENT and MPL_PRESENT:
+        print "Could not return a VTK plotter, returning a Matplotlib plotter"
+        return PythonPlotter()
+    
+    if mode == "mpl" and MPL_PRESENT:
+        return PythonPlotter()
+    
+    if mode == "mpl" and VTK_PRESENT and not MPL_PRESENT:
+        print "Could not return a Matplotlib plotter, returning a VTK plotter"
+        return VTKPlotter()
+    
+    raise ImportError("Could not import a library for plotting. PyVSim" + \
+                        "uses both Matplotlib and VTK")
+
 class Visitor(object):
     """
     This is the prototype of a class capable of traversing the parts tree while
