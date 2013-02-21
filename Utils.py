@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-PyVSim v.1
+PyVSim part2.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -56,7 +56,7 @@ HEXA_CONN_PARTIAL = np.array([[1,4,0],
 
 
 
-def hexaInterpolation(p, pHexa, v):
+def hexaInterpolation(p, pHexa, part2):
     """
     Interpolates values in an hexahedron.
     
@@ -65,7 +65,7 @@ def hexaInterpolation(p, pHexa, v):
     if p.ndim == 2:
         result = []
         for pint in p:
-            result.append(hexaInterpolation(pint, pHexa, v))
+            result.append(hexaInterpolation(pint, pHexa, part2))
         return result
     else:
         p1 = np.tile(p,(12,1))
@@ -84,10 +84,10 @@ def hexaInterpolation(p, pHexa, v):
     
         C = np.prod(Vp[HEXA_FACES_PER_NODE],1) / (den)
         
-        if v.ndim == 1:
-            return np.sum(C * v)
+        if part2.ndim == 1:
+            return np.sum(C * part2)
         else:
-            return np.sum(np.tile(C,(np.size(v,1),1)).T * v, 0)
+            return np.sum(np.tile(C,(np.size(part2,1),1)).T * part2, 0)
     
     
     
@@ -95,13 +95,13 @@ def tetraVolume(p1,p2,p3,p4):
     """
     Only for vectors
     """
-    v = np.array([p1-p4, p2-p4, p3-p4])
-    return (1/6)* np.abs(v[0,:,0]*v[1,:,1]*v[2,:,2] + \
-                         v[2,:,0]*v[0,:,1]*v[1,:,2] + \
-                         v[1,:,0]*v[2,:,1]*v[0,:,2] - \
-                         v[2,:,0]*v[1,:,1]*v[0,:,2] - \
-                         v[0,:,0]*v[2,:,1]*v[1,:,2] - \
-                         v[1,:,0]*v[0,:,1]*v[2,:,2])
+    part2 = np.array([p1-p4, p2-p4, p3-p4])
+    return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] + \
+                         part2[2,:,0]*part2[0,:,1]*part2[1,:,2] + \
+                         part2[1,:,0]*part2[2,:,1]*part2[0,:,2] - \
+                         part2[2,:,0]*part2[1,:,1]*part2[0,:,2] - \
+                         part2[0,:,0]*part2[2,:,1]*part2[1,:,2] - \
+                         part2[1,:,0]*part2[0,:,1]*part2[2,:,2])
 
 def metersToRGB(wl):
     gamma = 0.8
@@ -270,7 +270,7 @@ def rotatePoints(points,angle,axis,origin):
     else:
         return points
         
-def normalize(v):
+def normalize(part2):
     """
     This can be used to normalize a vector or a list of vectors, provided
     they are given as numpy arrays.
@@ -284,16 +284,16 @@ def normalize(v):
     >>> assert(aeq(result, np.array([[1,0,0], [0,0,1]])))
     
     """
-    if v.ndim == 1:
-        return v / np.dot(v,v)**0.5
-    if v.ndim == 2:
-        ncols = np.size(v,1)
-        norms = norm(v)
+    if part2.ndim == 1:
+        return part2 / np.dot(part2,part2)**0.5
+    if part2.ndim == 2:
+        ncols = np.size(part2,1)
+        norms = norm(part2)
         norms[norms == 0] = 1
         norms = np.tile(norms.T,(ncols,1)).T
-        return v / norms
+        return part2 / norms
         
-def norm(v):
+def norm(part2):
     """
     This can be used to calculate the euclidean norm of vector or a list of 
     vectors, provided they are given as numpy arrays of the following form::
@@ -308,10 +308,10 @@ def norm(v):
     >>> out = np.array([np.sqrt(2), np.sqrt(3)])
     >>> assert(aeq(inp, out))
     """
-    if v.ndim == 1:
-        return np.dot(v,v)**0.5
-    if v.ndim == 2:
-        return np.sum(v*v,1)**0.5
+    if part2.ndim == 1:
+        return np.dot(part2,part2)**0.5
+    if part2.ndim == 2:
+        return np.sum(part2*part2,1)**0.5
        
 def barycentricCoordinates(p,p1,p2,p3):
     """
@@ -439,14 +439,14 @@ def listdot(a,b):
         if (small.ndim == large.ndim) and (np.size(small) == np.size(large)):
             return np.sum(a*b,1)
            
-def listTimesVec(HEXA_CONN_PARTIAL,v):
+def listTimesVec(HEXA_CONN_PARTIAL,part2):
     try:
-        if v.ndim > 1:
-            return np.tile(HEXA_CONN_PARTIAL,(len(v[0]),1)).T * v
+        if part2.ndim > 1:
+            return np.tile(HEXA_CONN_PARTIAL,(len(part2[0]),1)).T * part2
         else:
-            return np.tile(HEXA_CONN_PARTIAL,(len(v),1)).T * np.tile(v,(len(HEXA_CONN_PARTIAL),1))
+            return np.tile(HEXA_CONN_PARTIAL,(len(part2),1)).T * np.tile(part2,(len(HEXA_CONN_PARTIAL),1))
     except:
-        return HEXA_CONN_PARTIAL*v
+        return HEXA_CONN_PARTIAL*part2
        
 def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4): 
     """
@@ -497,9 +497,9 @@ def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4):
 #    
 #points = np.array(points)
 #p = np.array([0.5,1,0.5])
-#v = np.array([0,0,0,0,1,1,1,1])
-##v = np.array([[0,0,0],[0,0,0],[1,0,0],[1,0,0],[0,0,1],[0,0,1],[0,1,1],[0,1,1]])
-#print hexaInterpolation(p, points, v)
+#part2 = np.array([0,0,0,0,1,1,1,1])
+##part2 = np.array([[0,0,0],[0,0,0],[1,0,0],[1,0,0],[0,0,1],[0,0,1],[0,1,1],[0,1,1]])
+#print hexaInterpolation(p, points, part2)
 #
 #p1 = np.array([0,0,0])
 #p2 = np.array([1,0,0])

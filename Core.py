@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-PyVSim v.1
+PyVSim part2.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -157,7 +157,7 @@ class Component(object):
         """
         visitor.visit(self)
     
-    def translate(self, v):
+    def translate(self, part2):
         """
         This method should be used when there is a change in the component
         position. This method operates only with the origin position, and
@@ -166,22 +166,22 @@ class Component(object):
         
         Inputs::
         
-        v
+        part2
             Vector to translate the component. A 3-component numpy array with
             x, y and z coordinates
         
         """
-        self._origin     = self._origin + v
-        self.translateImplementation(v)
+        self._origin     = self._origin + part2
+        self.translateImplementation(part2)
         self.clearData()
         
-    def translateImplementation(self, v):
+    def translateImplementation(self, part2):
         """
         This method must be implemented by the interested inheriting class in
         case a translation affects its internals.
         
         For example: a class with a vector of points P will probably need to
-        update that to P+v
+        update that to P+part2
         
         This is a way of implementing the `Chain of Responsibility 
         <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>` 
@@ -517,7 +517,7 @@ class Part(Component):
         #        V1 \     /
         #            \   /    (P)
         #             \ /
-        #              v 
+        #              part2 
         U       = P - Ptriangles[:,0]
         
         UW      = np.sum(V1 * U,2)
@@ -602,7 +602,7 @@ class Part(Component):
  
         return result
         
-    def translateImplementation(self, v):
+    def translateImplementation(self, part2):
         """
         This method is in charge of updating the position of the point cloud
         (provided it exists) when the Part is translated.
@@ -612,7 +612,7 @@ class Part(Component):
         unlikely, but should not stop the program execution.
         """
         try:
-            self.points = self.points + v
+            self.points = self.points + part2
         except:
             # There is no problem if a translation is executed before the points
             # are defined
@@ -675,7 +675,7 @@ class Line(Component):
         """
         return None
         
-    def translateImplementation(self, v):
+    def translateImplementation(self, part2):
         """
         This method is in charge of updating the position of the point cloud
         (provided it exists) when the Line is translated.
@@ -685,7 +685,7 @@ class Line(Component):
         unlikely, but should not stop the program execution.
         """
         try:
-            self.points = self.points + v
+            self.points = self.points + part2
         except:
             # There is no problem if a translation is executed before the points
             # are defined
@@ -919,14 +919,14 @@ class Assembly(Component):
               
         return [lineParameter, coordinates, triangleNumber, normalVector, intersectedSurface]
       
-    def translateImplementation(self, v):
+    def translateImplementation(self, part2):
         """
         This method iterates the translation to all the items found in the list,
         making the `:meth:~Core.Component.translate` method be executed through
         the whole components tree.
         """
         for part in self._items:
-            part.translate(v)
+            part.translate(part2)
                
     def rotateImplementation(self, angle, axis, pivotPoint):
         """
@@ -1056,13 +1056,13 @@ class RayBundle(Assembly):
         self.initialVectors             = None
         self.clearData()
 
-    def translateImplementation(self, v):
+    def translateImplementation(self, part2):
         """
         This method changes the rays starting points, and waits for clear data
         to delete all ray tracing related information.
         """
         try:
-            self.startingPoints             = self.startingPoints + v
+            self.startingPoints             = self.startingPoints + part2
         except:
             pass # there might be no starting points registered
                
@@ -1372,16 +1372,16 @@ class Plane(Part):
         
         Vectorization for this method is implemented.
         """
-        v = coords - self.origin
+        part2 = coords - self.origin
         if coords.ndim == 1:
-            py = (np.dot(self.y,v) / self.dimension[0]) + 0.5
-            pz = (np.dot(self.z,v) / self.dimension[1]) + 0.5
+            py = (np.dot(self.y,part2) / self.dimension[0]) + 0.5
+            pz = (np.dot(self.z,part2) / self.dimension[1]) + 0.5
             return np.array([py,pz])        
         else:
-            nvecs = np.size(v,0)
-            py = (np.sum(np.tile(self.y,(nvecs,1).T*v,1) / \
+            nvecs = np.size(part2,0)
+            py = (np.sum(np.tile(self.y,(nvecs,1).T*part2,1) / \
                           self.dimension[0])) + 0.5
-            pz = (np.sum(np.tile(self.z,(nvecs,1).T*v,1) / \
+            pz = (np.sum(np.tile(self.z,(nvecs,1).T*part2,1) / \
                           self.dimension[0])) + 0.5
             return np.array([py,pz]).T
     
@@ -1437,7 +1437,7 @@ class Volume(Part):
                         width   
                         /
                        /
-                      v  Y
+                      part2  Y
                       
         The point numbering convention is::
         
@@ -1447,7 +1447,7 @@ class Volume(Part):
         7--------4  |    |
         |        |  |    +-> (Z)
         |   2    |  1   /
-        |        | /   v 
+        |        | /   part2 
         |        |/    (Y)
         3--------0
         """
@@ -1662,7 +1662,7 @@ if __name__=="__main__":
     [t, coords, inds, norms, refs] = assembly.intersections(p0, p1, GLOBAL_TOL)
     tic.toc(cases*triangles*repetitions)
     assert Utils.aeq(t, t2)
-    print "Reference result from PIVSim v.0 - 71500 polygon intersection / second"
+    print "Reference result from PIVSim part2.0 - 71500 polygon intersection / second"
 
     #=============================
     # Testing the provided normals
@@ -1817,52 +1817,3 @@ if __name__=="__main__":
     
     print "************               END OF TESTS            ******************"
     print "************                    DEMO               ******************"
-    points = [[0,0,0],
-              [0.001,0,0],
-              [1,1,0],
-              [0,1,0],
-              [0,0,1],
-              [0.001,0,1],
-              [1,1,1],
-              [0,1,1]]
-    part.points = np.array(points)
-    part.clearData()
-    
-    nrays = 100
-    bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
-    bundle.maximumRayTrace = 5
-    bundle.stepRayTrace    = 2
-    bundle.clear()
-    vec = [0.55-0.3,1-1.2,0]
-    vec = Utils.normalize(np.array(vec))
-    vec = np.tile(vec, (nrays,1))
-    wavelength = np.linspace(360e-9,800e-9,nrays)
-    
-    bundle.insert(vec, None, wavelength)
-    assembly.insert(bundle)
-    
-    part.normals = None
-    part.sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
-                                          [0.23179234, 2.00179144e-14],
-                                          [1.01046945, 1.03560653e-10]])
-    
-    v = Volume()
-    v.translate(np.array([1,0,0.5]))
-    v.indexOfRefraction = 1.666
-    v.rotate(np.pi/6, v.x)
-    assembly.insert(v)
-    
-    print "Tracing ray bundle"
-    print "Pre allocated steps : ", bundle.preAllocatedSteps
-    print "Step ray trace      : ", bundle.stepRayTrace
-    tic.tic()
-    bundle.trace()
-    tic.toc()
-    print "Number of steps     : ", bundle.steps
-       
-    
-       
-    import System
-    plotter = System.Plotter()
-    assembly.acceptVisitor(plotter)
-    plotter.display()

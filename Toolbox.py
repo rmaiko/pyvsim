@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-PyVSim v.1
+PyVSim part2.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,7 +68,7 @@ class Sensor(Core.Plane):
           |                            |      
           |                            | 
           |                            |
-          v ___________________________| 
+          part2 ___________________________| 
            y
         """
         Core.Plane.__init__(self)
@@ -210,7 +210,7 @@ class Sensor(Core.Plane):
           |            |      C     |  |      C = particle center
           |            |            |  | 
           |            |____________|  |
-          v ___________________________| 
+          part2 ___________________________| 
            y
            
           When particle image is partially out of the image limits, the 
@@ -226,7 +226,7 @@ class Sensor(Core.Plane):
           |               |            |      C = particle center
           |               |            | 
           |               |            |
-          v ______________|___________C| 
+          part2 ______________|___________C| 
            y
         
         The program performs an integration of a 2D gaussian distribution 
@@ -481,9 +481,9 @@ class Objective(Core.Part):
         #
         # Now, we have to find the pseudo position of the pinhole (which is
         # not H'.
-        v                       = d_line + self.F
+        part2                       = d_line + self.F
         a                       = self.E - self.H
-        v_bar                   = v + a - v*a/self.F
+        v_bar                   = part2 + a - part2*a/self.F
         
         self.PXcenter    = v_bar - self.flangeFocalDistance
         self.PEcenter    = self.origin + self.x * self.E
@@ -528,19 +528,19 @@ class Objective(Core.Part):
         """
         return self.lensDistortion(Utils.normalize(self.PXcenter - p))
     
-    def lensDistortion(self,v):
+    def lensDistortion(self,part2):
         """
         Implementation of radial distortion model
         """ 
-        npts = np.size(v,0)
-        # Gets the angle between v and the optical axis
+        npts = np.size(part2,0)
+        # Gets the angle between part2 and the optical axis
         Ti = np.arccos(np.sum(self.x * \
-                              np.reshape(v,(npts,1,GLOBAL_NDIM)),2)).squeeze()
+                              np.reshape(part2,(npts,1,GLOBAL_NDIM)),2)).squeeze()
         To = np.sum(self.distortionParameters * \
                     np.array([Ti**4,Ti**3,Ti**2,Ti]),2)
         
-        axis = Utils.normalize(np.cross(self.x,v))
-        return Utils.rotateVector(v,(To-Ti),axis)
+        axis = Utils.normalize(np.cross(self.x,part2))
+        return Utils.rotateVector(part2,(To-Ti),axis)
             
 if __name__=='__main__':
     import System
