@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-PyVSim part2.1
+PyVSim v.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,6 +93,7 @@ class Sensor(Core.Plane):
         self.deadPixels             = None
         self.hotPixels              = None
         self.virtualData            = None
+        self.color                  = [1,0,0]
         self.clear()
         
     def parametricToPixel(self,coordinates):
@@ -497,7 +498,7 @@ class Objective(Core.Part):
         
         The notable points, however, are recalculated.
         """
-        self.createPoints()
+        self.calculatePositions()
         
     def createPoints(self):
         """
@@ -518,7 +519,7 @@ class Objective(Core.Part):
         conn.append([NPTS-1, 0,        NPTS])
         conn.append([NPTS,   2*NPTS-1, NPTS-1])        
             
-        self.points       = np.array(pts)
+        self.points       = np.array(pts) + self.origin
         self.connectivity = np.array(conn)
         
     def rayVector(self,p):
@@ -542,13 +543,68 @@ class Objective(Core.Part):
         axis = Utils.normalize(np.cross(self.x,part2))
         return Utils.rotateVector(part2,(To-Ti),axis)
             
+class Camera(Core.Assembly):
+    def __init__(self):
+        Core.Assembly.__init__(self)
+        self.objective                  = None
+        self.sensor                     = None
+        self.body                       = None
+        # Plotting properties
+        self.color                      = [0.172,0.639,0.937]
+        self.opacity                    = 0.650
+        self.width                      = 0.084
+        self.heigth                     = 0.066
+        self.length                     = 0.175
+        # Geometrical properties
+        self.sensorPosition             = -0.017526
+        # Create and position subcomponents:
+        self.positionComponents()
+        
+    @property
+    def bounds(self):
+        """
+        This signals the ray tracing implementation that no attempt should be
+        made to intersect rays with the camera
+        """
+        return None
+        
+    def positionComponents(self):
+        """
+        This method is a shortcut to define the initial position of the camera,
+        there is a definition of the initial positioning of the sensor and the 
+        objective.
+        """
+        self.objective      = Objective()
+        self.sensor         = Sensor()
+        self.body           = Core.Volume(self.length, self.heigth, self.width)
+        
+        self.body.color     = self.color
+        self.body.opacity   = self.opacity
+        self.body.translate(-self.x*self.length)
+        
+        self.insert(self.objective)
+        self.insert(self.sensor)
+        self.insert(self.body)
+        
+        # Flange focal distance adjustment
+        self.sensor.translate(self.x*self.sensorPosition)
+        
+            
 if __name__=='__main__':
     import System
-    o = Objective()
-    o.rotate(np.pi/4,o.y)
-    p = System.Plotter("mpl")
-    o.acceptVisitor(p)
-    p.display()
+    environment = Core.Assembly()
+    c = Camera()
+    c.rotate(np.pi/4,c.y)
+    #c.translate(np.array([0.5,0.5,0.5]))
+    #p = Sensor()
+    
+    environment.insert(c)
+    #environment.insert(p)
+    
+    pl = System.Plotter()
+    environment.acceptVisitor(pl)
+    pl.display()
+    
     
 #    s = Sensor()
 #    print ""

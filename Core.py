@@ -157,7 +157,7 @@ class Component(object):
         """
         visitor.visit(self)
     
-    def translate(self, part2):
+    def translate(self, vector):
         """
         This method should be used when there is a change in the component
         position. This method operates only with the origin position, and
@@ -166,13 +166,13 @@ class Component(object):
         
         Inputs::
         
-        part2
+        vector
             Vector to translate the component. A 3-component numpy array with
             x, y and z coordinates
         
         """
-        self._origin     = self._origin + part2
-        self.translateImplementation(part2)
+        self._origin     = self._origin + vector
+        self.translateImplementation(vector)
         self.clearData()
         
     def translateImplementation(self, part2):
@@ -503,7 +503,7 @@ class Part(Component):
         # plane and the line, we have::
         # P = P0 + T*V
         T = T.reshape(nlins,ntris,1)
-        np.tile(T.T,(1,1,3))
+        np.tile(T.T,(1,1,GLOBAL_NDIM))
         P = P0 + T * V
         
         # Finally we have to check if the points are inside the triangles. This
@@ -919,14 +919,14 @@ class Assembly(Component):
               
         return [lineParameter, coordinates, triangleNumber, normalVector, intersectedSurface]
       
-    def translateImplementation(self, part2):
+    def translateImplementation(self, vector):
         """
         This method iterates the translation to all the items found in the list,
         making the `:meth:~Core.Component.translate` method be executed through
         the whole components tree.
         """
         for part in self._items:
-            part.translate(part2)
+            part.translate(vector)
                
     def rotateImplementation(self, angle, axis, pivotPoint):
         """
@@ -1338,7 +1338,6 @@ class Plane(Part):
         self.points = Plane.PARAMETRIC_COORDS[:,1:3] * np.tile(self.dimension,(4,1))
         self.points = np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + \
                       np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z 
-        
           
     def parametricToPhysical(self,coordinates):
         """
@@ -1507,7 +1506,6 @@ class Volume(Part):
         self.points = (np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze() + \
                       (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze() + \
                       (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze() 
-        print self.points
         
     def physicalToParametric(self, c):
         """

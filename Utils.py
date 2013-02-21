@@ -103,6 +103,8 @@ def tetraVolume(p1,p2,p3,p4):
     
     This function works only for list of vectors, for performance reasons
     will not check the inputs, will throw an error instead.
+    
+    (This works faster than numpy.linalg.det repeated over the list
     """
     part2 = np.array([p1-p4, p2-p4, p3-p4])
     return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] + \
@@ -441,9 +443,12 @@ def pointInHexa(p,hexapoints):
         truthtable = 1
               
     for n in range(6):
-        vout = np.cross(hexapoints[HEXA_CONN_PARTIAL[n,0]]-hexapoints[HEXA_CONN_PARTIAL[n,2]],
-                        hexapoints[HEXA_CONN_PARTIAL[n,1]]-hexapoints[HEXA_CONN_PARTIAL[n,2]])
-        truthtable = truthtable * (listdot(p - hexapoints[HEXA_CONN_PARTIAL[n,2]],vout) < 0)
+        vout = np.cross(hexapoints[HEXA_CONN_PARTIAL[n,0]] - \
+                        hexapoints[HEXA_CONN_PARTIAL[n,2]],
+                        hexapoints[HEXA_CONN_PARTIAL[n,1]] - \
+                        hexapoints[HEXA_CONN_PARTIAL[n,2]])
+        truthtable = truthtable * \
+                    (listdot(p - hexapoints[HEXA_CONN_PARTIAL[n,2]], vout) < 0)
 
     return truthtable        
    
@@ -471,7 +476,8 @@ def listTimesVec(HEXA_CONN_PARTIAL,part2):
         if part2.ndim > 1:
             return np.tile(HEXA_CONN_PARTIAL,(len(part2[0]),1)).T * part2
         else:
-            return np.tile(HEXA_CONN_PARTIAL,(len(part2),1)).T * np.tile(part2,(len(HEXA_CONN_PARTIAL),1))
+            return np.tile(HEXA_CONN_PARTIAL,(len(part2),1)).T * \
+                   np.tile(part2,(len(HEXA_CONN_PARTIAL),1))
     except:
         return HEXA_CONN_PARTIAL*part2
        
