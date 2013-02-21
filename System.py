@@ -38,6 +38,10 @@ except:
     print "Matplotlib not found or not compatible"
 
 class Visitor(object):
+    """
+    This is the prototype of a class capable of traversing the parts tree while
+    having access to all objects, one at a time.
+    """
     def __init__(self):
         pass
     def visit(self, obj):
@@ -61,6 +65,17 @@ class VTKPlotter(Visitor):
             
             
     def display(self,displayAxes=True):
+        """
+        Creates a window and plots all the objects found during the last visit
+        to the parts tree.
+        
+        I.e., before running this command, you should do::
+        
+        main_assembly.acceptVisitor(plotter)
+        
+        Attention: This will stop the program execution until the
+        window is closed. This is a "feature" of matplotlib and VTK.
+        """
         if displayAxes:
             axesActor = vtk.vtkAxesActor()
             axesActor.SetShaftTypeToLine()
@@ -105,6 +120,9 @@ class VTKPlotter(Visitor):
         return dataActor
     
     def polyActor(self,obj): 
+        """
+        Returns an object of type vtkLODActor for rendering within a VTK pipeline
+        """
         actor   = vtk.vtkPolyData()
         pts     = vtk.vtkPoints()
         cts     = vtk.vtkCellArray()
@@ -162,9 +180,23 @@ class PythonPlotter(Visitor):
             
             
     def display(self,displayAxes=True):
+        """
+        Creates a window and plots all the objects found during the last visit
+        to the parts tree.
+        
+        I.e., before running this command, you should do::
+        
+        main_assembly.acceptVisitor(plotter)
+        
+        Attention: This will stop the program execution until the
+        window is closed. This is a "feature" of matplotlib and VTK.
+        """
         plt.show()
  
     def lineActor(self,obj):
+        """
+        Adds a collection to the current axes to draw a line
+        """
         col = Line3DCollection([obj.points])      
         if obj.color is not None: 
             if obj.opacity is None:
@@ -177,9 +209,11 @@ class PythonPlotter(Visitor):
         #col.set_array(val)
         #col.set_cmap(cm.hot)
         self.ax.add_collection(col)
-
     
     def polyActor(self,obj): 
+        """
+        Adds a collection to the current axes to draw a surface
+        """
         for n in range(np.size(obj.connectivity,0)):
             col = Poly3DCollection([obj.points[obj.connectivity]])
             col = Poly3DCollection([obj.points[obj.connectivity[n]]])
@@ -208,41 +242,13 @@ class PythonPlotter(Visitor):
             #col.set_array(val)
             #col.set_cmap(cm.hot)
             self.ax.add_collection(col)
-
-def Plotter(mode="vtk"):
-    """
-    Returns a plotter visitor, emulating a factory class.
-    This uses information about the python installation to return a 
-    compatible plotter.
-    
-    mode can be either "vtk" or "mpl"
-    
-    "vtk"
-        Uses the Python wrapping of the Visualization Toolkit (VTK) to plot
-        the environment
-        
-    "mpl"
-        Uses Matplotlib to plot the environment
-    """
-    if mode == "vtk" and VTK_PRESENT:
-        return VTKPlotter()
-    
-    if mode == "vtk" and not VTK_PRESENT and MPL_PRESENT:
-        print "Could not return a VTK plotter, returning a Matplotlib plotter"
-        return PythonPlotter()
-    
-    if mode == "mpl" and MPL_PRESENT:
-        return PythonPlotter()
-    
-    if mode == "mpl" and VTK_PRESENT and not MPL_PRESENT:
-        print "Could not return a Matplotlib plotter, returning a VTK plotter"
-        return VTKPlotter()
-    
-    raise ImportError("Could not import a library for plotting. PyVSim" + \
-                        "uses both Matplotlib and VTK")
-
     
 class PIVSimWindow(threading.Thread):
+    """
+    A window to plot objects using VTK. Even though this stays in a separate
+    thread, a error in VTK interface to Python makes it wait until the
+    window is closed.
+    """
     def __init__(self):
         threading.Thread.__init__(self)        
         self.footText       = "PyVSim ver. 1.0"
