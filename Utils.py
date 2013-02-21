@@ -93,7 +93,16 @@ def hexaInterpolation(p, pHexa, part2):
     
 def tetraVolume(p1,p2,p3,p4):
     """
-    Only for vectors
+    Calculates the volume of a tetrahedron. This is simply the unrolled
+    determinant::
+    
+    | 1  x1  y1  z1 |
+    | 1  x2  y2  z2 |      1
+    | 1  x3  y3  z3 | *  -----
+    | 1  x4  y4  z4 |      6
+    
+    This function works only for list of vectors, for performance reasons
+    will not check the inputs, will throw an error instead.
     """
     part2 = np.array([p1-p4, p2-p4, p3-p4])
     return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] + \
@@ -104,6 +113,10 @@ def tetraVolume(p1,p2,p3,p4):
                          part2[1,:,0]*part2[0,:,1]*part2[2,:,2])
 
 def metersToRGB(wl):
+    """
+    Converts light wavelength to a RGB vector, the algorithm comes from:
+    `This blog <http://codingmess.blogspot.de/2009/05/conversion-of-wavelength-in-nanometers.html>`
+    """
     gamma = 0.8
     wl = wl * 1e9
     f = (wl >= 380) * (wl < 420) * (0.3 + 0.7 * (wl - 380) / (420 - 380)) + \
@@ -340,6 +353,20 @@ def barycentricCoordinates(p,p1,p2,p3):
         lambda2     = Object.triangleArea(p,p1,p3)
         lambda3     = Object.triangleArea(p,p1,p2)
         return np.array([lambda1,lambda2,lambda3])/area
+        
+    >>> [p,p1,p2,p3] = np.array([[0.5,0.5,0],[0,0,0],[1,0,0],[0,1,0]])
+    >>> barycentricCoordinates(p,p1,p2,p3)
+    array([ 0. ,  0.5,  0.5])
+    
+    Will also work for arrays::
+    
+    >>> p = np.tile(p,(3,1)); p1 = np.tile(p1,(3,1))
+    >>> p2 = np.tile(p2,(3,1)); p3 = np.tile(p3,(3,1))
+    >>> barycentricCoordinates(p,p1,p2,p3)
+    array([[ 0. ,  0.5,  0.5],
+           [ 0. ,  0.5,  0.5],
+           [ 0. ,  0.5,  0.5]])
+    
     """
     area        = triangleArea(p1,p2,p3)
     lambda1     = triangleArea(p,p2,p3)
@@ -537,3 +564,8 @@ def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4):
 #tic.toc(reps)
 #
 #assert (volumevec == volumedet).all()
+if __name__ == "__main__":
+    print "Will execute doctest"
+    import doctest
+    doctest.testmod()
+    print "If nothing was printed, it was ok"
