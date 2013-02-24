@@ -53,19 +53,19 @@ def Plotter(mode="vtk"):
     "mpl"
         Uses Matplotlib to plot the environment
     """
+    if not MPL_PRESENT:
+        raise ImportError("Could not import a library for plotting. PyVSim" + \
+                        "uses Matplotlib and (optionally) VTK")
+        
     if mode == "vtk" and VTK_PRESENT:
         return VTKPlotter()
     
-    if mode == "vtk" and not VTK_PRESENT and MPL_PRESENT:
+    if mode == "vtk" and not VTK_PRESENT:
         print "Could not return a VTK plotter, returning a Matplotlib plotter"
         return PythonPlotter()
     
-    if mode == "mpl" and MPL_PRESENT:
+    if mode == "mpl":
         return PythonPlotter()
-    
-    if mode == "mpl" and VTK_PRESENT and not MPL_PRESENT:
-        print "Could not return a Matplotlib plotter, returning a VTK plotter"
-        return VTKPlotter()
     
     raise ImportError("Could not import a library for plotting. PyVSim" + \
                         "uses both Matplotlib and VTK")
