@@ -606,7 +606,9 @@ if __name__=='__main__':
     pl = System.Plotter()
     environment.acceptVisitor(pl)
     pl.display()
-    
+#    sv = System.JSONSaver()
+#    environment.acceptVisitor(sv)
+#    sv.dump("test.dat")
     
 #    s = Sensor()
 #    print ""

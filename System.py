@@ -17,6 +17,8 @@ limitations under the License.
 """
 import threading
 import numpy as np
+import copy
+import Core
 """
 The following imports are not mandatory (e.g., the user might not have Python
 VTK installed. So the try/except blocks are programmed accordingly
@@ -324,4 +326,41 @@ class PythonPlotter(Visitor):
             #col.set_cmap(cm.hot)
             self.ax.add_collection(col)
 
+class JSONSaver(Visitor):
+    def __init__(self):
+        self.myobjects = {}
+        
+    def visit(self, obj):
+        tempdict  = copy.deepcopy(obj.__dict__)
+        
+        for k in tempdict:
+            if type(tempdict[k]) == np.ndarray:
+                if tempdict[k].dtype == np.dtype(object):
+                    tempdict[k] = tempdict[k].tolist()
+                    for (n, element) in enumerate(tempdict[k]):
+                        tempdict[k][n] = objectstring(element)
+                else:
+                    tempdict[k] = tempdict[k].tolist()
+                    
+            if isinstance(tempdict[k], Core.Component):
+                tempdict[k] = objectstring(tempdict[k])
+                
+        self.myobjects[objectstring(obj)] = tempdict
+                
+    def dump(self, name = None):
+        if name is None:
+            import pprint
+            pprint.pprint(self.myobjects, indent = 4)
+        else:
+            import json
+            f = open(name,'w')
+            try:
+                f.write(json.dumps(self.myobjects))
+            finally:
+                f.close()
 
+def objectstring(obj):
+    if obj is not None:
+        return "PYVSIMOBJECT&&" + str(type(obj)) + "&&IDNUMBER&&" + str(obj.id)
+    else:
+        return None

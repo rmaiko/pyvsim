@@ -801,6 +801,7 @@ class Assembly(Component):
         
         As an assembly has sub-elements, we must iterate through them
         """
+        visitor.visit(self)
         for part in self._items:
             part.acceptVisitor(visitor)
       
