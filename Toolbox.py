@@ -607,13 +607,13 @@ if __name__=='__main__':
     environment.acceptVisitor(pl)
     pl.display()
     
-    sv = System.JSONSaver()
+    sv = System.Saver()
     environment.acceptVisitor(sv)
     sv.dump("test.dat")
     
     print globals()
     
-    ambient = System.JSONLoader("test.dat")
+    ambient = System.Loader("test.dat")
 
     plotter = System.Plotter()
     ambient.acceptVisitor(plotter)

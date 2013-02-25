@@ -46,7 +46,7 @@ class Component(object):
     :meth:`~Core.Component.acceptVisitor` method
     """
     
-    componentCounter    = 0
+    componentCounter          = 0
     TRACING_FOV               = 1
     TRACING_LASER_REFLECTION  = 0
     
@@ -968,17 +968,20 @@ class RayBundle(Assembly):
     def __init__(self):
         Assembly.__init__(self)
         self.name                       = 'Bundle ' + str(self._id)
-        self.wavelength                 = None
-        self.startingPoints             = None
-        self.initialVectors             = None
-        self.rayPaths                   = None
+        # Ray tracing configuration
         self.maximumRayTrace            = 10
         self.stepRayTrace               = 0.1
         self.preAllocatedSteps          = 3
-        # Raytracing statistics
+        self.wavelength                 = None
+        self.startingPoints             = None
+        self.initialVectors             = None
+        # Ray tracing statistics
+        self.rayPaths                   = None
+        self.rayIntersections           = None
         self.rayLength                  = None
         self.steps                      = None
         self.finalIntersections         = None
+        
         
     @property
     def bounds(self):
@@ -1108,7 +1111,10 @@ class RayBundle(Assembly):
         currVector                  = copy.deepcopy(self.initialVectors)
         self.finalIntersections     = np.empty(nrays,dtype='object')
         # Do matrix pre-allocation to store ray paths
-        rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM))
+        rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM),
+                               dtype='double')
+        rayIntersc  = np.empty((self.preAllocatedSteps, nrays, 1),
+                               dtype='object')
         step        = 0
         rayPoints[step  ,:,:] = copy.deepcopy(self.startingPoints)
         rayPoints[step+1,:,:] = self.startingPoints + \
@@ -1119,14 +1125,16 @@ class RayBundle(Assembly):
             # Increase matrix size (if this is done too often, performance is
             # really, really bad. So adjust self.preAllocatedSteps wisely
             if step + 2 >= np.size(rayPoints,0):
-                #print "Reallocating ray paths, previous size: ", \
-                #       np.size(rayPoints,0), ", new size : ", \
-                #       str(step + self.preAllocatedSteps)
+                # Reallocate points vector
                 temp = np.empty((step + self.preAllocatedSteps, 
-                                 nrays, 
-                                 GLOBAL_NDIM))
+                                 nrays, GLOBAL_NDIM), dtype = "double")
                 temp[range(np.size(rayPoints,0))] = rayPoints
                 rayPoints = temp
+                # Reallocate intersections vector
+                temp = np.empty((step + self.preAllocatedSteps, 
+                                 nrays, GLOBAL_NDIM), dtype = "object")
+                temp[range(np.size(rayIntersc,0))] = rayIntersc
+                rayIntersc = temp
               
             # Ask for the top assembly to intersect the rays with the whole
             # Component tree, will receive results only for the first 
@@ -1140,6 +1148,7 @@ class RayBundle(Assembly):
                                                      GLOBAL_TOL)
             self.finalIntersections[t <= 1] = \
                                             surfaceRef[t <= 1]
+            rayIntersc[step+1,:,:] = np.reshape(surfaceRef,(nrays,1))
         
             # Calculate the distance ran by the rays
             distance = distance + \
@@ -1167,11 +1176,13 @@ class RayBundle(Assembly):
                                 currVector * np.tile(stepsize,(GLOBAL_NDIM,1)).T
                    
         # Now, clean up the mess with the preallocated matrix:
-        self.rayPaths = rayPoints[range(step+1)]
-        # Save raytracing statistics
+        self.rayPaths                   = rayPoints[range(step+1)]
+        self.rayIntersections  = rayIntersc[range(step+1)]
+        # Save ray tracing statistics
         self.rayLength                  = distance
         self.steps                      = step
         self.finalIntersections         = surfaceRef
+        
         # And create lines to represent the rays
         self._items = np.empty(nrays,"object")
         for n in range(nrays):
@@ -1830,4 +1841,3 @@ if __name__=="__main__":
     assert Utils.aeq(m.points, theorypoints)     
     
     print "************               END OF TESTS            ******************"
-    print "************                    DEMO               ******************"
