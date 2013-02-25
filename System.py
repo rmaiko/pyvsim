@@ -360,6 +360,7 @@ class JSONSaver(Visitor):
         
         for k in tempdict:
             if type(tempdict[k]) == np.ndarray:
+                # Converts arrays of objects to an array of strings
                 if tempdict[k].dtype == np.dtype(object):
                     for element in np.nditer(tempdict[k], 
                                              flags=['refs_ok'],
@@ -404,17 +405,23 @@ def JSONLoader(name):
             # Reconstruct all lists to numpy arrays
             if type(obj.__dict__[key]) == list:
                 obj.__dict__[key] = np.array(obj.__dict__[key])
-
                 # Reconstruct references from objectStrings
                 if obj.__dict__[key].dtype.char == "S" or \
-                    obj.__dict__[key].dtype.char == "U":
+                   obj.__dict__[key].dtype.char == "U" or \
+                   obj.__dict__[key].dtype.char == "O":
                     references = np.empty_like(obj.__dict__[key], object)
-                    iterator   = np.nditer(obj.__dict__[key], flags=['f_index'])
+                    iterator   = np.nditer(obj.__dict__[key], 
+                                           flags=['refs_ok','multi_index'])
                     while not iterator.finished:
                         idno = idFromObjectString(iterator[0][()])
+                        #print iterator[0][()], idno, objectlist[idlist.index(idno)]
                         if idno is not None:
-                            references[iterator.index] = objectlist[idlist.index(idno)]
+                            references[iterator.multi_index] = \
+                                                objectlist[idlist.index(idno)]
                         iterator.iternext()
+                    print "***** REFERENCES  ******"
+                    print key
+                    print references 
                     obj.__dict__[key] = references
                 
             # Reconstruct references outside lists
@@ -429,6 +436,8 @@ def JSONLoader(name):
             return obj
 
 def idFromObjectString(string):
+    if string is None:
+        return None
     p = re.split("%%", string)
     if p is not None:
         if len(p) == 4 :
