@@ -622,7 +622,7 @@ class Part(Component):
         """
         try:
             self.points = self.points + part2
-        except:
+        except TypeError:
             # There is no problem if a translation is executed before the points
             # are defined
             pass
@@ -641,7 +641,7 @@ class Part(Component):
         """
         try:
             self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
-        except:
+        except TypeError:
             # There is no problem if a rotation is executed before the points
             # are defined
             pass
@@ -695,7 +695,7 @@ class Line(Component):
         """
         try:
             self.points = self.points + part2
-        except:
+        except TypeError:
             # There is no problem if a translation is executed before the points
             # are defined
             pass
@@ -711,7 +711,7 @@ class Line(Component):
         """
         try:
             self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
-        except:
+        except TypeError:
             # There is no problem if a rotation is executed before the points
             # are defined
             pass
@@ -1074,7 +1074,7 @@ class RayBundle(Assembly):
         """
         try:
             self.startingPoints             = self.startingPoints + part2
-        except:
+        except TypeError:
             pass # there might be no starting points registered
                
     def rotateImplementation(self, angle, axis, pivotPoint):
@@ -1088,7 +1088,7 @@ class RayBundle(Assembly):
                                                      angle, axis, pivotPoint)
             self.initialVectors = Utils.rotateVector(self.initialVectors,
                                                       angle, axis)
-        except:
+        except TypeError:
             pass
         
     def trace(self):
