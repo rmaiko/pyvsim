@@ -602,13 +602,23 @@ if __name__=='__main__':
     
     environment.insert(c)
     #environment.insert(p)
-    
+#    
     pl = System.Plotter()
     environment.acceptVisitor(pl)
     pl.display()
-#    sv = System.JSONSaver()
-#    environment.acceptVisitor(sv)
-#    sv.dump("test.dat")
+    
+    sv = System.JSONSaver()
+    environment.acceptVisitor(sv)
+    sv.dump("test.dat")
+    
+    print globals()
+    
+    ambient = System.JSONLoader("test.dat")
+
+    plotter = System.Plotter()
+    ambient.acceptVisitor(plotter)
+    plotter.display()
+
     
 #    s = Sensor()
 #    print ""

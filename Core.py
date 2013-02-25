@@ -333,6 +333,7 @@ class Part(Component):
         self._triangleVectors           = None
         self._trianglePoints            = None
         self._triangleNormals           = None
+        self._triVectorsDots            = None
         
     @property
     def bounds(self):
@@ -357,6 +358,12 @@ class Part(Component):
         if self._triangleNormals is None:
             self._computeRaytracingData()
         return self._triangleNormals
+    
+    @property
+    def triVectorsDots(self):
+        if self._triVectorsDots is None:
+            self._computeRaytracingData()
+        return self._triVectorsDots
     
     def _computeRaytracingData(self):
         """
@@ -402,9 +409,10 @@ class Part(Component):
             UV              = np.sum(V1*V2,1)
             VV              = np.sum(V2*V2,1)
             UVden           = (UV**2 - UU*VV)
-            self._triangleVectors    = [V1,V2,UU,UV,VV,UVden]
+            self._triangleVectors    = np.array([V1,V2])
+            self._triVectorsDots     = np.array([UU,UV,VV,UVden])
             self._trianglePoints     = Ptriangles
-            self._triangleNormals    = [N,Nnorm]
+            self._triangleNormals    = np.array([N,Nnorm])
         else:
             self._bounds = np.zeros((2,3))
                 
@@ -464,7 +472,8 @@ class Part(Component):
         # Start dumb search, step 1 - determine if line intercept triangle plane
         #
         Ptriangles                  = self.trianglePoints
-        [V1,V2,UU,UV,VV,UVden]      = self.triangleVectors
+        [V1,V2]                     = self.triangleVectors
+        [UU,UV,VV,UVden]            = self.triVectorsDots
         [N,Nnorm]                   = self.triangleNormals
        
         # Some variable definitions to make latter code more readable:
@@ -1167,6 +1176,7 @@ class RayBundle(Assembly):
         self._items = np.empty(nrays,"object")
         for n in range(nrays):
             self._items[n] = Line()
+            self._items[n].parent = self
             self._items[n].points = self.rayPaths[:,n,:]
             self._items[n].color  = Utils.metersToRGB(self.wavelength[n])
             

@@ -53,7 +53,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 100
+    nrays = 200
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
@@ -105,4 +105,15 @@ if __name__=="__main__":
     # for plotting
     assembly.acceptVisitor(plotter)
     # Finally, display everything
+    plotter.display()
+    
+    # Demonstrating how to save and load the simulation
+    sv = System.JSONSaver()
+    assembly.acceptVisitor(sv)
+    sv.dump("test.dat")
+    
+    ambient = System.JSONLoader("test.dat")
+
+    plotter = System.Plotter()
+    ambient.acceptVisitor(plotter)
     plotter.display()

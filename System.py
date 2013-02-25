@@ -21,7 +21,6 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import matplotlib.pyplot as plt
 import copy
 import Core
-import Toolbox
 import pprint 
 import json
 import re
@@ -334,11 +333,11 @@ class JSONSaver(Visitor):
         for k in tempdict:
             if type(tempdict[k]) == np.ndarray:
                 if tempdict[k].dtype == np.dtype(object):
-                    tempdict[k] = tempdict[k].tolist()
-                    for (n, element) in enumerate(tempdict[k]):
-                        tempdict[k][n] = objectString(element)
-                else:
-                    tempdict[k] = tempdict[k].tolist()
+                    for element in np.nditer(tempdict[k], 
+                                             flags=['refs_ok'],
+                                             op_flags=['readwrite']):
+                        element[...] = objectString(element[()])
+                tempdict[k] = tempdict[k].tolist()
                     
             if isinstance(tempdict[k], Core.Component):
                 tempdict[k] = objectString(tempdict[k])
@@ -355,9 +354,69 @@ class JSONSaver(Visitor):
             finally:
                 f.close()
 
-#def cutObjectString(obj):
-#    p = re.compile()
-    
+def JSONLoader(name):
+    f = open(name, 'r')
+    try:
+        filecontent = f.read()
+    finally:
+        f.close()
+        
+    allobjects = json.loads(filecontent)
+    # Reconstruct all objects first
+    objectlist = []
+    idlist     = []
+    for key in allobjects.keys():
+        objectlist.append(instantiateFromObjectString(key))
+        idlist.append(allobjects[key]["_id"])
+        objectlist[-1].__dict__ = allobjects[key]
+        
+    # Now reconstruct internal object references and numpy arrays
+    for obj in objectlist:
+        for key in obj.__dict__:
+            # Reconstruct all lists to numpy arrays
+            if type(obj.__dict__[key]) == list:
+                obj.__dict__[key] = np.array(obj.__dict__[key])
+
+                # Reconstruct references from objectStrings
+                if obj.__dict__[key].dtype.char == "S" or \
+                    obj.__dict__[key].dtype.char == "U":
+                    references = np.empty_like(obj.__dict__[key], object)
+                    iterator   = np.nditer(obj.__dict__[key], flags=['f_index'])
+                    while not iterator.finished:
+                        idno = idFromObjectString(iterator[0][()])
+                        if idno is not None:
+                            references[iterator.index] = objectlist[idlist.index(idno)]
+                        iterator.iternext()
+                    obj.__dict__[key] = references
+                
+            # Reconstruct references outside lists
+            if type(obj.__dict__[key]) == str:
+                idno = idFromObjectString(iterator[0])
+                if idno is not None:
+                    obj.__dict__[key] = objectlist[idlist.index(idno)]
+                    
+    # Find parent
+    for obj in objectlist:
+        if obj.parent is None:
+            return obj
+
+def idFromObjectString(string):
+    p = re.split("%%", string)
+    if p is not None:
+        if len(p) == 4 :
+            if (p[0] == "PYVSIMOBJECT") and (p[2] == "IDNUMBER"):
+                return int(p[3])
+    return None
+
+def instantiateFromObjectString(string):
+    p = re.split("%%", string)
+    assert (p[0] == "PYVSIMOBJECT") 
+    assert (p[2] == "IDNUMBER")
+    p = re.split("[\.\']",p[1])
+    assert (p[0] == "<class ")
+    assert (p[3] == ">")
+    module = __import__(p[1])
+    return getattr(module,str(p[2]))()
 
 def objectString(obj):
     if obj is not None:
