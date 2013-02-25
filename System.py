@@ -92,7 +92,9 @@ class VTKPlotter(Visitor):
         
     def visit(self, obj):       
         # Will not plot something without points
-        if obj.points is None:
+        if not hasattr(obj, 'points'):
+            return None
+        elif obj.points is None:
             return None
         
         # If has no connectivity, it is probably a line
@@ -252,7 +254,9 @@ class PythonPlotter(Visitor):
         
     def visit(self, obj):       
         # Will not plot something without points
-        if obj.points is None:
+        if not hasattr(obj, 'points'):
+            return None
+        elif obj.points is None:
             return None
         
         # If has no connectivity, it is probably a line
