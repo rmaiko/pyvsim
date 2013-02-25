@@ -430,6 +430,7 @@ class Objective(Core.Part):
         self._focusingDistance           =  10
         self.aperture                    =  2
         #Calculated parameters
+        self.focusingOffset             = None
         self.PEcenter                   = None
         self.PXcenter                   = None
         self.Ecenter                    = None
@@ -486,10 +487,11 @@ class Objective(Core.Part):
         a                       = self.E - self.H
         v_bar                   = part2 + a - part2*a/self.F
         
-        self.PXcenter    = v_bar - self.flangeFocalDistance
-        self.PEcenter    = self.origin + self.x * self.E
-        self.Ecenter     = self.origin + self.x * self.E
-        self.Xcenter     = self.origin + self.x * self.X
+        self.focusingOffset = d_line
+        self.PXcenter       = v_bar - self.flangeFocalDistance
+        self.PEcenter       = self.origin + self.x * self.E
+        self.Ecenter        = self.origin + self.x * self.E
+        self.Xcenter        = self.origin + self.x * self.X
         
     def clearData(self):
         """

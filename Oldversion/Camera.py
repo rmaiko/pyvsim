@@ -13,7 +13,7 @@ import Ray
 
 class Camera(Object.Assembly):
     CIRCLE_OF_CONFUSION_DIAMETER = 29e-6 # 29 microns is used in photographic literature
-    MAPPING_SAMPLING_POINTS      = 200
+    MAPPING_SAMPLING_POINTS      = 20
     def __init__(self):
         # Properties inherited from Object
         Object.Assembly.__init__(self)
@@ -165,7 +165,8 @@ class Camera(Object.Assembly):
                                          [Y[i+1,j  ],Z[i+1,j  ]],
                                          [Y[i+1,j+1],Z[i+1,j+1]],
                                          [Y[i  ,j+1],Z[i  ,j+1]]]) 
-                regression = np.linalg.lstsq(realpoints,sensorpoints)
+                regression = np.linalg.lstsq(realpoints,sensorpoints,1000)
+                print regression[3]
                 M[i,j,:,:] = regression[0]
                 error[i,j] = (np.sum(
                              (np.dot(np.array([Xrc[i,j],Yrc[i,j],Zrc[i,j],1]),M[i,j,:,:]) - 

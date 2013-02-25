@@ -37,6 +37,9 @@ except:
     MPL_PRESENT = False
     print "Matplotlib not found or not compatible"
 
+VERSION = "1.0"
+
+
 def Plotter(mode="vtk"):
     """
     This is a factory that returns a plotter visitor.
@@ -114,7 +117,7 @@ class VTKPlotter(Visitor):
             axesActor.SetShaftTypeToLine()
             self.actorList.append(axesActor)
                     
-        window = PIVSimWindow()
+        window = self.VTKWindow()
         window.addActors(self.actorList)
         window.start()
         return window
@@ -192,12 +195,57 @@ class VTKPlotter(Visitor):
             
         return dataActor
     
+    class VTKWindow(threading.Thread):
+        """
+        A window to plot objects using VTK. Even though this stays in a separate
+        thread, a error in VTK interface to Python makes it wait until the
+        window is closed.
+        """
+        def __init__(self):
+            threading.Thread.__init__(self)        
+            self.footText       = "PyVSim ver. " + VERSION
+            self.windowTitle    = "PyVSim Visualization window - powered by VTK"
+            self.windowColor    = [0,0.35,0.55]
+            self.windowSize     = [800,800]
+            self.actorlist      = None
+            
+            self.rend           = vtk.vtkRenderer()
+            self.window         = vtk.vtkRenderWindow()
+            self.interactor     = vtk.vtkRenderWindowInteractor()
+            self.legend         = vtk.vtkTextActor()
+            
+            self.rend.SetBackground(self.windowColor[0],
+                                    self.windowColor[1],
+                                    self.windowColor[2])
+    
+            
+            self.window.SetSize(self.windowSize[0],self.windowSize[0])
+            self.window.AddRenderer(self.rend)
+    
+            self.interactor.SetRenderWindow(self.window)   
+    
+            self.legend.GetTextProperty().SetFontSize(12)
+            self.legend.SetPosition2(0,0)
+            self.legend.SetInput(self.footText)
+            self.rend.AddActor(self.legend)  
+        
+        def addActors(self,actorlist):
+            self.actorlist = actorlist
+            for actor in actorlist:
+                self.rend.AddActor(actor)
+                
+        def run(self):
+            self.window.Render()
+            self.window.SetWindowName(self.windowTitle)
+            self.interactor.Start()
+    
 class PythonPlotter(Visitor):
     def __init__(self):
         Visitor.__init__(self)
         self.fig = plt.figure()
         self.fig.canvas.set_window_title('PyVSim Visualization window ' + \
-                                          '- powered by Matplotlib') 
+                                         'ver. ' + VERSION + \
+                                          ' - powered by Matplotlib') 
         self.ax  = self.fig.gca(projection='3d')
         
     def visit(self, obj):       
@@ -275,47 +323,5 @@ class PythonPlotter(Visitor):
             #col.set_array(val)
             #col.set_cmap(cm.hot)
             self.ax.add_collection(col)
-    
-class PIVSimWindow(threading.Thread):
-    """
-    A window to plot objects using VTK. Even though this stays in a separate
-    thread, a error in VTK interface to Python makes it wait until the
-    window is closed.
-    """
-    def __init__(self):
-        threading.Thread.__init__(self)        
-        self.footText       = "PyVSim ver. 1.0"
-        self.windowTitle    = "PyVSim Visualization window - powered by VTK"
-        self.windowColor    = [0,0.35,0.55]
-        self.windowSize     = [800,800]
-        self.actorlist      = None
-        
-        self.rend           = vtk.vtkRenderer()
-        self.window         = vtk.vtkRenderWindow()
-        self.interactor     = vtk.vtkRenderWindowInteractor()
-        self.legend         = vtk.vtkTextActor()
-        
-        self.rend.SetBackground(self.windowColor[0],
-                                self.windowColor[1],
-                                self.windowColor[2])
 
-        
-        self.window.SetSize(self.windowSize[0],self.windowSize[0])
-        self.window.AddRenderer(self.rend)
 
-        self.interactor.SetRenderWindow(self.window)   
-
-        self.legend.GetTextProperty().SetFontSize(12)
-        self.legend.SetPosition2(0,0)
-        self.legend.SetInput(self.footText)
-        self.rend.AddActor(self.legend)  
-    
-    def addActors(self,actorlist):
-        self.actorlist = actorlist
-        for actor in actorlist:
-            self.rend.AddActor(actor)
-            
-    def run(self):
-        self.window.Render()
-        self.window.SetWindowName(self.windowTitle)
-        self.interactor.Start()
