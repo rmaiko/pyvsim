@@ -25,10 +25,6 @@ import pprint
 import json
 import re
 import cPickle
-"""
-The following imports are not mandatory (e.g., the user might not have Python
-VTK installed. So the try/except blocks are programmed accordingly
-"""
 try:
     import vtk
     VTK_PRESENT = True
