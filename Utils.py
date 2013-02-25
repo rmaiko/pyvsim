@@ -161,7 +161,7 @@ def aeq(a,b,tol=1e-8):
             return False
         else:
             return True
-    except TypeError:
+    except IndexError:
         return not temp
 
 class Tictoc:
