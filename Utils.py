@@ -161,7 +161,7 @@ def aeq(a,b,tol=1e-8):
             return False
         else:
             return True
-    except:
+    except TypeError:
         return not temp
 
 class Tictoc:
@@ -481,7 +481,7 @@ def listTimesVec(HEXA_CONN_PARTIAL,part2):
         else:
             return np.tile(HEXA_CONN_PARTIAL,(len(part2),1)).T * \
                    np.tile(part2,(len(HEXA_CONN_PARTIAL),1))
-    except:
+    except ValueError:
         return HEXA_CONN_PARTIAL*part2
        
 def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4): 
