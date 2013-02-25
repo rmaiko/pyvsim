@@ -17,8 +17,14 @@ limitations under the License.
 """
 import threading
 import numpy as np
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
+import matplotlib.pyplot as plt
 import copy
 import Core
+import Toolbox
+import pprint 
+import json
+import re
 """
 The following imports are not mandatory (e.g., the user might not have Python
 VTK installed. So the try/except blocks are programmed accordingly
@@ -26,19 +32,10 @@ VTK installed. So the try/except blocks are programmed accordingly
 try:
     import vtk
     VTK_PRESENT = True
-except:
+except ImportError:
     VTK_PRESENT = False
     print "VTK not found"
     
-try:
-    #from mpl_toolkits.mplot3d import Axes3D
-    from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
-    import matplotlib.pyplot as plt
-    MPL_PRESENT = True
-except:
-    MPL_PRESENT = False
-    print "Matplotlib not found or not compatible"
-
 VERSION = "1.0"
 
 
@@ -58,19 +55,16 @@ def Plotter(mode="vtk"):
     "mpl"
         Uses Matplotlib to plot the environment
     """
-    if not MPL_PRESENT:
-        raise ImportError("Could not import a library for plotting. PyVSim" + \
-                        "uses Matplotlib and (optionally) VTK")
-        
-    if mode == "vtk" and VTK_PRESENT:
-        return VTKPlotter()
-    
-    if mode == "vtk" and not VTK_PRESENT:
-        print "Could not return a VTK plotter, returning a Matplotlib plotter"
+    if mode == "vtk":
+        if VTK_PRESENT:
+            return VTKPlotter()
+        else:
+            print "Could not return a VTK plotter, returning a Matplotlib plotter"
+            return PythonPlotter()
+    elif mode == "mpl":
         return PythonPlotter()
-    
-    if mode == "mpl":
-        return PythonPlotter()
+    else:
+        raise ValueError("Could not understand input " + mode)
     
     raise ImportError("Could not import a library for plotting. PyVSim" + \
                         "uses both Matplotlib and VTK")
@@ -342,29 +336,31 @@ class JSONSaver(Visitor):
                 if tempdict[k].dtype == np.dtype(object):
                     tempdict[k] = tempdict[k].tolist()
                     for (n, element) in enumerate(tempdict[k]):
-                        tempdict[k][n] = objectstring(element)
+                        tempdict[k][n] = objectString(element)
                 else:
                     tempdict[k] = tempdict[k].tolist()
                     
             if isinstance(tempdict[k], Core.Component):
-                tempdict[k] = objectstring(tempdict[k])
+                tempdict[k] = objectString(tempdict[k])
                 
-        self.myobjects[objectstring(obj)] = tempdict
+        self.myobjects[objectString(obj)] = tempdict
                 
     def dump(self, name = None):
         if name is None:
-            import pprint
             pprint.pprint(self.myobjects, indent = 4)
         else:
-            import json
             f = open(name,'w')
             try:
                 f.write(json.dumps(self.myobjects))
             finally:
                 f.close()
 
-def objectstring(obj):
+#def cutObjectString(obj):
+#    p = re.compile()
+    
+
+def objectString(obj):
     if obj is not None:
-        return "PYVSIMOBJECT&&" + str(type(obj)) + "&&IDNUMBER&&" + str(obj.id)
+        return "PYVSIMOBJECT%%" + str(type(obj)) + "%%IDNUMBER%%" + str(obj.id)
     else:
         return None
