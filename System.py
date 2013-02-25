@@ -24,6 +24,7 @@ import Core
 import pprint 
 import json
 import re
+import cPickle
 """
 The following imports are not mandatory (e.g., the user might not have Python
 VTK installed. So the try/except blocks are programmed accordingly
@@ -323,8 +324,35 @@ class PythonPlotter(Visitor):
             #col.set_cmap(cm.hot)
             self.ax.add_collection(col)
 
+class Saver(Visitor):
+    def __init__(self):
+        self.topickle = None
+        
+    def visit(self, obj):
+        if obj.parent is None:
+            self.topickle = obj
+            
+    def dump(self, name = None):
+        if name is None:
+            cPickle.dump(self.topickle)
+        else:
+            f = open(name,'w')
+            try:
+                cPickle.dump(self.topickle, f)
+            finally:
+                f.close()
+           
+def Loader(name):
+    f = open(name,'r')
+    try:
+        rawdata = cPickle.load(f)
+    finally:
+        f.close()
+    return rawdata
+
 class JSONSaver(Visitor):
     def __init__(self):
+        Visitor.__init__(self)
         self.myobjects = {}
         
     def visit(self, obj):
