@@ -34,6 +34,54 @@ except ImportError:
     
 VERSION = "1.0"
 
+def plot(obj, mode="vtk", displayAxes = True):
+    """
+    Convenience function to avoid the routine of creating visitor, making it
+    visit the part tree and ask for plotting.
+    """
+    plotter = Plotter(mode)
+    obj.acceptVisitor(plotter)
+    plotter.display(displayAxes)
+    
+def save(obj, filename=None, mode="pickle"): 
+    """
+    Convenience function for saving a part tree. Pickle is chosen
+    by default, use JSON only if you need human readable output
+    
+    mode
+        Can be None (trial and error), json or pickle
+    """
+    if mode == "pickle":
+        saver = Saver()
+    elif mode == "json":
+        saver = JSONSaver()
+        
+    obj.acceptVisitor(saver)
+    saver.dump(filename)
+    # cPickle.UnpicklingError
+    # ValueError
+
+def load(filename, mode = None):
+    """
+    Convenience function for loading a part tree. Pickle/JSON is chosen
+    by trial and error
+    
+    mode
+        Can be None (trial and error), json or pickle
+    """
+    if mode is not "json":
+        try:
+            return Loader(filename)
+        except cPickle.UnpicklingError:
+            print "Could not decode pickle, trying JSON"
+        
+    try:
+        return JSONLoader(filename)
+    except ValueError:
+        print "Could not decode JSON"
+        raise ValueError("Could not decode either pickle or JSON")
+        
+        
 
 def Plotter(mode="vtk"):
     """
