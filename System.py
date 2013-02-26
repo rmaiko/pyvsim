@@ -419,9 +419,6 @@ def JSONLoader(name):
                             references[iterator.multi_index] = \
                                                 objectlist[idlist.index(idno)]
                         iterator.iternext()
-                    print "***** REFERENCES  ******"
-                    print key
-                    print references 
                     obj.__dict__[key] = references
                 
             # Reconstruct references outside lists

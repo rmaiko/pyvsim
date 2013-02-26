@@ -57,3 +57,13 @@ work.
 #print t2.points
 #t2.points = [2,3,4]
 #print t2.points
+
+import numpy as np
+M = np.random.rand(3,3,3)
+print M
+it = np.nditer(M, flags=['multi_index'])
+while not it.finished:
+    print it[0], it.multi_index
+    M[it.multi_index] = 1
+    it.iternext()
+print M

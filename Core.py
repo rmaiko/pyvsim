@@ -927,7 +927,11 @@ class Assembly(Component):
                 else:
                     pass # if nothing was found, nothing was found
               
-        return [lineParameter, coordinates, triangleNumber, normalVector, intersectedSurface]
+        return [lineParameter, 
+                coordinates, 
+                triangleNumber, 
+                normalVector, 
+                intersectedSurface]
       
     def translateImplementation(self, vector):
         """
@@ -1177,7 +1181,7 @@ class RayBundle(Assembly):
                    
         # Now, clean up the mess with the preallocated matrix:
         self.rayPaths                   = rayPoints[range(step+1)]
-        self.rayIntersections  = rayIntersc[range(step+1)]
+        self.rayIntersections           = rayIntersc[range(step+1)]
         # Save ray tracing statistics
         self.rayLength                  = distance
         self.steps                      = step

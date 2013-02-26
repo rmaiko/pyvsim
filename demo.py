@@ -108,11 +108,11 @@ if __name__=="__main__":
     plotter.display()
     
     # Demonstrating how to save and load the simulation
-    sv = System.Saver()
+    sv = System.JSONSaver()
     assembly.acceptVisitor(sv)
     sv.dump("test.dat")
     
-    ambient = System.Loader("test.dat")
+    ambient = System.JSONLoader("test.dat")
 
     plotter = System.Plotter()
     ambient.acceptVisitor(plotter)
