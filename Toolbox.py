@@ -603,21 +603,13 @@ if __name__=='__main__':
     environment.insert(c)
     #environment.insert(p)
 #    
-    pl = System.Plotter()
-    environment.acceptVisitor(pl)
-    pl.display()
-    
-    sv = System.Saver()
-    environment.acceptVisitor(sv)
-    sv.dump("test.dat")
-    
-    print globals()
-    
-    ambient = System.Loader("test.dat")
+    System.plot(environment)
 
-    plotter = System.Plotter()
-    ambient.acceptVisitor(plotter)
-    plotter.display()
+    System.save(environment, "test.dat")
+    
+    ambient = System.load("test.dat")
+
+    System.plot(ambient)
 
     
 #    s = Sensor()

@@ -25,10 +25,6 @@ import pprint
 import json
 import re
 import cPickle
-"""
-The following imports are not mandatory (e.g., the user might not have Python
-VTK installed. So the try/except blocks are programmed accordingly
-"""
 try:
     import vtk
     VTK_PRESENT = True
@@ -38,6 +34,54 @@ except ImportError:
     
 VERSION = "1.0"
 
+def plot(obj, mode="vtk", displayAxes = True):
+    """
+    Convenience function to avoid the routine of creating visitor, making it
+    visit the part tree and ask for plotting.
+    """
+    plotter = Plotter(mode)
+    obj.acceptVisitor(plotter)
+    plotter.display(displayAxes)
+    
+def save(obj, filename=None, mode="pickle"): 
+    """
+    Convenience function for saving a part tree. Pickle is chosen
+    by default, use JSON only if you need human readable output
+    
+    mode
+        Can be None (trial and error), json or pickle
+    """
+    if mode == "pickle":
+        saver = Saver()
+    elif mode == "json":
+        saver = JSONSaver()
+        
+    obj.acceptVisitor(saver)
+    saver.dump(filename)
+    # cPickle.UnpicklingError
+    # ValueError
+
+def load(filename, mode = None):
+    """
+    Convenience function for loading a part tree. Pickle/JSON is chosen
+    by trial and error
+    
+    mode
+        Can be None (trial and error), json or pickle
+    """
+    if mode is not "json":
+        try:
+            return Loader(filename)
+        except cPickle.UnpicklingError:
+            print "Could not decode pickle, trying JSON"
+        
+    try:
+        return JSONLoader(filename)
+    except ValueError:
+        print "Could not decode JSON"
+        raise ValueError("Could not decode either pickle or JSON")
+        
+        
 
 def Plotter(mode="vtk"):
     """
@@ -80,6 +124,9 @@ class Visitor(object):
         raise NotImplementedError
         
 class VTKPlotter(Visitor):
+    """
+    This class takes a snapshot of the assembly tree and generates a VTK plot.
+    """
     def __init__(self):
         Visitor.__init__(self)
         self.actorList = []
@@ -238,6 +285,10 @@ class VTKPlotter(Visitor):
             self.interactor.Start()
     
 class PythonPlotter(Visitor):
+    """
+    This visitor class creates a plot of the assembly tree using the
+    Matplotlib library from python.
+    """
     def __init__(self):
         Visitor.__init__(self)
         self.fig = plt.figure()
@@ -246,7 +297,11 @@ class PythonPlotter(Visitor):
                                           ' - powered by Matplotlib') 
         self.ax  = self.fig.gca(projection='3d')
         
-    def visit(self, obj):       
+    def visit(self, obj):  
+        """
+        Takes a snapshot of the object and creates a elements in a Matplotlib
+        window.
+        """     
         # Will not plot something without points
         if not hasattr(obj, 'points'):
             return None
@@ -325,6 +380,13 @@ class PythonPlotter(Visitor):
             self.ax.add_collection(col)
 
 class Saver(Visitor):
+    """
+    This is the standard PyVSim saving routine, using python cPickle. The
+    performance is quite good and does not require complicated parsing and
+    conversion of the tree. However, the result is not human readable.
+    
+    Use when performance and reliability are desired.
+    """
     def __init__(self):
         self.topickle = None
         
@@ -343,6 +405,10 @@ class Saver(Visitor):
                 f.close()
            
 def Loader(name):
+    """
+    Loads an assembly from a python pickle file. This is the preferred 
+    implementation, as it's faster and more reliable.
+    """
     f = open(name,'r')
     try:
         rawdata = cPickle.load(f)
@@ -351,11 +417,24 @@ def Loader(name):
     return rawdata
 
 class JSONSaver(Visitor):
+    """
+    This class follows the visitor pattern to traverse the assembly tree
+    and serialize all objects to JSON. There is quite a lot of conversion
+    work being done, since there are many cross-references and numpy arrays
+    (that are not supported by python json implementation), so this method
+    is not fast and not very reliable. The advantage is that is generates
+    human-readable (or almost) outputs.
+    """
     def __init__(self):
         Visitor.__init__(self)
         self.myobjects = {}
         
     def visit(self, obj):
+        """
+        This is the main method to access the assembly tree. Notice that
+        this takes only a snapshot and doesn't store references, so if changes
+        are made, the tree must be visited again.
+        """
         tempdict  = copy.deepcopy(obj.__dict__)
         
         for k in tempdict:
@@ -374,16 +453,28 @@ class JSONSaver(Visitor):
         self.myobjects[objectString(obj)] = tempdict
                 
     def dump(self, name = None):
+        """
+        Use this to dump the snapshot taken with the "visit" method
+        to a file or to the screen.
+        
+        As the intention of this class is to generate human-readable output,
+        the file contains line breaks and indents.
+        """
         if name is None:
             pprint.pprint(self.myobjects, indent = 4)
         else:
             f = open(name,'w')
             try:
-                f.write(json.dumps(self.myobjects))
+                f.write(json.dumps(self.myobjects, indent = 2))
             finally:
                 f.close()
 
 def JSONLoader(name):
+    """
+    This function returns an assembly tree with the contents of the specified
+    file. Please note that absolutely no checks are performed to guarantee that
+    the file is really a JSON (not a pickle).
+    """
     f = open(name, 'r')
     try:
         filecontent = f.read()
@@ -419,6 +510,9 @@ def JSONLoader(name):
                             references[iterator.multi_index] = \
                                                 objectlist[idlist.index(idno)]
                         iterator.iternext()
+#                    print "***** REFERENCES  ******"
+#                    print key
+#                    print references 
                     obj.__dict__[key] = references
                 
             # Reconstruct references outside lists
@@ -433,6 +527,11 @@ def JSONLoader(name):
             return obj
 
 def idFromObjectString(string):
+    """
+    This method is used for validating a string describing an object and 
+    returning the internal identification number of this object (this is 
+    used in rebuilding the references in a JSON file).
+    """
     if string is None:
         return None
     p = re.split("%%", string)
@@ -443,6 +542,11 @@ def idFromObjectString(string):
     return None
 
 def instantiateFromObjectString(string):
+    """
+    This method is capable of reading and validating a string describing 
+    an object. If everything is ok, will return an instance of this object
+    initialized without parameters.
+    """
     p = re.split("%%", string)
     assert (p[0] == "PYVSIMOBJECT") 
     assert (p[2] == "IDNUMBER")
@@ -453,6 +557,10 @@ def instantiateFromObjectString(string):
     return getattr(module,str(p[2]))()
 
 def objectString(obj):
+    """
+    Takes an object derivated from the Core.Component class and generates
+    a string to identify it.
+    """
     if obj is not None:
         return "PYVSIMOBJECT%%" + str(type(obj)) + "%%IDNUMBER%%" + str(obj.id)
     else:

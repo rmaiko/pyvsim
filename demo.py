@@ -99,21 +99,14 @@ if __name__=="__main__":
     print "Number of steps     : ", bundle.steps
        
     # Now we ask for a plotter object
-    # if you want to have some fun, try: System.Plotter("mpl")
-    plotter = System.Plotter()
-    # Now we make the plotter visit our assembly and gather the data
-    # for plotting
-    assembly.acceptVisitor(plotter)
-    # Finally, display everything
-    plotter.display()
+    # if you want to have some fun, try: System.plot(assembly,mode="mpl")
+    System.plot(assembly)
     
     # Demonstrating how to save and load the simulation
-    sv = System.JSONSaver()
-    assembly.acceptVisitor(sv)
-    sv.dump("test.dat")
+    # If you need human-readable output, use:
+    # System.save(assembly, "test.dat", mode = "json")
+    System.save(assembly, "test.dat")
     
-    ambient = System.JSONLoader("test.dat")
+    ambient = System.load("test.dat")
 
-    plotter = System.Plotter()
-    ambient.acceptVisitor(plotter)
-    plotter.display()
+    System.plot(ambient)
