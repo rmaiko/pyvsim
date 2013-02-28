@@ -100,13 +100,16 @@ if __name__=="__main__":
        
     # Now we ask for a plotter object
     # if you want to have some fun, try: System.plot(assembly,mode="mpl")
-    System.plot(assembly)
+    System.plot(assembly,mode="mpl")
     
     # Demonstrating how to save and load the simulation
     # If you need human-readable output, use:
     # System.save(assembly, "test.dat", mode = "json")
-    System.save(assembly, "test.dat")
+    System.save(assembly, "test.dat", mode="json")
     
     ambient = System.load("test.dat")
-
+    ambient.translate(np.array([0,-1.5,0]))
+    ambient.remove(2)
+    ambient.items[1].trace()
+    
     System.plot(ambient)
