@@ -516,8 +516,9 @@ def JSONLoader(name):
                     obj.__dict__[key] = references
                 
             # Reconstruct references outside lists
-            if type(obj.__dict__[key]) == str:
-                idno = idFromObjectString(iterator[0])
+            if type(obj.__dict__[key]) == str or \
+               type(obj.__dict__[key]) == unicode:
+                idno = idFromObjectString(obj.__dict__[key])
                 if idno is not None:
                     obj.__dict__[key] = objectlist[idlist.index(idno)]
                     
