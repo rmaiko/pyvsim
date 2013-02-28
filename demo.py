@@ -98,18 +98,22 @@ if __name__=="__main__":
     tic.toc()
     print "Number of steps     : ", bundle.steps
        
-    # Now we ask for a plotter object
-    # if you want to have some fun, try: System.plot(assembly,mode="mpl")
+    # Now we plot the scenario, there are two modes of doing that:
     System.plot(assembly,mode="mpl")
+    System.plot(assembly,mode="vtk") # Comment if you don't have python VTK
+    System.plot(assembly) 
+    # VTK is default, if you don't have it, will
+    # plot using matplotlib
     
     # Demonstrating how to save and load the simulation
-    # If you need human-readable output, use:
-    # System.save(assembly, "test.dat", mode = "json")
-    System.save(assembly, "test.dat", mode="json")
+    System.save(assembly, "test_pickle.dat")       # Not human readable
+    System.save(assembly, "test.dat", mode="json") # Human-readable, very slow
     
     ambient = System.load("test.dat")
-    ambient.translate(np.array([0,-1.5,0]))
-    ambient.remove(2)
-    ambient.items[1].trace()
-    
+    # Loaded scenarios can be manipulated exactly the same way as scenarios
+    # generated with scripts
+    ambient.translate(np.array([0,-1.5,0])) # Translate everything
+    ambient.remove(2)                       # Remove second volume
+    ambient.items[1].trace()                # Retrace
+    # Plotting the changed scenario
     System.plot(ambient)
