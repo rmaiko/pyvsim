@@ -474,6 +474,12 @@ def JSONLoader(name):
     This function returns an assembly tree with the contents of the specified
     file. Please note that absolutely no checks are performed to guarantee that
     the file is really a JSON (not a pickle).
+    
+    This implementation is definetely not elegant, as it has to check for some
+    very specific data structures (viz. lists of lists of lists of strings) and
+    reconstructs only simulation objects, however this seems to be the only
+    simple way of doing JSON parsing of such objects, as json, contrary to 
+    pickle has no support for user classes.
     """
     f = open(name, 'r')
     try:
