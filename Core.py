@@ -91,10 +91,10 @@ class Component(object):
             return 0
         if self.terminalAlways:
             return -1
-        if (self.tracingRule == self.TRACING_FOV) and \
+        if (self.tracingRule == RayBundle.TRACING_FOV) and \
             (self.terminalOnFOVCalculation):
             return -1
-        if (self.tracingRule == self.TRACING_FOV) and \
+        if (self.tracingRule == RayBundle.TRACING_FOV) and \
             (self.lightSource):
             return 1
         
@@ -1727,7 +1727,7 @@ if __name__=="__main__":
     part.lightSource                = False
     print "Items:"
     print assembly.items
-    assembly.tracingRule            = Component.TRACING_LASER_REFLECTION
+    assembly.tracingRule            = RayBundle.TRACING_LASER_REFLECTION
     
     bundle = RayBundle()
     bundle.translate(np.array([0.5,0.5,0.5]))
