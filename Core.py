@@ -47,9 +47,7 @@ class Component(object):
     """
     
     componentCounter          = 0
-    TRACING_FOV               = 1
-    TRACING_LASER_REFLECTION  = 0
-    
+   
     def __init__(self):
         self._id                        = Component.componentCounter
         self.name                       = str(self._id)
@@ -67,7 +65,7 @@ class Component(object):
         self.terminalAlways             = False
         self.reflectAlways              = False
         self.lightSource                = False
-        self.tracingRule                = Component.TRACING_LASER_REFLECTION
+        self.tracingRule                = None
         
     @property
     def id(self):               return self._id
@@ -737,7 +735,7 @@ class Assembly(Component):
     def __init__(self):
         self._items                     = np.array([])
         self._bounds                    = None
-        self._tracingRule               = Component.TRACING_LASER_REFLECTION
+        self._tracingRule               = None
         Component.__init__(self)
         self.name                       = 'Assembly '+str(self._id)
     
@@ -969,6 +967,9 @@ class RayBundle(Assembly):
     
     This can be called a discardable class
     """
+    TRACING_FOV               = 1
+    TRACING_LASER_REFLECTION  = 0
+    
     def __init__(self):
         Assembly.__init__(self)
         self.name                       = 'Bundle ' + str(self._id)
@@ -1098,7 +1099,7 @@ class RayBundle(Assembly):
         except TypeError:
             pass
         
-    def trace(self):
+    def trace(self, tracingRule = RayBundle.TRACING_FOV):
         # Make sure everything is clear
         self.clearData()
         
@@ -1106,6 +1107,8 @@ class RayBundle(Assembly):
         topComponent = self
         while topComponent.parent is not None:
             topComponent = topComponent.parent
+        # Tells all components which kind of ray tracing this is
+        topComponent.tracingRule = tracingRule
         
         # Shortcut to the number of rays being traced:
         nrays = np.size(self.startingPoints, 0)
