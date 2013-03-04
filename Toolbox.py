@@ -419,16 +419,17 @@ class Objective(Core.Part):
         self.createPoints()
         # Main planes model
         self.flangeFocalDistance         =  0.0440
-        self.F                           =  0.0350
-        self.H                           =  0.0287
-        self.H_line                      = -0.0090
-        self.E                           =  0.0420
-        self.X                           =  0.0124
-        self._Edim                       =  0.0350
-        self._Xdim                       =  0.0564
+        self.F                           =  0.1000
+        self.H                           =  0.0460
+        self.H_line                      =  0.0560
+        self.E                           =  0.0214
+        self.X                           =  0.0363
+        self._Edim                       =  0.0500
+        self._Xdim                       =  0.0401
         # Adjustable parameters
         self._focusingDistance           =  10
         self.aperture                    =  2
+        self.distortionParameters        = np.array([0,0,0,1])
         #Calculated parameters
         self.focusingOffset             = None
         self.PEcenter                   = None
@@ -483,12 +484,12 @@ class Objective(Core.Part):
         #
         # Now, we have to find the pseudo position of the pinhole (which is
         # not H'.
-        part2                       = d_line + self.F
+        v                       = d_line + self.F
         a                       = self.E - self.H
-        v_bar                   = part2 + a - part2*a/self.F
+        v_bar                   = v + a - v*a/self.F
         
         self.focusingOffset = d_line
-        self.PXcenter       = v_bar - self.flangeFocalDistance
+        self.PXcenter       = self.origin + self.x * (v_bar - self.flangeFocalDistance)
         self.PEcenter       = self.origin + self.x * self.E
         self.Ecenter        = self.origin + self.x * self.E
         self.Xcenter        = self.origin + self.x * self.X
@@ -531,19 +532,22 @@ class Objective(Core.Part):
         """
         return self.lensDistortion(Utils.normalize(self.PXcenter - p))
     
-    def lensDistortion(self,part2):
+    def lensDistortion(self, vectors):
         """
         Implementation of radial distortion model
         """ 
-        npts = np.size(part2,0)
-        # Gets the angle between part2 and the optical axis
-        Ti = np.arccos(np.sum(self.x * \
-                              np.reshape(part2,(npts,1,GLOBAL_NDIM)),2)).squeeze()
-        To = np.sum(self.distortionParameters * \
-                    np.array([Ti**4,Ti**3,Ti**2,Ti]),2)
-        
-        axis = Utils.normalize(np.cross(self.x,part2))
-        return Utils.rotateVector(part2,(To-Ti),axis)
+        return vectors 
+    
+#        npts = np.size(vectors,0)
+#        # Gets the angle between part2 and the optical axis
+#        Ti = np.arccos(np.sum(self.x * \
+#                              np.reshape(vectors,(npts,1,GLOBAL_NDIM)),2)).squeeze()
+#                              
+#        To = np.sum(self.distortionParameters * \
+#                    np.array([Ti**4,Ti**3,Ti**2,Ti]),2)
+#        
+#        axis = Utils.normalize(np.cross(self.x,vectors))
+#        return Utils.rotateVector(vectors,(To-Ti),axis)
             
 class Camera(Core.Assembly):
     def __init__(self):
@@ -559,6 +563,11 @@ class Camera(Core.Assembly):
         self.length                     = 0.175
         # Geometrical properties
         self.sensorPosition             = -0.017526
+        # Mapping properties
+        self.mappingResolution          = [3, 4]
+        self.mapping                    = None
+        self.sensorSamplingCenters      = None
+        self.physicalSamplingCenters    = None
         # Create and position subcomponents:
         self.positionComponents()
         
@@ -591,25 +600,106 @@ class Camera(Core.Assembly):
         # Flange focal distance adjustment
         self.sensor.translate(self.x*self.sensorPosition)
         
+    def calculateMapping(self, referencePart, referenceWavelength = 532e-9):
+        # First determine the points in the sensor to be reference for the
+        # mapping
+        [V,U]  = np.meshgrid(np.arange(self.mappingResolution[1])/self.mappingResolution[1], 
+                             np.arange(self.mappingResolution[0])/self.mappingResolution[0])    
+        parametricCoords = np.vstack([U.ravel(), V.ravel()]).T
+        UV               = np.reshape(parametricCoords, 
+                                      (np.size(U,0),np.size(U,1),2))
+        sensorCoords     = self.sensor.parametricToPhysical(parametricCoords)
+        
+        # Creates vectors to initialize ray tracing for each point in the sensor 
+        initialVectors   = self.objective.rayVector(sensorCoords)
+        
+        # Does the ray tracing
+        bundle = Core.RayBundle()
+        self.insert(bundle, 3)
+        bundle.insert(initialVectors, 
+                      self.objective.PEcenter, 
+                      referenceWavelength)
+        bundle.trace()
+
+        # Finds the intersections that are important:
+        intersections = (bundle.rayIntersections == referencePart)
+                         
+        # Finds first and last points
+        intersections   = np.tile(intersections,GLOBAL_NDIM)
+        firstInts       = np.zeros_like(bundle.rayPaths[0])
+        mask            = np.ones_like(bundle.rayPaths[0])
+        lastInts        = np.zeros_like(bundle.rayPaths[0])
+        
+        for n in range(np.size(bundle.rayPaths,0)):
+            firstInts[mask * intersections[n] == 1] = \
+                        bundle.rayPaths[n][mask * intersections[n] == 1]
+                        
+            mask = (intersections[n] == 0) * (mask == 1)
             
+            lastInts[intersections[n] == 1] =  \
+                        bundle.rayPaths[n,intersections[n] == 1]
+        
+        firstInts = np.reshape(firstInts, 
+                               (np.size(U,0),np.size(U,1),GLOBAL_NDIM))
+        lastInts  = np.reshape(lastInts, 
+                               (np.size(U,0),np.size(U,1),GLOBAL_NDIM))  
+        #print firstInts
+        #print lastInts      
+        
+        XYZ   = (firstInts + lastInts) / 2
+        self.sensorSamplingCenters    = (UV[:-1,:-1]  + UV[:-1,1:]  +\
+                                         UV[1:,1:]  + UV[1:,:-1])/4
+        self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +\
+                                         XYZ[1:,1:]   + XYZ[1:,:-1])/4
+        self.mapping = np.empty((np.size(UV,0),np.size(UV,1),3,GLOBAL_NDIM+1))
+        
+        for i in range(np.size(self.sensorSamplingCenters,0)):
+            for j in range(np.size(self.sensorSamplingCenters,1)):
+                uvlist  = np.array([UV[i  ,j  ],
+                                    UV[i+1,j  ],
+                                    UV[i+1,j+1],
+                                    UV[i  ,j+1],
+                                    UV[i  ,j  ],
+                                    UV[i+1,j  ],
+                                    UV[i+1,j+1],
+                                    UV[i  ,j+1]])
+                #print uvlist
+                xyzlist = np.array([firstInts[i  ,j  ],
+                                    firstInts[i+1,j  ],
+                                    firstInts[i+1,j+1],
+                                    firstInts[i  ,j+1],
+                                    lastInts[i  ,j  ],
+                                    lastInts[i+1,j  ],
+                                    lastInts[i+1,j+1],
+                                    lastInts[i  ,j+1]])
+                #print xyzlist
+                self.mapping[i,j,:,:] = Utils.DLT(uvlist, xyzlist)
+
+        
 if __name__=='__main__':
     import System
     environment = Core.Assembly()
     c = Camera()
-    c.rotate(np.pi/4,c.y)
-    #c.translate(np.array([0.5,0.5,0.5]))
-    #p = Sensor()
+    c.objective.translate(np.array([0.026474,0,0]))
+    v = Core.Volume()
+    v.terminalOnFOVCalculation = False
     
     environment.insert(c)
-    #environment.insert(p)
-#    
+    environment.insert(v)
+    
+#    c.rotate(np.pi/4,c.y)
+    v.translate(np.array([1,0,0]))
+#    v.rotate(np.pi/4,v.y)
+    c.calculateMapping(v)
+    
+     
     System.plot(environment)
 
-    System.save(environment, "test.dat")
-    
-    ambient = System.load("test.dat")
-
-    System.plot(ambient)
+#    System.save(environment, "test.dat")
+#    
+#    ambient = System.load("test.dat")
+#
+#    System.plot(ambient)
 
     
 #    s = Sensor()
