@@ -118,10 +118,10 @@ class Component(object):
             return 1
         if self.terminalAlways:
             return -1
-        if (self.tracingRule == self.TRACING_FOV) and \
+        if (self.tracingRule == RayBundle.TRACING_FOV) and \
             (self.terminalOnFOVCalculation):
             return -1
-        if (self.tracingRule == self.TRACING_FOV) and \
+        if (self.tracingRule == RayBundle.TRACING_FOV) and \
             (self.lightSource):
             return 1
             
@@ -1099,7 +1099,7 @@ class RayBundle(Assembly):
         except TypeError:
             pass
         
-    def trace(self, tracingRule = RayBundle.TRACING_FOV):
+    def trace(self, tracingRule = TRACING_FOV):
         # Make sure everything is clear
         self.clearData()
         
