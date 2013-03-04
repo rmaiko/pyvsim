@@ -447,8 +447,8 @@ def DLT(uvlist, xyzlist):
         
     [_,D,V] = np.linalg.svd(matrix)
     V = V[-1]
-    if D[-2]/D[-1] < 1e12:
-        raise ValueError("Problem is ill conditioned")
+    if D[-2]/D[-1] < 1e6:
+        print "Ill conditioned system found", D[-2], D[-1]
     
     return np.dot(np.linalg.inv(Tuv), 
                   np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
