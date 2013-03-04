@@ -1139,7 +1139,7 @@ class RayBundle(Assembly):
                 rayPoints = temp
                 # Reallocate intersections vector
                 temp = np.empty((step + self.preAllocatedSteps, 
-                                 nrays, GLOBAL_NDIM), dtype = "object")
+                                 nrays, 1), dtype = "object")
                 temp[range(np.size(rayIntersc,0))] = rayIntersc
                 rayIntersc = temp
               
