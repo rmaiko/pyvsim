@@ -427,16 +427,20 @@ def readSTL(filename):
    
     return obj
 
-def calculateDLT(uvlist, xyzlist):
+def DLT(uvlist, xyzlist):
     assert np.size(uvlist,0)  == np.size(xyzlist,0)
     assert np.size(uvlist,1)  == 2
     assert np.size(xyzlist,1) == 3
     
+    [uv,  Tuv]  = DLTnormalization(uvlist)
+    [xyz, Txyz] = DLTnormalization(xyzlist)
+    
     matrix = np.zeros((np.size(xyzlist,0)*3,12))
+    
     for n in range(np.size(uvlist,0)):
-        xyz1 = np.hstack([xyzlist[n], 1])
-        u    = uvlist[n,0]
-        v    = uvlist[n,1]
+        xyz1 = np.hstack([xyz[n], 1])
+        u    = uv[n,0]
+        v    = uv[n,1]
         matrix[3*n,:]   = np.hstack([ 0*xyz1,   xyz1,   -v*xyz1])
         matrix[3*n+1,:] = np.hstack([-1*xyz1, 0*xyz1,    u*xyz1])
         matrix[3*n+2,:] = np.hstack([ v*xyz1,-u*xyz1,    0*xyz1])
@@ -446,7 +450,24 @@ def calculateDLT(uvlist, xyzlist):
     print "Condition ", D[-2]/D[-1]
     if D[-2]/D[-1] < 1e12:
         raise ValueError("Problem is ill conditioned")
-    return np.vstack([V[0:4],V[4:8],V[8:12]])
+    
+    print Tuv
+    print Txyz
+    
+    return np.dot(np.linalg.inv(Tuv), 
+                  np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+
+def DLTnormalization(pointslist):
+    ncoords = np.size(pointslist,1)+1
+    t = np.mean(pointslist,0)
+    s = np.mean(norm(pointslist - t))
+    s = s / np.sqrt(ncoords)
+    T = np.eye(ncoords) * s 
+    T[-1,-1] = 1
+#    print T, t
+    T[:-1,-1] = -t
+    return ((pointslist*s - t), T)
+    
     
 def pointInHexa(p,hexapoints):
     """
@@ -607,12 +628,13 @@ if __name__ == "__main__":
                     [+1,-1,0]])
     pt2 = pt1 + 0.00333333333*(pt1 - ph)
 
-    xyz = np.vstack([pt1, pt2])*32152131
+    xyz = np.vstack([pt1, pt2])#*32152131
+#    xyz = xyz + np.array([0.3114,0,0])
 #    print xyz
-    xyz = rotatePoints(xyz, 
-                       2.2135648132, 
-                       normalize(np.array([1,1,1])),
-                       np.array([10, 19, 5]))
+#    xyz = rotatePoints(xyz, 
+#                       2.2135648132, 
+#                       normalize(np.array([1,1,1])),
+#                       np.array([10, 19, 5]))
     print xyz
 
     uv = np.array([[-1,-1],
@@ -620,7 +642,8 @@ if __name__ == "__main__":
                    [+1,+1],
                    [+1,-1]])
     uv = np.vstack([uv, uv])
-    m = calculateDLT(uv, xyz)
+
+    m = DLT(uv, xyz)
     
     print m / m[2,3]
     
@@ -629,12 +652,14 @@ if __name__ == "__main__":
         r = np.dot(m, p)
         return r/r[2]
     
-    for n in range(10):
-        p1 = np.random.randint(0,8)
-        p2 = np.random.randint(0,8)
-        print p1, p2, 0.5*(uv[p1]+uv[p2]), \
-        np.max(np.abs(detr(m, 0.5*(xyz[p1]+xyz[p2])) - np.hstack([0.5*(uv[p1]+uv[p2]), 1]))), \
-        detr(m, 0.5*(xyz[p1]+xyz[p2]))# - np.hstack([0.5*(uv[p1]+uv[p2]), 1])
+#    for n in range(10):
+#        p1 = np.random.randint(0,8)
+#        p2 = np.random.randint(0,8)
+#        print p1, p2, 0.5*(uv[p1]+uv[p2]), \
+#        np.max(np.abs(detr(m, 0.5*(xyz[p1]+xyz[p2])) - np.hstack([0.5*(uv[p1]+uv[p2]), 1]))), \
+#        detr(m, 0.5*(xyz[p1]+xyz[p2]))# - np.hstack([0.5*(uv[p1]+uv[p2]), 1])
         
     print 0.5*(xyz[3]+xyz[1])
+    print detr(m, 0.5*(xyz[3]+xyz[1]))
     print 0.5*(xyz[5]+xyz[3])
+    print detr(m, 0.5*(xyz[5]+xyz[3]))
