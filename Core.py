@@ -1760,7 +1760,7 @@ if __name__=="__main__":
     tic.toc()
     print "Ray lengths         : ", bundle.rayLength
     print "Number of steps     : ", bundle.steps
-    print bundle.rayPaths[-1]
+    print bundle.rayPaths[-1] 
     
     print "************  Testing geometrical operations       ******************"
     theorypoints = np.array([[0,-1,-1],
