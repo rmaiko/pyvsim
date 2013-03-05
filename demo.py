@@ -40,6 +40,10 @@ if __name__=="__main__":
     assembly.insert(bundle)
     assembly.insert(part2)
     
+    # Define the characteristics of the parts (default is opaque):
+    part.surfaceProperty  = part.TRANSPARENT
+    part2.surfaceProperty = part.TRANSPARENT
+    
     # Let's create points to degenerate the hexahedron into a prism-like
     points = [[0,0,0],
               [0.001,0,0],

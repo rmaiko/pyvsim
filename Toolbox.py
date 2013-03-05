@@ -564,7 +564,7 @@ class Camera(Core.Assembly):
         # Geometrical properties
         self.sensorPosition             = -0.017526
         # Mapping properties
-        self.mappingResolution          = [3, 4]
+        self.mappingResolution          = [2, 2]
         self.mapping                    = None
         self.sensorSamplingCenters      = None
         self.physicalSamplingCenters    = None
@@ -682,6 +682,7 @@ if __name__=='__main__':
     c = Camera()
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
+    v.indexOfRefraction = 5.666
     v.terminalOnFOVCalculation = False
     
     environment.insert(c)
@@ -689,7 +690,7 @@ if __name__=='__main__':
     
 #    c.rotate(np.pi/4,c.y)
     v.translate(np.array([1,0,0]))
-#    v.rotate(np.pi/4,v.y)
+    v.rotate(0.99,v.y)
     c.calculateMapping(v)
     
      

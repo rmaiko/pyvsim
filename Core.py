@@ -45,7 +45,10 @@ class Component(object):
     There is also a implementation of the visitor pattern using the 
     :meth:`~Core.Component.acceptVisitor` method
     """
-    
+    MIRROR                    = np.array([True,  False, False, False])
+    TRANSPARENT               = np.array([False,  True, False, False])
+    OPAQUE                    = np.array([False, False,  True, False])
+    DUMP                      = np.array([False, False, False,  True])
     componentCounter          = 0
    
     def __init__(self):
@@ -57,15 +60,11 @@ class Component(object):
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
         self.parent                     = None
-        # Phyisical properties
+        # Physical properties
         self.sellmeierCoeffs            = None
         self.indexOfRefraction          = 1
-        # Raytracing properties
-        self.terminalOnFOVCalculation   = True
-        self.terminalAlways             = False
-        self.reflectAlways              = False
-        self.lightSource                = False
-        self.tracingRule                = None
+        # Ray tracing properties
+        self.surfaceProperty            = Component.OPAQUE
         
     @property
     def id(self):               return self._id
@@ -86,47 +85,18 @@ class Component(object):
         If Sellmeier coefficients are given, calculation will be performed
         based on wavelength. 
         `Reference: <http://en.wikipedia.org/wiki/Sellmeier_equation>`
-        """
-        if self.reflectAlways:
-            return 0
-        if self.terminalAlways:
-            return -1
-        if (self.tracingRule == RayBundle.TRACING_FOV) and \
-            (self.terminalOnFOVCalculation):
-            return -1
-        if (self.tracingRule == RayBundle.TRACING_FOV) and \
-            (self.lightSource):
-            return 1
-        
+        """       
         if self.sellmeierCoeffs is None:
             return self.indexOfRefraction
             
         w2 = wavelength ** 2
         Nc = np.size(self.sellmeierCoeffs,0)
                        
-        return np.sqrt(1 + \
-                np.sum((w2 * self.sellmeierCoeffs[:,0].reshape(Nc,1,1)) / \
-                       (w2 - self.sellmeierCoeffs[:,1].reshape(Nc,1,1)),0)).squeeze()
+        return np.sqrt(1 +
+                       np.sum((w2 * self.sellmeierCoeffs[:,0].reshape(Nc,1,1)) /
+                              (w2 - self.sellmeierCoeffs[:,1].reshape(Nc,1,1)),
+                              0)).squeeze()
                            
-    def getParentIndexOfRefraction(self, wavelength):
-        """
-        Shortcut for requesting the index of refraction of the parent element
-        (what, in a well-constructed environment, means the ambient index of
-        refraction)
-        """
-        if self.reflectAlways:
-            return 1
-        if self.terminalAlways:
-            return -1
-        if (self.tracingRule == RayBundle.TRACING_FOV) and \
-            (self.terminalOnFOVCalculation):
-            return -1
-        if (self.tracingRule == RayBundle.TRACING_FOV) and \
-            (self.lightSource):
-            return 1
-            
-        return self.parent.getIndexOfRefraction(wavelength)
-
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
         This is a method used specifically for ray tracing. Its inputs are:
@@ -327,6 +297,7 @@ class Part(Component):
         self.opacity                    = 0.5
         self.visible                    = True
         # Variables for raytracing
+        self.surfaceProperty            = Component.OPAQUE
         self._bounds                    = None
         self._triangleVectors           = None
         self._trianglePoints            = None
@@ -735,20 +706,10 @@ class Assembly(Component):
     def __init__(self):
         self._items                     = np.array([])
         self._bounds                    = None
-        self._tracingRule               = None
+        self.surfaceProperty            = Component.TRANSPARENT
         Component.__init__(self)
         self.name                       = 'Assembly '+str(self._id)
-    
-    @property
-    def tracingRule(self):
-        return self._tracingRule
-        
-    @tracingRule.setter
-    def tracingRule(self, rule):
-        self._tracingRule = rule
-        for part in self._items:
-            part.tracingRule = rule
-      
+          
     @property
     def bounds(self):
         if self._bounds is None:
@@ -1107,8 +1068,6 @@ class RayBundle(Assembly):
         topComponent = self
         while topComponent.parent is not None:
             topComponent = topComponent.parent
-        # Tells all components which kind of ray tracing this is
-        topComponent.tracingRule = tracingRule
         
         # Shortcut to the number of rays being traced:
         nrays = np.size(self.startingPoints, 0)
@@ -1119,14 +1078,14 @@ class RayBundle(Assembly):
         self.finalIntersections     = np.empty(nrays,dtype='object')
         # Do matrix pre-allocation to store ray paths
         rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM),
-                               dtype='double')
+                                dtype='double')
         rayIntersc  = np.empty((self.preAllocatedSteps, nrays, 1),
-                               dtype='object')
-        step        = 0
+                                dtype='object')
+        step                  = 0
+        stepsize              = np.ones(nrays) * self.stepRayTrace
         rayPoints[step  ,:,:] = copy.deepcopy(self.startingPoints)
-        rayPoints[step+1,:,:] = self.startingPoints + \
-                                self.stepRayTrace*self.initialVectors
-        stepsize = np.ones(nrays) * self.stepRayTrace
+        rayPoints[step+1,:,:] = (self.startingPoints + 
+                                 self.stepRayTrace*self.initialVectors)
 
         while np.sum(stepsize) > GLOBAL_TOL:
             # Increase matrix size (if this is done too often, performance is
@@ -1146,41 +1105,37 @@ class RayBundle(Assembly):
             # Ask for the top assembly to intersect the rays with the whole
             # Component tree, will receive results only for the first 
             # intersection of each ray
-            [t, \
-            coords, \
-            _, \
-            N, \
-            surfaceRef] = topComponent.intersections(rayPoints[step], \
-                                                     rayPoints[step+1], \
+            [t, coords, _, N, surfaceRef]   = topComponent.intersections(
+                                                     rayPoints[step],
+                                                     rayPoints[step+1],
                                                      GLOBAL_TOL)
-            self.finalIntersections[t <= 1] = \
-                                            surfaceRef[t <= 1]
-            rayIntersc[step+1,:,:] = np.reshape(surfaceRef,(nrays,1))
+            self.finalIntersections[t <= 1] = surfaceRef[t <= 1]
+            rayIntersc[step+1,:,:]          = np.reshape(surfaceRef,(nrays,1))
         
             # Calculate the distance ran by the rays
-            distance = distance + \
-                       t * (t <= 1) * stepsize + \
-                       (t > 1) * stepsize
+            distance = (distance + 
+                        t * (t <= 1) * stepsize + 
+                        (t > 1) * stepsize)
         
             # Calculate the next vectors
             currVector  = self.calculateNextVectors(currVector, 
                                                     t, 
                                                     N, 
-                                                    surfaceRef)
-            
+                                                    surfaceRef,
+                                                    tracingRule)
             # Calculate next step size
-            stepsize = \
-                (self.stepRayTrace * \
-                    (distance + self.stepRayTrace <= self.maximumRayTrace) + \
-                    (self.maximumRayTrace - distance) * \
-                    (distance + self.stepRayTrace > self.maximumRayTrace)) * \
-                     Utils.norm(currVector)
+            stepsize = ((self.stepRayTrace * 
+                        (distance + self.stepRayTrace <= self.maximumRayTrace)+ 
+                        (self.maximumRayTrace - distance) * 
+                        (distance + self.stepRayTrace > self.maximumRayTrace))*
+                       Utils.norm(currVector))
                 
             # Calculate next inputs:
             step              = step + 1
             rayPoints[step]   = coords
-            rayPoints[step+1] = rayPoints[step] + \
-                                currVector * np.tile(stepsize,(GLOBAL_NDIM,1)).T
+            rayPoints[step+1] = (rayPoints[step] +
+                                 currVector * 
+                                 np.tile(stepsize,(GLOBAL_NDIM,1)).T)
                    
         # Now, clean up the mess with the preallocated matrix:
         self.rayPaths                   = rayPoints[range(step+1)]
@@ -1193,15 +1148,16 @@ class RayBundle(Assembly):
         # And create lines to represent the rays
         self._items = np.empty(nrays,"object")
         for n in range(nrays):
-            self._items[n] = Line()
+            self._items[n]        = Line()
             self._items[n].parent = self
             self._items[n].points = self.rayPaths[:,n,:]
             self._items[n].color  = Utils.metersToRGB(self.wavelength[n])
             
-    def calculateNextVectors(self, currVector, t, N, surface):
+    def calculateNextVectors(self, currVector, t, N, surface, tracingRule):
         """
         TODO
         """
+        # Returns same vector if no intersection was found
         if (t > 1 + GLOBAL_TOL).all():
             return currVector
         
@@ -1213,7 +1169,9 @@ class RayBundle(Assembly):
         #=========================================
         # Calculate as if all rays were reflected
         #=========================================
-        reflected = currVector - 2 * N * np.tile(np.sum(N * currVector,1),(3,1)).T
+        reflected = currVector - (2 * N * 
+                                  np.tile(np.sum(N * currVector,1),
+                                          (GLOBAL_NDIM,1)).T)
         
         #=========================================
         # Calculate refractions
@@ -1226,61 +1184,59 @@ class RayBundle(Assembly):
         # NdotV = 0 => Should not happen, as the intersection algorithm
         #               rejects that. Spurious cases will be filtered later
         
-        Nsurf     = np.zeros_like(surface)
-        Nparent   = np.zeros_like(surface)
-        N1        = np.ones_like(surface)
-        N2        = np.ones_like(surface)
-        cosTheta1 = -NdotV
-        cosTheta2 = np.inf * N1
-        refracted = np.zeros_like(currVector)
+        Nsurf           = np.zeros_like(surface)
+        Nparent         = np.zeros_like(surface)
+        N1              = np.ones_like(surface)
+        N2              = np.ones_like(surface)
+        surfaceProperty = np.zeros((len(surface),len(Component.MIRROR)),'bool')
+        #cosTheta1       = -NdotV
         
-        if (t <= 1 + GLOBAL_TOL).any():
-            # Get the indexes of refraction, result is filtered to reduce load
-            # on the numpy.vectorize method
-            for n, surf in enumerate(surface):
-                if surf is not None:
-                    Nsurf[n]   = surf.getIndexOfRefraction(self.wavelength[n])
-                    Nparent[n] = surf.getParentIndexOfRefraction(self.wavelength[n])
-                                                                
-            # If entering surface, N1 is the external index of refraction, N2 is
-            # the internal
-            N1[(NdotV < 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)] = \
-                Nparent[(NdotV < 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)]
-            N2[(NdotV < 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)] = \
-                Nsurf[(NdotV < 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)]
-            # and vice versa
-            N1[(NdotV > 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)] = \
-                Nsurf[(NdotV > 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)]
-            N2[(NdotV > 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)] = \
-                Nparent[(NdotV > 0) * (t <= 1) * (Nsurf > 0) * (Nparent > 0)]
-                
+        # Get the indexes of refraction, result is filtered to reduce load
+        # on the numpy.vectorize method
+        for n, surf in enumerate(surface):
+            if surf is not None:
+                Nsurf[n]   = surf.getIndexOfRefraction(self.wavelength[n])
+                Nparent[n] = surf.parent.getIndexOfRefraction(self.wavelength[n])
+                surfaceProperty[n] = surf.surfaceProperty
+                                                                      
+        # If entering surface, N1 is the external index of refraction, N2 is
+        # the internal
+        N1[(NdotV < 0) * (t <= 1)] = Nparent[(NdotV < 0) * (t <= 1)]
+        N2[(NdotV < 0) * (t <= 1)] = Nsurf[  (NdotV < 0) * (t <= 1)]
+        # and vice versa
+        N1[(NdotV > 0) * (t <= 1)] = Nsurf[  (NdotV > 0) * (t <= 1)]
+        N2[(NdotV > 0) * (t <= 1)] = Nparent[(NdotV > 0) * (t <= 1)]
             
-            # formulation taken from: http://en.wikipedia.org/wiki/Snell's_law
-            cosTheta2 = 1 - (1 - cosTheta1**2) * ((N1 / N2) ** 2)
-            cosTheta2[cosTheta2 >= 0] = (cosTheta2[cosTheta2 >= 0])**0.5
-            
-            refracted = np.tile(N1/N2,(GLOBAL_NDIM,1)).T * currVector + \
-                        np.tile(np.sign(cosTheta1) * \
-                                ((N1/N2)*np.abs(cosTheta1) - cosTheta2), \
-                                (GLOBAL_NDIM,1)).T * \
-                                N
-            refracted = Utils.normalize(refracted)
         
+        # formulation taken from: http://en.wikipedia.org/wiki/Snell's_law
+        cosTheta2                 = 1 - (1 - NdotV**2) * ((N1 / N2) ** 2)
+        cosTheta2[cosTheta2 >= 0] = cosTheta2[cosTheta2 >= 0]**0.5
+        
+        refracted = (np.tile(N1/N2,(GLOBAL_NDIM,1)).T * currVector + 
+                     np.tile(np.sign(-NdotV)*
+                             ((N1/N2)*np.abs(NdotV) - cosTheta2), 
+                             (GLOBAL_NDIM,1)).T * 
+                     N)
+        refracted = Utils.normalize(refracted)
+    
         #=========================================
         #   Big if block to sort the cases out
         #=========================================
         # First, assume rays were undisturbed:
         result = currVector
         # Then substitute those who were successfully refracted / pass through
-        result[(cosTheta2 <= 1 + GLOBAL_TOL) * (Nsurf > 0) * (Nparent > 0)] = \
-            Utils.normalize(refracted[(cosTheta2 <= 1 + GLOBAL_TOL) * \
-                                      (Nsurf > 0) * (Nparent > 0)])
-        # Then zero those rays who found a terminal
-        result[(Nsurf == -1) * (Nparent == -1)] = \
-            0 * result[(Nsurf < 0) * (Nparent < 0)]
+        result[(cosTheta2 <= 1 + GLOBAL_TOL) * surfaceProperty[:,1]] = \
+         Utils.normalize(refracted[(cosTheta2 <= 1 + GLOBAL_TOL) * 
+                                   surfaceProperty[:,1]])
+        # Then zero those rays who found a dump
+        if tracingRule == RayBundle.TRACING_FOV:
+            result[surfaceProperty[:,2] + surfaceProperty[:,3]] = \
+             0 * result[surfaceProperty[:,2] + surfaceProperty[:,3]]
+        else:
+            result[surfaceProperty[:,3]] = 0 * result[surfaceProperty[:,3]]
         # Then put reflected rays
-        result[Nsurf == 0] = reflected[Nsurf == 0]
-        result[cosTheta2 < 0] = reflected[cosTheta2 < 0]
+        result[surfaceProperty[:,0]] = reflected[surfaceProperty[:,0]]
+        result[cosTheta2 < 0]      = reflected[cosTheta2 < 0]
         
         return result
         
@@ -1727,7 +1683,6 @@ if __name__=="__main__":
     part.lightSource                = False
     print "Items:"
     print assembly.items
-    assembly.tracingRule            = RayBundle.TRACING_LASER_REFLECTION
     
     bundle = RayBundle()
     bundle.translate(np.array([0.5,0.5,0.5]))
@@ -1738,7 +1693,7 @@ if __name__=="__main__":
     print "Pre allocated steps : ", bundle.preAllocatedSteps
     print "Step ray trace      : ", bundle.stepRayTrace
     tic.tic()
-    bundle.trace()
+    bundle.trace(RayBundle.TRACING_LASER_REFLECTION)
     tic.toc()
     print "Ray lengths         : ", bundle.rayLength
     print "Number of steps     : ", bundle.steps
