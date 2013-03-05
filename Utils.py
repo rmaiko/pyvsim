@@ -434,6 +434,10 @@ def DLT(uvlist, xyzlist):
     
     [uv,  Tuv]  = DLTnormalization(uvlist)
     [xyz, Txyz] = DLTnormalization(xyzlist)
+    print uvlist
+    print xyzlist
+    print uv
+    print xyz
     
     matrix = np.zeros((np.size(xyzlist,0)*3,12))
     
@@ -448,7 +452,11 @@ def DLT(uvlist, xyzlist):
     [_,D,V] = np.linalg.svd(matrix)
     V = V[-1]
     if D[-2]/D[-1] < 1e6:
-        print "Ill conditioned system found", D[-2], D[-1]
+        print "Ill conditioned system found: "
+        print "Minimum singular values: %f %f, ratio: %f" % (D[-2], D[-1],
+                                                             D[-2]/D[-1])
+        
+    print np.vstack([V[0:4],V[4:8],V[8:12]]) / V[-1]
     
     return np.dot(np.linalg.inv(Tuv), 
                   np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
@@ -457,11 +465,11 @@ def DLTnormalization(pointslist):
     ncoords = np.size(pointslist,1)+1
     t = np.mean(pointslist,0)
     s = np.mean(norm(pointslist - t))
-    s = s / np.sqrt(ncoords)
-    T = np.eye(ncoords) * s 
+    s = s / np.sqrt(ncoords-1)   
+    T = np.eye(ncoords) / s 
     T[-1,-1] = 1
-    T[:-1,-1] = -t
-    return ((pointslist*s - t), T)
+    T[:-1,-1] = -t / s
+    return ((pointslist - t)/s, T)
     
     
 def pointInHexa(p,hexapoints):

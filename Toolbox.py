@@ -627,9 +627,9 @@ class Camera(Core.Assembly):
         # Finds first and last points
         intersections   = np.tile(intersections,GLOBAL_NDIM)
         firstInts       = np.zeros_like(bundle.rayPaths[0])
-        mask            = np.ones_like(bundle.rayPaths[0])
         lastInts        = np.zeros_like(bundle.rayPaths[0])
-        
+        mask            = np.ones_like(bundle.rayPaths[0])
+
         for n in range(np.size(bundle.rayPaths,0)):
             firstInts[mask * intersections[n] == 1] = \
                         bundle.rayPaths[n][mask * intersections[n] == 1]
@@ -680,18 +680,23 @@ if __name__=='__main__':
     import System
     environment = Core.Assembly()
     c = Camera()
+    c.mappingResolution = [2, 2]
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
-    v.indexOfRefraction = 5.666
-    v.terminalOnFOVCalculation = False
+    v.dimension = np.array([0.1, 1, 1])
+    v.indexOfRefraction = 1.666
+    v.surfaceProperty   = v.TRANSPARENT
+    v.translate(np.array([1,0,0]))
+#    c.rotate(np.pi/4,c.y)
+    v.rotate(0.19,v.y)    
     
     environment.insert(c)
     environment.insert(v)
+    environment.rotate(np.pi/2, np.array([0, 1, 0]))
+    System.plot(environment)
     
-#    c.rotate(np.pi/4,c.y)
-    v.translate(np.array([1,0,0]))
-    v.rotate(0.99,v.y)
-    c.calculateMapping(v)
+
+    c.calculateMapping(v, 480e-9)
     
      
     System.plot(environment)
