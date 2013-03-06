@@ -600,15 +600,8 @@ class Camera(Core.Assembly):
         # Flange focal distance adjustment
         self.sensor.translate(self.x*self.sensorPosition)
         
-    def calculateMapping(self, referencePart, referenceWavelength = 532e-9):
-        # First determine the points in the sensor to be reference for the
-        # mapping
-        [V,U]  = np.meshgrid(np.arange(self.mappingResolution[1])/self.mappingResolution[1], 
-                             np.arange(self.mappingResolution[0])/self.mappingResolution[0])    
-        parametricCoords = np.vstack([U.ravel(), V.ravel()]).T
-        UV               = np.reshape(parametricCoords, 
-                                      (np.size(U,0),np.size(U,1),2))
-        sensorCoords     = self.sensor.parametricToPhysical(parametricCoords)
+    def shootRays(self, sensorParamCoords, referenceWavelength):
+        sensorCoords     = self.sensor.parametricToPhysical(sensorParamCoords)
         
         # Creates vectors to initialize ray tracing for each point in the sensor 
         initialVectors   = self.objective.rayVector(sensorCoords)
@@ -619,7 +612,20 @@ class Camera(Core.Assembly):
         bundle.insert(initialVectors, 
                       self.objective.PEcenter, 
                       referenceWavelength)
-        bundle.trace()
+        bundle.maximumRayTrace = self.objective.focusingDistance * 2
+        bundle.trace() 
+        return bundle
+        
+    def calculateMapping(self, referencePart, referenceWavelength = 532e-9):
+        # First determine the points in the sensor to be reference for the
+        # mapping
+        [V,U]  = np.meshgrid(np.linspace(0,1,self.mappingResolution[1]), 
+                             np.linspace(0,1,self.mappingResolution[0]))    
+        parametricCoords = np.vstack([U.ravel(), V.ravel()]).T
+        UV               = np.reshape(parametricCoords, 
+                                      (np.size(U,0),np.size(U,1),2))
+        
+        bundle = self.shootRays(parametricCoords, referenceWavelength)
 
         # Finds the intersections that are important:
         intersections = (bundle.rayIntersections == referencePart)
@@ -652,6 +658,8 @@ class Camera(Core.Assembly):
         self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +\
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
         self.mapping = np.empty((np.size(UV,0),np.size(UV,1),3,GLOBAL_NDIM+1))
+        self.condno  = np.empty((np.size(self.sensorSamplingCenters,0),
+                                 np.size(self.sensorSamplingCenters,1)))
         
         for i in range(np.size(self.sensorSamplingCenters,0)):
             for j in range(np.size(self.sensorSamplingCenters,1)):
@@ -673,30 +681,34 @@ class Camera(Core.Assembly):
                                     lastInts[i+1,j+1],
                                     lastInts[i  ,j+1]])
                 #print xyzlist
-                self.mapping[i,j,:,:] = Utils.DLT(uvlist, xyzlist)
+                (self.mapping[i,j,:,:], 
+                 self.condno[i,j], _) = Utils.DLT(uvlist, xyzlist)
+
 
         
 if __name__=='__main__':
     import System
+    import copy
     environment = Core.Assembly()
     c = Camera()
-    c.mappingResolution = [2, 2]
+    c.objective.focusingDistance = 0.5
+    c.mappingResolution = [10, 10]
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
-    v.dimension = np.array([0.1, 1, 1])
+    v.dimension = np.array([0.1, 0.3, 0.3])
     v.indexOfRefraction = 1.666
     v.surfaceProperty   = v.TRANSPARENT
-    v.translate(np.array([1,0,0]))
-#    c.rotate(np.pi/4,c.y)
-    v.rotate(0.19,v.y)    
+    v.translate(np.array([0.142,0,0]))
+    v2 = copy.deepcopy(v)
+    v2.translate(np.array([0.5,0,0]))
+    v2.indexOfRefraction = 1
+    v.rotate(1,v.y)    
     
     environment.insert(c)
     environment.insert(v)
-    environment.rotate(np.pi/2, np.array([0, 1, 0]))
-    System.plot(environment)
-    
+    environment.insert(v2)
 
-    c.calculateMapping(v, 480e-9)
+    c.calculateMapping(v2, 480e-9)
     
      
     System.plot(environment)
