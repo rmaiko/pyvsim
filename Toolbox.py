@@ -618,7 +618,7 @@ class Camera(Core.Assembly):
         bundle.trace() 
         return bundle
         
-    def calculateMapping(self, referencePart, referenceWavelength = 532e-9):
+    def calculateMapping(self, target, referenceWavelength = 532e-9):
         # First determine the points in the sensor to be reference for the
         # mapping
         [V,U]  = np.meshgrid(np.linspace(0,1,self.mappingResolution[1]), 
@@ -630,7 +630,7 @@ class Camera(Core.Assembly):
         bundle = self.shootRays(parametricCoords, referenceWavelength)
 
         # Finds the intersections that are important:
-        intersections = (bundle.rayIntersections == referencePart)
+        intersections = (bundle.rayIntersections == target)
                          
         # Finds first and last points
         intersections   = np.tile(intersections,GLOBAL_NDIM)
@@ -743,20 +743,30 @@ if __name__=='__main__':
     v2.translate(np.array([0.5,0,0]))
     v2.indexOfRefraction = 1.333
     v.rotate(1,v.y)   
-    v2.rotate(-0.4,v2.y)
+#    v2.rotate(-0.4,v2.y)
     
     c.objective.translate(np.array([0,0.000,0])) 
     
     environment.insert(c)
 #    environment.insert(v)
     environment.insert(v2)
-#    environment.rotate(np.pi/2, c.z)
+#    environment.rotate(np.pi/4, c.z)
     
 #    print c.objective.PXcenter - c.sensor.origin
 #    print c.objective.PEcenter
 
     c.calculateMapping(v2, 532e-9)
     phantoms = c.virtualCameras()
+    
+    print c.mapping
+
+    M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
+
+    print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
+    print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
+    print np.dot(M,np.array([0.5,0,0,1]).T)
+    print np.dot(M,np.array([0.6,0,0,1]).T)
+    print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
     
     environment.insert(phantoms)
 

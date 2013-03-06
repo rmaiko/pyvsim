@@ -460,7 +460,9 @@ def DLT(uvlist, xyzlist):
     -------
     M : numpy.array
         A (3,4) matrix with the transformation to be used with homogeneous
-        coordinates
+        coordinates. The matrix M is normalized by the norm of the elements
+        M(2,0:3), because then the depth of points is automatically given as
+        the third (the homogeneous) coordinate.
     condition_number : double
         The condition number proposed in page 108 of Hartley and Zisseman, which
         is the ratio of the first and the second-last singular value (because
@@ -522,7 +524,7 @@ def DLT(uvlist, xyzlist):
 #        print uv - ans / ans[2]
 #    print "End check"
 
-    return (M, D[0]/D[-2], D[-1])
+    return (M / np.linalg.norm(V[8:11]), D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
     """
