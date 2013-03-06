@@ -489,7 +489,8 @@ class Objective(Core.Part):
         v_bar                   = v + a - v*a/self.F
         
         self.focusingOffset = d_line
-        self.PXcenter       = self.origin + self.x * (v_bar - self.flangeFocalDistance)
+        self.PXcenter       = self.origin + self.x * (v_bar - 
+                                                      self.flangeFocalDistance)
         self.PEcenter       = self.origin + self.x * self.E
         self.Ecenter        = self.origin + self.x * self.E
         self.Xcenter        = self.origin + self.x * self.X
@@ -613,6 +614,7 @@ class Camera(Core.Assembly):
                       self.objective.PEcenter, 
                       referenceWavelength)
         bundle.maximumRayTrace = self.objective.focusingDistance * 2
+        bundle.stepRayTrace    = self.objective.focusingDistance
         bundle.trace() 
         return bundle
         
@@ -657,10 +659,12 @@ class Camera(Core.Assembly):
                                          UV[1:,1:]  + UV[1:,:-1])/4
         self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +\
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
-        self.mapping = np.empty((np.size(UV,0),np.size(UV,1),3,GLOBAL_NDIM+1))
-        self.condno  = np.empty((np.size(self.sensorSamplingCenters,0),
-                                 np.size(self.sensorSamplingCenters,1)))
-        
+        self.mapping = np.empty((np.size(UV,0)-1,
+                                 np.size(UV,1)-1,
+                                 3,
+                                 GLOBAL_NDIM+1))
+
+        cond = 0
         for i in range(np.size(self.sensorSamplingCenters,0)):
             for j in range(np.size(self.sensorSamplingCenters,1)):
                 uvlist  = np.array([UV[i  ,j  ],
@@ -681,10 +685,46 @@ class Camera(Core.Assembly):
                                     lastInts[i+1,j+1],
                                     lastInts[i  ,j+1]])
                 #print xyzlist
-                (self.mapping[i,j,:,:], 
-                 self.condno[i,j], _) = Utils.DLT(uvlist, xyzlist)
+                (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist, xyzlist)
+                
 
+                
+                cond = cond + temp1
+        cond = cond / (np.size(self.sensorSamplingCenters)/3)
+        return cond
+    
+    def virtualCameras(self):
+        phantomPrototype                 = copy.deepcopy(self)
+        phantomPrototype.items[2].color  = [0.5,0,0]
+        phantomPrototype.items[0].color  = [0.5,0.5,0.5]
+#        phantomPrototype.sensor = None
+        phantomAssembly         = Core.Assembly()
 
+        for i in range(np.size(self.mapping,0)):
+            for j in range(np.size(self.mapping,1)):
+                phantom = copy.deepcopy(phantomPrototype)
+                [_,__,V] = np.linalg.svd(self.mapping[i,j,:,:])
+                pinholePosition = (V[-1] / V[-1][-1])[:-1]
+                phantom.translate(pinholePosition - phantom.objective.PEcenter)
+                [_,Q] = Utils.RQ(self.mapping[i,j,:,:])
+#                Rnorm = ((R / R[2,2])* \
+#                       np.tile(np.array([self.sensor.dimension[0],
+#                                         self.sensor.dimension[1],
+#                                         1]),(3,1)).T)[0,0]
+                Utils.normalize(Q[:,:-1])
+                x =  Q[2,:-1]
+                z = -Q[1,:-1]
+                y = -Q[0,:-1]
+
+                try:
+                    phantom.alignTo(x,y,z)
+                    print "Could not align"
+                except AssertionError:
+                    pass
+                phantomAssembly.insert(phantom)
+        
+        return phantomAssembly
+        
         
 if __name__=='__main__':
     import System
@@ -692,25 +732,34 @@ if __name__=='__main__':
     environment = Core.Assembly()
     c = Camera()
     c.objective.focusingDistance = 0.5
-    c.mappingResolution = [10, 10]
+    c.mappingResolution = [5, 5]
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
     v.dimension = np.array([0.1, 0.3, 0.3])
-    v.indexOfRefraction = 1.666
+    v.indexOfRefraction = 5
     v.surfaceProperty   = v.TRANSPARENT
     v.translate(np.array([0.142,0,0]))
     v2 = copy.deepcopy(v)
     v2.translate(np.array([0.5,0,0]))
-    v2.indexOfRefraction = 1
-    v.rotate(1,v.y)    
+    v2.indexOfRefraction = 1.333
+    v.rotate(1,v.y)   
+    v2.rotate(-0.4,v2.y)
+    
+    c.objective.translate(np.array([0,0.000,0])) 
     
     environment.insert(c)
-    environment.insert(v)
+#    environment.insert(v)
     environment.insert(v2)
-
-    c.calculateMapping(v2, 480e-9)
+#    environment.rotate(np.pi/2, c.z)
     
-     
+#    print c.objective.PXcenter - c.sensor.origin
+#    print c.objective.PEcenter
+
+    c.calculateMapping(v2, 532e-9)
+    phantoms = c.virtualCameras()
+    
+    environment.insert(phantoms)
+
     System.plot(environment)
 
 #    System.save(environment, "test.dat")

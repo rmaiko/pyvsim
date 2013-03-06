@@ -238,8 +238,9 @@ class Component(object):
         z_new = z_new / (np.dot(z_new,z_new))**0.5
         
         # Verification that the base is orthonormal
-        assert np.dot(x_new,y_new) == 0 and np.dot(y_new,z_new) == 0 and \
-                np.dot(x_new,z_new) == 0
+        assert (Utils.aeq(np.dot(x_new,y_new),0) and 
+                Utils.aeq(np.dot(x_new,z_new),0) and
+                Utils.aeq(np.dot(z_new,y_new),0))
       
         Xnew = np.vstack([x_new,y_new,z_new])
         Xold = np.array([self.x,

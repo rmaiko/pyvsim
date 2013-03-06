@@ -399,7 +399,21 @@ def triangleArea(p1,p2,p3):
     v1 = p2 - p1
     v2 = p3 - p1
     return 0.5*norm(np.cross(v1,v2))
-            
+      
+def RQ(matrix):
+    Q,R = np.linalg.qr(np.flipud(matrix).T)
+    R = np.flipud(R.T)
+    Q = Q.T 
+
+    assert aeq(np.dot(np.fliplr(R),np.flipud(Q)),matrix)
+    [K, R] = R[:,::-1],Q[::-1,:]
+
+    # make diagonal of K positive
+    T = np.diag(np.sign(np.diag(K)))
+    
+    K = np.dot(K,T)
+    R = np.dot(T,R) #T is its own inverse              
+    return K, R
 
 def readSTL(filename):
     import vtk
@@ -507,6 +521,7 @@ def DLT(uvlist, xyzlist):
 #        ans = np.dot(M,xyz.T)
 #        print uv - ans / ans[2]
 #    print "End check"
+
     return (M, D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
@@ -549,7 +564,6 @@ def DLTnormalization(pointslist):
     ncoords = np.size(pointslist,1)+1
     t = np.mean(pointslist,0)
     s = np.mean(norm(pointslist - t)) / np.sqrt(ncoords-1) 
-      
     T = np.eye(ncoords) / s 
     T[-1,-1] = 1
     T[:-1,-1] = -t / s
