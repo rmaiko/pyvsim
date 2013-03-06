@@ -428,16 +428,48 @@ def readSTL(filename):
     return obj
 
 def DLT(uvlist, xyzlist):
+    """
+    This function calculates the direct linear transform matrix, which is the
+    transform executed by a pinhole camera. This procedure was suggested in
+    `Wikipedia <http://en.wikipedia.org/wiki/Direct_linear_transformation>` 
+    and some refinements are discussed in the book "Multiple View Geometry in
+    computer vision" by Hartley and Zisserman.
+    
+    Parameters
+    ----------
+    uvlist : numpy.array
+        A (N,2) matrix containing points at the sensor coordinates
+    xyzlist: numpy.array
+        A (N,3) matrix containing points at the world coordinates
+        
+    Returns
+    -------
+    M : numpy.array
+        A (3,4) matrix with the transformation to be used with homogeneous
+        coordinates
+    condition_number : double
+        The condition number proposed in page 108 of Hartley and Zisseman, which
+        is the ratio of the first and the second-last singular value (because
+        the last should be zero, if the transform is perfect. According to
+        `Wikipedia <http://en.wikipedia.org/wiki/Condition_number>`, the 
+        log10 of the condition number gives roughly how many digits of 
+        accuracy are lost by transforming using the given matrix.
+    last_condition_number: double
+        The smallest condition number. The finding of the DLT matrix is a 
+        minimization of the problem abs(A*x) with abs(x) = 1. 
+        last_condition_number is exactly abs(A*x), and gives an idea of the
+        precision of the matrix found (with 0 being perfect)
+    """
     assert np.size(uvlist,0)  == np.size(xyzlist,0)
     assert np.size(uvlist,1)  == 2
     assert np.size(xyzlist,1) == 3
     
     [uv,  Tuv]  = DLTnormalization(uvlist)
     [xyz, Txyz] = DLTnormalization(xyzlist)
-    print uvlist
-    print xyzlist
-    print uv
-    print xyz
+#    print uvlist
+#    print xyzlist
+#    print uv
+#    print xyz
     
     matrix = np.zeros((np.size(xyzlist,0)*3,12))
     
@@ -451,24 +483,77 @@ def DLT(uvlist, xyzlist):
         
     [_,D,V] = np.linalg.svd(matrix)
     V = V[-1]
-    if D[-2]/D[-1] < 1e6:
-        print "Ill conditioned system found: "
-        print "Minimum singular values: %f %f, ratio: %f" % (D[-2], D[-1],
-                                                             D[-2]/D[-1])
-        
-    print np.vstack([V[0:4],V[4:8],V[8:12]]) / V[-1]
+#    if D[0]/D[-1] < 1e6:
+#        print "Ill conditioned system found: "
+#        print "Minimum singular values: %f %f, cond. number: %f" % (D[0], 
+#                                                                    D[-1],
+#                                                                    D[0]/D[-1])
     
-    return np.dot(np.linalg.inv(Tuv), 
-                  np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+#    print "Singular values %e %e %e" % (D[0], D[-2], D[-1]/D[-2])
+        
+#    print np.vstack([V[0:4],V[4:8],V[8:12]]) / V[-1]
+#    print ""
+#    print Txyz
+#    print Tuv
+#    print np.linalg.inv(Tuv)
+#    print np.dot(np.linalg.inv(Tuv), 
+#                   np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+    M = np.dot(np.linalg.inv(Tuv), 
+               np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+#    print "Check"
+#    for n in range(np.size(uvlist,0)):
+#        uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
+#        xyz = np.array([xyzlist[n,0], xyzlist[n,1], xyzlist[n,2], 1])
+#        ans = np.dot(M,xyz.T)
+#        print uv - ans / ans[2]
+#    print "End check"
+    return (M, D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
+    """
+    This normalization procedure was suggested in:: "Multiple view geometry in
+    computer vision" by Hartley and Zisserman, and is needed to make the
+    problem of finding the direct linear transform converge better
+    
+    The idea is transforming the set of points so that their average is zero
+    and their distance to the origin is in average sqrt(nb. of coordinates).
+    
+    Parameters
+    ----------
+    pointslist: numpy.array
+        A matrix with the size (N,C) where N is the number of points and C is 
+        the number of coordinates
+        
+    Returns
+    -------
+    normalized_points: numpy.array
+        A matrix with the same size as the input with the normalized coordinates
+    T: numpy.array
+        A matrix with the form (C+1, C+1) representing the transformation to be
+        used with homogeneous coordinates
+        
+    Examples
+    --------
+    >>> pointslist = np.array([[0,0],[0,1],[1,1],[1,0]])
+    >>> [normpoints, T] = DLTnormalization(pointslist)
+    >>> (np.mean(normpoints,0) == 0).all()
+    True
+    >>> homogeneouspoints = np.ones((4,3))       #must convert to homog. coords.
+    >>> homogeneouspoints[:,:-1] = normpoints
+    >>> np.dot(np.linalg.inv(T),homogeneouspoints.T).T[:,:-1] #inverse transform
+    array([[ 0.,  0.],
+           [ 0.,  1.],
+           [ 1.,  1.],
+           [ 1.,  0.]])
+    """
     ncoords = np.size(pointslist,1)+1
     t = np.mean(pointslist,0)
-    s = np.mean(norm(pointslist - t))
-    s = s / np.sqrt(ncoords-1)   
+    s = np.mean(norm(pointslist - t)) / np.sqrt(ncoords-1) 
+      
     T = np.eye(ncoords) / s 
     T[-1,-1] = 1
     T[:-1,-1] = -t / s
+
     return ((pointslist - t)/s, T)
     
     
