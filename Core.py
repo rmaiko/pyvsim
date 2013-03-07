@@ -1349,14 +1349,14 @@ class Plane(Part):
         
         if coordinates.ndim == 1:
 #            print "ndim == 1"
-            return self.origin + coordinates[0] * self.y + \
+            return self.origin + coordinates[0] * self.y - \
                                  coordinates[1] * self.z
         else:
 #            print "ndim > 1"
 #            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
 #            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
             return self.origin + \
-                   np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + \
+                   np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y - \
                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z
                     
     def physicalToParametric(self,coords):

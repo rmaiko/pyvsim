@@ -685,8 +685,12 @@ class Camera(Core.Assembly):
                                     lastInts[i+1,j+1],
                                     lastInts[i  ,j+1]])
                 #print xyzlist
-                (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist, xyzlist)
-                
+                try:
+                    (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist,xyzlist)
+                except np.linalg.linalg.LinAlgError:
+                    self.mapping = None
+                    print "WARNING - Could not find a valid mapping"
+                    return
 
                 
                 cond = cond + temp1
@@ -694,8 +698,12 @@ class Camera(Core.Assembly):
         return cond
     
     def virtualCameras(self):
+        if self.mapping is None:
+            print "ERROR - No mapping available, could not create virtual cameras"
+            return None
         phantomPrototype                 = copy.deepcopy(self)
-        phantomPrototype.items[2].color  = [0.5,0,0]
+        phantomPrototype.items[2].color   = [0.5,0,0]
+        phantomPrototype.items[2].opacity = 0.2
         phantomPrototype.items[0].color  = [0.5,0.5,0.5]
 #        phantomPrototype.sensor = None
         phantomAssembly         = Core.Assembly()
@@ -703,24 +711,37 @@ class Camera(Core.Assembly):
         for i in range(np.size(self.mapping,0)):
             for j in range(np.size(self.mapping,1)):
                 phantom = copy.deepcopy(phantomPrototype)
-                [_,__,V] = np.linalg.svd(self.mapping[i,j,:,:])
+#                [_,__,V] = np.linalg.svd(self.mapping[i,j,:,:])
+                M = self.mapping[i,j,:,:] * np.tile(np.array([self.sensor.dimension[0],
+                                                  self.sensor.dimension[1],
+                                                  1]),(4,1)).T
+                [_,__,V] = np.linalg.svd(M)       
+                print "M\n", M                           
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
                 phantom.translate(pinholePosition - phantom.objective.PEcenter)
-                [_,Q] = Utils.RQ(self.mapping[i,j,:,:])
-#                Rnorm = ((R / R[2,2])* \
-#                       np.tile(np.array([self.sensor.dimension[0],
-#                                         self.sensor.dimension[1],
-#                                         1]),(3,1)).T)[0,0]
-                Utils.normalize(Q[:,:-1])
-                x =  Q[2,:-1]
-                z = -Q[1,:-1]
-                y = -Q[0,:-1]
-
+                [K, R] = Utils.KQ(M)
+                print "Determinant - ", np.linalg.det(R)
+                camdown  = R[0,:]
+                camright = R[1,:]
+                camback  = R[2,:]
+                x = -camback
+                y = -camdown
+                z =  camright
+                print "X", x
+                print "Y", y
+                print "Z", z
+#                print "XYZ"
+#                print x, "\n", y, "\n", z
+#                print "XYZcross"
+#                print np.cross(y,z)
+#                print np.cross(z,x)
+#                print np.cross(x,y)
+#                print R
                 try:
-                    phantom.alignTo(x,y,z)
-                    print "Could not align"
+                    phantom.alignTo(x,y,z, 1e-3) 
                 except AssertionError:
-                    pass
+                    print x, "\n", y , "\n", z
+                    print "Could not align"
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -731,45 +752,53 @@ if __name__=='__main__':
     import copy
     environment = Core.Assembly()
     c = Camera()
-    c.objective.focusingDistance = 0.5
-    c.mappingResolution = [5, 5]
+    c.objective.focusingDistance = 1
+    c.mappingResolution = [2, 2]
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
     v.dimension = np.array([0.1, 0.3, 0.3])
-    v.indexOfRefraction = 5
+    v.indexOfRefraction = 1
     v.surfaceProperty   = v.TRANSPARENT
-    v.translate(np.array([0.142,0,0]))
     v2 = copy.deepcopy(v)
+    v2.surfaceProperty = v.TRANSPARENT          
     v2.translate(np.array([0.5,0,0]))
-    v2.indexOfRefraction = 1.333
-    v.rotate(1,v.y)   
-#    v2.rotate(-0.4,v2.y)
+    v2.indexOfRefraction = 1.666
+    v.translate(np.array([0,0.2,0]))
+#    v.rotate(1,v.y)   
+    v2.rotate(-0.2,v2.z)
     
     c.objective.translate(np.array([0,0.000,0])) 
     
     environment.insert(c)
-#    environment.insert(v)
+    environment.insert(v)
     environment.insert(v2)
+#    environment.rotate(np.pi/4, c.x)
+#    environment.rotate(np.pi/4, c.y)
 #    environment.rotate(np.pi/4, c.z)
     
-#    print c.objective.PXcenter - c.sensor.origin
-#    print c.objective.PEcenter
 
-    c.calculateMapping(v2, 532e-9)
+    if (v2.surfaceProperty == v.TRANSPARENT).all():
+        c.calculateMapping(v2, 532e-9)
+    else:
+        c.calculateMapping(v, 532e-9)
+        
     phantoms = c.virtualCameras()
     
-    print c.mapping
-
-    M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
-
-    print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
-    print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
-    print np.dot(M,np.array([0.5,0,0,1]).T)
-    print np.dot(M,np.array([0.6,0,0,1]).T)
-    print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
+    if phantoms is not None:
+#        print c.mapping
     
-    environment.insert(phantoms)
+        M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
+    
+        print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
+        print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
+        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
+        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
+        print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
+        
+        environment.insert(phantoms)
 
+    print c.objective.PXcenter - c.sensor.origin
+    print c.objective.PEcenter
     System.plot(environment)
 
 #    System.save(environment, "test.dat")

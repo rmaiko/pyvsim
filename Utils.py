@@ -17,6 +17,7 @@ limitations under the License.
 """
 from __future__ import division
 import numpy as np
+import scipy.linalg
 # import copy
 # import vtk
 # import Object
@@ -400,20 +401,47 @@ def triangleArea(p1,p2,p3):
     v2 = p3 - p1
     return 0.5*norm(np.cross(v1,v2))
       
-def RQ(matrix):
-    Q,R = np.linalg.qr(np.flipud(matrix).T)
-    R = np.flipud(R.T)
-    Q = Q.T 
-
-    assert aeq(np.dot(np.fliplr(R),np.flipud(Q)),matrix)
-    [K, R] = R[:,::-1],Q[::-1,:]
-
-    # make diagonal of K positive
+def KQ(A):
+    K, R = scipy.linalg.rq(A[:,:3])
+    #make diagonal of K positive
     T = np.diag(np.sign(np.diag(K)))
-    
+        
     K = np.dot(K,T)
-    R = np.dot(T,R) #T is its own inverse              
-    return K, R
+    R = np.dot(T,R) #T is its own inverse     
+
+#    if np.linalg.det(R) < 0:
+#        print "FIXED DET"
+#        R = -R
+
+#    
+    print "K\n", K
+    print A[:,:3] - np.dot(K,R)
+#    if np.linalg.det(R) < 0:
+#        print "FIXED DET"
+#        R = -R
+    print "R\n", R
+#    print np.linalg.det(R)
+#    print np.linalg.det(R[:2,:2])
+#    print np.linalg.det(R[1:,:2])
+#    print np.linalg.det(R[1:,1:])
+#    print np.linalg.det(R[:2,1:])
+#    
+#    if np.abs(np.linalg.det(R[:2,:2])) < 0.0001:
+#        R[:,0] = -R[:,0]
+#    if np.abs(np.linalg.det(R[1:,:2])) < 0.0001:
+#        R[:,1] = -R[:,1]
+#    if np.abs(np.linalg.det(R[1:,1:])) < 0.0001:
+#        R[:,2] = -R[:,2]
+#
+#    print np.cross(R[0],R[1]) / R[2]
+#    print np.cross(R[1],R[2]) / R[0]
+#    print np.cross(R[2],R[0]) / R[1]
+#    print ""
+#    R[0] = np.cross(R[1],R[2])
+#    R[0] = R[0]
+#    R[2]  = np.cross(R[0],R[1])
+   
+    return K / K[2,2], R
 
 def readSTL(filename):
     import vtk
@@ -482,8 +510,8 @@ def DLT(uvlist, xyzlist):
     
     [uv,  Tuv]  = DLTnormalization(uvlist)
     [xyz, Txyz] = DLTnormalization(xyzlist)
-#    print uvlist
-#    print xyzlist
+    print uvlist
+    print xyzlist
 #    print uv
 #    print xyz
     
@@ -493,12 +521,19 @@ def DLT(uvlist, xyzlist):
         xyz1 = np.hstack([xyz[n], 1])
         u    = uv[n,0]
         v    = uv[n,1]
-        matrix[3*n,:]   = np.hstack([ 0*xyz1,   xyz1,   -v*xyz1])
-        matrix[3*n+1,:] = np.hstack([-1*xyz1, 0*xyz1,    u*xyz1])
+        w    = 1
+        matrix[3*n,:]   = np.hstack([ 0*xyz1, w*xyz1,   -v*xyz1])
+        matrix[3*n+1,:] = np.hstack([-w*xyz1, 0*xyz1,    u*xyz1])
         matrix[3*n+2,:] = np.hstack([ v*xyz1,-u*xyz1,    0*xyz1])
         
     [_,D,V] = np.linalg.svd(matrix)
     V = V[-1]
+
+    # Remember the fact that the points are in front of the camera
+    if V[-1]>0:
+        V = -V
+
+    print V
 #    if D[0]/D[-1] < 1e6:
 #        print "Ill conditioned system found: "
 #        print "Minimum singular values: %f %f, cond. number: %f" % (D[0], 
@@ -523,7 +558,7 @@ def DLT(uvlist, xyzlist):
 #        ans = np.dot(M,xyz.T)
 #        print uv - ans / ans[2]
 #    print "End check"
-
+#    return (M, D[0]/D[-2], D[-1])
     return (M / np.linalg.norm(V[8:11]), D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
