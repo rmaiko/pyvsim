@@ -211,7 +211,7 @@ class Component(object):
         """
         raise NotImplementedError
         
-    def alignTo(self,x_new,y_new,z_new=None):
+    def alignTo(self,x_new,y_new,z_new=None, tol=1e-8):
         """
         This method allows the alignment of the part to a specific direction
         (this is very useful in optical systems definition).
@@ -238,9 +238,9 @@ class Component(object):
         z_new = z_new / (np.dot(z_new,z_new))**0.5
         
         # Verification that the base is orthonormal
-        assert (Utils.aeq(np.dot(x_new,y_new),0) and 
-                Utils.aeq(np.dot(x_new,z_new),0) and
-                Utils.aeq(np.dot(z_new,y_new),0))
+        assert (Utils.aeq(np.dot(x_new,y_new),0, tol) and 
+                Utils.aeq(np.dot(x_new,z_new),0, tol) and
+                Utils.aeq(np.dot(z_new,y_new),0, tol))
       
         Xnew = np.vstack([x_new,y_new,z_new])
         Xold = np.array([self.x,
@@ -256,11 +256,16 @@ class Component(object):
 
         # Verifies that the matrix M is a rotation Matrix
         assert ((D-1)**2 < GLOBAL_TOL).any() 
-        
+
         axis  = np.squeeze(V[:,(D-1)**2 < GLOBAL_TOL].T)
         angle = np.arccos((np.trace(M)-1)/2)
 
-        self.rotate(angle,axis)
+        # We can't know the right rotation, so we must check
+        if Utils.aeq(Utils.rotateVector(Xold, angle, axis), Xnew):
+            self.rotate(angle,axis)
+        else:
+            self.rotate(-angle,axis)
+
     
     def clearData(self):
         """
