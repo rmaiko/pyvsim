@@ -336,15 +336,18 @@ def barycentricCoordinates(p,p1,p2,p3):
     For more information on barycentric coordinates, see `Wikipedia 
     <http://en.wikipedia.org/wiki/Barycentric_coordinate_system>`
     
-    Inputs::
+    Parameters
+    ----------
     p
         point in space, or a list of points in space
     p1,p2,p3 
         points space representing triangle (can be lists)
     
-    Outputs::
+    Returns
+    -------
     [lambda1,lambda2,lambda3]
-        the barycentric coordinates of point p with respect to the defined triangle
+        the barycentric coordinates of point p with respect to the defined 
+        triangle
     
     Assumes::
     1) points are given as numpy arrays (crashes if not met)
@@ -355,20 +358,22 @@ def barycentricCoordinates(p,p1,p2,p3):
         lambda2     = Object.triangleArea(p,p1,p3)
         lambda3     = Object.triangleArea(p,p1,p2)
         return np.array([lambda1,lambda2,lambda3])/area
-        
+    
+    Examples
+    --------   
+    
     >>> [p,p1,p2,p3] = np.array([[0.5,0.5,0],[0,0,0],[1,0,0],[0,1,0]])
     >>> barycentricCoordinates(p,p1,p2,p3)
     array([ 0. ,  0.5,  0.5])
     
     Will also work for arrays::
     
-    >>> p = np.tile(p,(3,1)); p1 = np.tile(p1,(3,1))
+    >>> p  = np.tile(p,(3,1));  p1 = np.tile(p1,(3,1))
     >>> p2 = np.tile(p2,(3,1)); p3 = np.tile(p3,(3,1))
     >>> barycentricCoordinates(p,p1,p2,p3)
     array([[ 0. ,  0.5,  0.5],
            [ 0. ,  0.5,  0.5],
            [ 0. ,  0.5,  0.5]])
-    
     """
     area        = triangleArea(p1,p2,p3)
     lambda1     = triangleArea(p,p2,p3)
@@ -392,6 +397,19 @@ def triangleArea(p1,p2,p3):
         v1 = p2 - p1
         v2 = p3 - p1
         return 0.5*norm(np.cross(v1,v2))
+        
+    Parameters
+    ----------
+    p1, p2, p3
+        numpy.arrays. If a list of points is given, they must be vertically
+        stacked.
+    
+    Returns
+    -------
+    area
+        The area of the points defined by the triangles. If lists of points
+        were used as inputs, the output is a 1D numpy.array with as many
+        elements as given points 
     """ 
     v1 = p2 - p1
     v2 = p3 - p1
@@ -399,19 +417,44 @@ def triangleArea(p1,p2,p3):
       
 def KQ(A):
     """
-    This decomposes a matrix in
+    This decomposition is proposed in the book "Multiple View Geometry in
+    computer vision" by Hartley and Zisserman. It is basically a RQ 
+    decomposition (which takes a matrix M and finds a right, upper diagonal
+    matrix R and a orthogonal matrix Q so that M = RQ).
+    
+    This specific function has the following extra steps: 
+    
+    1) it defines a diagonal matrix D which, when post-multiplied by K makes 
+    its diagonal elements positive.
+     
+    2) it normalizes K by its [-1,-1] element.
+    
+    The use of these steps is that when the matrix M is a DLT matrix, K is a 
+    camera matrix, and Q is the orientation of the camera (its rows are the
+    front, down and left vectors, respectively).
+    
+    Parameters
+    ----------
+    A : numpy.array
+        A square matrix. *Attention*, DLT matrices need to have their last
+        column taken away for this procedure.
+    
+    Returns
+    -------
+    K : numpy.array
+        The camera matrix, normalized by its [-1,-1] element.
+    Q : numpy.array
+        The camera orientation matrix
     """
-    K, R = scipy.linalg.rq(A[:,:3])
-    #make diagonal of K positive
-    T = np.diag(np.sign(np.diag(K)))
-        
-    K = np.dot(K,T)
-    R = np.dot(T,R) #T is its own inverse     
+    R, Q = scipy.linalg.rq(A)
+    D = np.diag(np.sign(np.diag(R)))
+    K = np.dot(R,D)
+    Q = np.dot(D,Q) #D^-1 = D     
 
-    if np.max(np.abs(A[:,:3] - np.dot(K,R))) > 1e-10:
-        print "WARNING - KQ decomposition failed\n", A[:,:3] - np.dot(K,R)
+    if np.max(np.abs(A[:,:3] - np.dot(K,Q))) > 1e-10:
+        print "WARNING - KQ decomposition failed\n", A - np.dot(K,Q)
         
-    return K / K[2,2], R
+    return K / K[-1,-1], Q
 
 def readSTL(filename):
     import vtk

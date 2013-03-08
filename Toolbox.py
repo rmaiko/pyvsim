@@ -21,6 +21,7 @@ import matplotlib.pyplot as plt
 import Utils
 import Core
 from scipy.special import erf
+import warnings
 
 MEMSIZE     = 1e6
 MEM_SAFETY  = 8
@@ -675,7 +676,6 @@ class Camera(Core.Assembly):
                                     UV[i+1,j  ],
                                     UV[i+1,j+1],
                                     UV[i  ,j+1]])
-                #print uvlist
                 xyzlist = np.array([firstInts[i  ,j  ],
                                     firstInts[i+1,j  ],
                                     firstInts[i+1,j+1],
@@ -684,12 +684,11 @@ class Camera(Core.Assembly):
                                     lastInts[i+1,j  ],
                                     lastInts[i+1,j+1],
                                     lastInts[i  ,j+1]])
-                #print xyzlist
                 try:
                     (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist,xyzlist)
                 except np.linalg.linalg.LinAlgError:
                     self.mapping = None
-                    raise Warning("Could not find a valid mapping")
+                    warnings.warn("Could not find a valid mapping", Warning)
                     return
 
                 
@@ -702,38 +701,34 @@ class Camera(Core.Assembly):
             raise  ValueError("No mapping available, \
                               could not create virtual cameras")
             return None
-        phantomPrototype                 = copy.deepcopy(self)
-        phantomPrototype.items[2].color   = [0.5,0,0]
-        phantomPrototype.items[2].opacity = 0.2
-        phantomPrototype.items[0].color  = [0.5,0.5,0.5]
+        phantomPrototype                    = copy.deepcopy(self)
+        phantomPrototype.items[2].color     = [0.5,0,0]
+        phantomPrototype.items[2].opacity   = 0.2
+        phantomPrototype.items[0].color     = [0.5,0.5,0.5]
 #        phantomPrototype.sensor = None
-        phantomAssembly         = Core.Assembly()
+        phantomAssembly                     = Core.Assembly()
+        sy                                  = self.sensor.dimension[0]
+        sz                                  = self.sensor.dimension[1]
+        # Matrix to go from sensor parametric coordinates to sensor
+        # local coordinates
+        MT                                  = np.array([[ 0  ,   0, 1],
+                                                        [sy/2,   0, 0],
+                                                        [ 0  ,sz/2, 0]])
 
         for i in range(np.size(self.mapping,0)):
             for j in range(np.size(self.mapping,1)):
                 phantom = copy.deepcopy(phantomPrototype)
-
                 M = self.mapping[i,j,:,:]
-                
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
                 phantom.translate(pinholePosition - phantom.objective.PEcenter)
 
-                sy = self.sensor.dimension[0]
-                sz = self.sensor.dimension[1]
-                # Matrix to go from sensor parametric coordinates to sensor
-                # local coordinates
-                MT = np.array([[ 0  ,   0, 1],
-                               [sy/2,   0, 0],
-                               [ 0  ,sz/2, 0]])
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates
                 MTM = np.dot(MT, M[:,:-1])
-                [_,Qm] = Utils.KQ(-MTM)
-
+                [_,Qm] = Utils.KQ(MTM)
                 phantom.alignTo(Qm[0],Qm[1],None,
                                 phantom.objective.PEcenter, 1e-3) 
-
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -742,28 +737,27 @@ class Camera(Core.Assembly):
 if __name__=='__main__':
     import System
     import copy
-    environment = Core.Assembly()
-    c = Camera()
-    c.rotate(np.pi/4,c.x)
-    c.objective.focusingDistance = 1
-    c.mappingResolution = [10, 10]
+    c                               = Camera()
+    c.objective.focusingDistance    = 1
+    c.mappingResolution             = [10, 10]
     c.objective.translate(np.array([0.026474,0,0]))
-    v = Core.Volume()
-    v.opacity = 0.1
-    v.dimension = np.array([0.3, 0.3, 0.3])
-    v.indexOfRefraction = 1.
-    v.surfaceProperty   = v.TRANSPARENT
-    v2 = copy.deepcopy(v)
-    v2.dimension = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty = v.TRANSPARENT          
+    c.rotate(np.pi/4,c.x)
+    
+    v                               = Core.Volume()
+    v.opacity                       = 0.1
+    v.dimension                     = np.array([0.3, 0.3, 0.3])
+    v.indexOfRefraction             = 1.
+    v.surfaceProperty               = v.TRANSPARENT
+    v.translate(np.array([0.4,0.5,0])) 
+    
+    v2                              = Core.Volume()
+    v2.dimension                    = np.array([0.1, 0.3, 0.3])
+    v2.surfaceProperty              = v.MIRROR       
+    v2.indexOfRefraction            = 2.   
     v2.translate(np.array([0.5,0,0]))
-    v2.indexOfRefraction = 2.
-    v.translate(np.array([0.4,0.5,0]))
-#    v.rotate(1,v.y)   
     v2.rotate(-np.pi/4,v2.z)
-    
-    c.objective.translate(np.array([0,0.000,0])) 
-    
+
+    environment = Core.Assembly()
     environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
