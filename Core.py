@@ -211,7 +211,7 @@ class Component(object):
         """
         raise NotImplementedError
         
-    def alignTo(self,x_new,y_new,z_new=None, tol=1e-8):
+    def alignTo(self,x_new,y_new,z_new=None, pivotPoint = None, tol=1e-8):
         """
         This method allows the alignment of the part to a specific direction
         (this is very useful in optical systems definition).
@@ -228,6 +228,9 @@ class Component(object):
         Obs: No concerns about code efficiency are made, as this method will
         probably not be used all the time.
         """
+        if pivotPoint is None:
+            pivotPoint = self.origin
+        
         if y_new is not None and z_new is None:
             z_new = np.cross(x_new,y_new)
         if y_new is None and z_new is not None:
@@ -262,9 +265,9 @@ class Component(object):
 
         # We can't know the right rotation, so we must check
         if Utils.aeq(Utils.rotateVector(Xold, angle, axis), Xnew):
-            self.rotate(angle,axis)
+            self.rotate(angle,axis,pivotPoint)
         else:
-            self.rotate(-angle,axis)
+            self.rotate(-angle,axis,pivotPoint)
 
     
     def clearData(self):
@@ -1303,8 +1306,8 @@ class Plane(Part):
     def length(self):
         return self._length
     @length.setter
-    def length(self, HEXA_CONN_PARTIAL):
-        self._length = HEXA_CONN_PARTIAL
+    def length(self, l):
+        self._length = l
         self._resize()
         
     @property
@@ -1337,48 +1340,48 @@ class Plane(Part):
           
     def parametricToPhysical(self,coordinates):
         """
-        Transforms a 2-component vector in the range 0..1 in sensor coordinates
+        Transforms a 2-component vector in the range -1..1 in sensor coordinates
         Normalized [y,z] -> [x,y,z] (global reference frame)
         
         Vectorization for this method is implemented.
         """
         # Compensate for the fact that the sensor origin is at its center
-        coordinates = self.dimension*(coordinates - 0.5)
+        coordinates = self.dimension*coordinates/2
 #        print "Coordinates"
 #        print coordinates
         
         if coordinates.ndim == 1:
 #            print "ndim == 1"
-            return self.origin + coordinates[0] * self.y - \
+            return self.origin + coordinates[0] * self.y + \
                                  coordinates[1] * self.z
         else:
 #            print "ndim > 1"
 #            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
 #            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
             return self.origin + \
-                   np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y - \
+                   np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + \
                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z
                     
     def physicalToParametric(self,coords):
         """
         Transforms a 3-component coordinates vector to a 2-component vector
-        which value falls in the range 0..1 in sensor coordinates
+        which value falls in the range -1..1 in sensor coordinates
         Normalized [y,z] -> [x,y,z] (global reference frame)
         
         Vectorization for this method is implemented.
         """
         part2 = coords - self.origin
         if coords.ndim == 1:
-            py = (np.dot(self.y,part2) / self.dimension[0]) + 0.5
-            pz = (np.dot(self.z,part2) / self.dimension[1]) + 0.5
+            py = 2*(np.dot(self.y,part2) / self.dimension[0]) 
+            pz = 2*(np.dot(self.z,part2) / self.dimension[1])
             return np.array([py,pz])        
         else:
             nvecs = np.size(part2,0)
             py = (np.sum(np.tile(self.y,(nvecs,1).T*part2,1) / \
-                          self.dimension[0])) + 0.5
+                          self.dimension[0]))
             pz = (np.sum(np.tile(self.z,(nvecs,1).T*part2,1) / \
-                          self.dimension[0])) + 0.5
-            return np.array([py,pz]).T
+                          self.dimension[0]))
+            return 2*np.array([py,pz]).T
     
 class Volume(Part):
     """

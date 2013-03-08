@@ -621,8 +621,8 @@ class Camera(Core.Assembly):
     def calculateMapping(self, target, referenceWavelength = 532e-9):
         # First determine the points in the sensor to be reference for the
         # mapping
-        [V,U]  = np.meshgrid(np.linspace(0,1,self.mappingResolution[1]), 
-                             np.linspace(0,1,self.mappingResolution[0]))    
+        [V,U]  = np.meshgrid(np.linspace(-1,1,self.mappingResolution[1]), 
+                             np.linspace(-1,1,self.mappingResolution[0]))    
         parametricCoords = np.vstack([U.ravel(), V.ravel()]).T
         UV               = np.reshape(parametricCoords, 
                                       (np.size(U,0),np.size(U,1),2))
@@ -689,7 +689,7 @@ class Camera(Core.Assembly):
                     (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist,xyzlist)
                 except np.linalg.linalg.LinAlgError:
                     self.mapping = None
-                    print "WARNING - Could not find a valid mapping"
+                    raise Warning("Could not find a valid mapping")
                     return
 
                 
@@ -699,7 +699,8 @@ class Camera(Core.Assembly):
     
     def virtualCameras(self):
         if self.mapping is None:
-            print "ERROR - No mapping available, could not create virtual cameras"
+            raise  ValueError("No mapping available, \
+                              could not create virtual cameras")
             return None
         phantomPrototype                 = copy.deepcopy(self)
         phantomPrototype.items[2].color   = [0.5,0,0]
@@ -711,59 +712,28 @@ class Camera(Core.Assembly):
         for i in range(np.size(self.mapping,0)):
             for j in range(np.size(self.mapping,1)):
                 phantom = copy.deepcopy(phantomPrototype)
-#                [_,__,V] = np.linalg.svd(self.mapping[i,j,:,:])
-                M = self.mapping[i,j,:,:] * np.tile(np.array([self.sensor.dimension[0],
-                                                  self.sensor.dimension[1],
-                                                  1]),(4,1)).T
-                [_,__,V] = np.linalg.svd(M)       
-                print "M\n", M                           
+
+                M = self.mapping[i,j,:,:]
+                
+                [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
                 phantom.translate(pinholePosition - phantom.objective.PEcenter)
-                
-                [_, Q] = Utils.KQ(M)
-                x = Utils.normalize(self.physicalSamplingCenters[i,j] - 
-                                    pinholePosition)
-                print "X must be ", x
-                compare = Utils.norm(np.abs(Q) - np.abs(x))
-                print compare
-                Q = Q * np.sign(Q[2] / x)
-                print "Q\n", Q
-                phantom.alignTo(Q[2],Q[0],None, 1e-3) 
-#                
-#                if np.linalg.det(Q) > 0:
-#                    Q[:,1] = -Q[:,1]
-#                    Q[:,2] = -Q[:,2]
-                    
-#                SC = np.vstack([-self.sensor.x,
-#                                -self.sensor.y,
-#                                +self.sensor.z,])
-#                print "SCQ"
-#                print np.dot(SC,Q[[2,0,1]])
-#                r = np.dot(SC,Q[[2,0,1]])
-#                [y,z,x] = Q
-#                if np.linalg.det(Q) > 0:
-##                    Q[:,1] = -Q[:,1]
-##                    Q[:,2] = -Q[:,2]
-#                    x =  np.dot(self.sensor.x, Q[[2,0,1]])
-#                    y =  np.dot(self.sensor.y, Q[[2,0,1]])
-#                    z =  np.dot(self.sensor.z, Q[[2,0,1]])
-#                else:
-#                    Q[:,1] = Q[:,1]
-#                    Q[:,2] = -Q[:,2]
-#                camdown  = Q[0,:]
-#                camright = Q[1,:]
-#                camback  = Q[2,:]
-##                x = -camback
-##                y = -camdown
-##                z =  camright
-#                print "X", x
-#                print "Y", y
-#                print "Z", z
-#                try:
-#                    phantom.alignTo(x,y,z, 1e-3) 
-#                except AssertionError:
-#                    print x, "\n", y , "\n", z
-#                    print "Could not align"
+
+                sy = self.sensor.dimension[0]
+                sz = self.sensor.dimension[1]
+                # Matrix to go from sensor parametric coordinates to sensor
+                # local coordinates
+                MT = np.array([[ 0  ,   0, 1],
+                               [sy/2,   0, 0],
+                               [ 0  ,sz/2, 0]])
+                # Transform the DLT matrix (that originally goes from global
+                # coordinates to sensor parametric) to local sensor coordinates
+                MTM = np.dot(MT, M[:,:-1])
+                [_,Qm] = Utils.KQ(-MTM)
+
+                phantom.alignTo(Qm[0],Qm[1],None,
+                                phantom.objective.PEcenter, 1e-3) 
+
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -774,29 +744,32 @@ if __name__=='__main__':
     import copy
     environment = Core.Assembly()
     c = Camera()
+    c.rotate(np.pi/4,c.x)
     c.objective.focusingDistance = 1
-    c.mappingResolution = [2, 2]
+    c.mappingResolution = [10, 10]
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
-    v.dimension = np.array([0.1, 0.3, 0.3])
-    v.indexOfRefraction = 1.666
+    v.opacity = 0.1
+    v.dimension = np.array([0.3, 0.3, 0.3])
+    v.indexOfRefraction = 1.
     v.surfaceProperty   = v.TRANSPARENT
     v2 = copy.deepcopy(v)
+    v2.dimension = np.array([0.1, 0.3, 0.3])
     v2.surfaceProperty = v.TRANSPARENT          
     v2.translate(np.array([0.5,0,0]))
-    v2.indexOfRefraction = 1.666
-    v.translate(np.array([0,0.2,0]))
+    v2.indexOfRefraction = 2.
+    v.translate(np.array([0.4,0.5,0]))
 #    v.rotate(1,v.y)   
-    v2.rotate(-0.2,v2.z)
+    v2.rotate(-np.pi/4,v2.z)
     
     c.objective.translate(np.array([0,0.000,0])) 
     
     environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
-#    environment.rotate(np.pi/4, c.x)
-#    environment.rotate(np.pi/4, c.y)
-#    environment.rotate(np.pi/4, c.z)
+    environment.rotate(np.pi/0.1314, c.x)
+    environment.rotate(np.pi/27, c.y)
+    environment.rotate(np.pi/2.1, c.z)
     
 
     if (v2.surfaceProperty == v.TRANSPARENT).all():
@@ -806,21 +779,11 @@ if __name__=='__main__':
         
     phantoms = c.virtualCameras()
     
-    if phantoms is not None:
-#        print c.mapping
-    
-#        M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
-    
-#        print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
-#        print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
-#        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
-#        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
-#        print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
-        
+    if phantoms is not None:       
         environment.insert(phantoms)
 
-    print c.objective.PXcenter - c.sensor.origin
-    print c.objective.PEcenter
+    print "Focal length", Utils.norm(c.objective.PXcenter - c.sensor.origin)
+    print "Center of projection", c.objective.PEcenter
     System.plot(environment)
 
 #    System.save(environment, "test.dat")
@@ -828,45 +791,3 @@ if __name__=='__main__':
 #    ambient = System.load("test.dat")
 #
 #    System.plot(ambient)
-
-    
-#    s = Sensor()
-#    print ""
-#    print "Points"
-#    print s.points
-#    print "O ", s.origin
-#    print "X ", s.x
-#    print "Y ", s.y
-#    print "Z ", s.z
-#    print "Center ", s.parametricToPhysical(np.array([[0.5,0.5],[1,1],[0,0]]))
-#    print "FY,FZ  ", s.parametricToPhysical(np.array([1,1]))
-#    print "OY,OZ  ", s.parametricToPhysical(np.array([0,0]))
-#
-#
-#    tic = Utils.Tictoc()
-#    repeats     = int(2e5)
-#    msze        = 15e-6
-#    mengy       = 1e-14 / (15e-6 / msze)**2
-#    sze         = msze  * np.abs(1 + 0.041   * np.random.randn(repeats))
-#    energy      = mengy * np.abs(1 + 0.5   * np.random.randn(repeats))
-#    pos         = 1.1*np.random.rand(repeats,2)-0.05
-#    #pos         = np.array([[0,0],[1,0]])
-#
-#    tic.tic()
-#    s.recordParticles(pos,energy,532e-9,sze)
-#    tic.toc(repeats)
-#    
-#    print np.max(s.rawData)
-#    s.createDeadPixels(1e-7)
-#    
-#    print "Size statistics"
-#    print "min ", (np.min(sze)  / msze)
-#    print "max ", (np.max(sze)  / msze)
-#    print "avg ", (np.mean(sze) / msze)
-#    print "std ", (np.std(sze)  / msze)
-#    print "Energy statistics"
-#    print "min ", (np.min(energy)  / mengy)
-#    print "max ", (np.max(energy)  / mengy)
-#    print "avg ", (np.mean(energy) / mengy)
-#    print "std ", (np.std(energy)  / mengy)
-#    s.displaySensor()       

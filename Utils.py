@@ -397,6 +397,9 @@ def triangleArea(p1,p2,p3):
     return 0.5*norm(np.cross(v1,v2))
       
 def KQ(A):
+    """
+    This decomposes a matrix in
+    """
     K, R = scipy.linalg.rq(A[:,:3])
     #make diagonal of K positive
     T = np.diag(np.sign(np.diag(K)))
@@ -404,41 +407,9 @@ def KQ(A):
     K = np.dot(K,T)
     R = np.dot(T,R) #T is its own inverse     
 
-#    if np.linalg.det(R) < 0:
-#        print "FIXED DET"
-#        R = -R
-
-#    
-    print "K\n", K / K[2,2]
     if np.max(np.abs(A[:,:3] - np.dot(K,R))) > 1e-10:
-        print "WARNING - Residue\n", A[:,:3] - np.dot(K,R)
+        print "WARNING - KQ decomposition failed\n", A[:,:3] - np.dot(K,R)
         
-#    if np.linalg.det(R) < 0:
-#        print "FIXED DET"
-#        R = -R
-    print "R\n", R
-    print "R determinant", np.linalg.det(R)
-    print "D determinant", np.linalg.det(A[:,:3])
-#    print np.linalg.det(R[:2,:2])
-#    print np.linalg.det(R[1:,:2])
-#    print np.linalg.det(R[1:,1:])
-#    print np.linalg.det(R[:2,1:])
-#    
-#    if np.abs(np.linalg.det(R[:2,:2])) < 0.0001:
-#        R[:,0] = -R[:,0]
-#    if np.abs(np.linalg.det(R[1:,:2])) < 0.0001:
-#        R[:,1] = -R[:,1]
-#    if np.abs(np.linalg.det(R[1:,1:])) < 0.0001:
-#        R[:,2] = -R[:,2]
-#
-#    print np.cross(R[0],R[1]) / R[2]
-#    print np.cross(R[1],R[2]) / R[0]
-#    print np.cross(R[2],R[0]) / R[1]
-#    print ""
-#    R[0] = np.cross(R[1],R[2])
-#    R[0] = R[0]
-#    R[2]  = np.cross(R[0],R[1])
-   
     return K / K[2,2], R
 
 def readSTL(filename):
@@ -528,7 +499,7 @@ def DLT(uvlist, xyzlist):
         print "Negated DLT matrix"
         V = -V
 
-    print "Minimum singular value", D[-1]
+#    print "Minimum singular value", D[-1]
 
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
