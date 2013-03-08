@@ -19,6 +19,7 @@ from __future__ import division
 import numpy as np
 import scipy.linalg
 import time
+import warnings
 
 HEXA_CONNECTIVITY = np.array([[0,1,4],
                              [1,5,4],
@@ -495,8 +496,7 @@ def DLT(uvlist, xyzlist):
     V = V[-1]
 
     # Remember the fact that the points are in front of the camera
-    if V[-1]>0:
-        print "Negated DLT matrix"
+    if V[-1]<0:
         V = -V
 
 #    print "Minimum singular value", D[-1]
@@ -509,7 +509,7 @@ def DLT(uvlist, xyzlist):
         xyz = np.array([xyzlist[n,0], xyzlist[n,1], xyzlist[n,2], 1])
         ans = np.dot(M,xyz.T)
         if np.max(np.abs(uv - ans / ans[2])) > 1e-3:
-            print "WARNING - imprecise DLT", uv - ans / ans[2]
+            warnings.warn("Discrepancy of more than 1e-3 found in DLT", Warning)
 #    print "End check"
 #    return (M, D[0]/D[-2], D[-1])
     return (M / np.linalg.norm(V[8:11]), D[0]/D[-2], D[-1])
