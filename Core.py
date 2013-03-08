@@ -1736,10 +1736,10 @@ if __name__=="__main__":
     assert Utils.aeq(m.x, np.eye(3)[0])
     assert Utils.aeq(m.y, np.eye(3)[1])
     assert Utils.aeq(m.z, np.eye(3)[2])
-    coords = m.parametricToPhysical(np.array([[0.5,0.5],[1,1],[0,0]]))
+    coords = m.parametricToPhysical(np.array([[0,0],[1,1],[-1,-1]]))
     assert Utils.aeq(coords[0], np.zeros(3))
     assert Utils.aeq(coords[1], m.parametricToPhysical(np.array([1,1])))
-    assert Utils.aeq(coords[2], m.parametricToPhysical(np.array([0,0])))
+    assert Utils.aeq(coords[2], m.parametricToPhysical(np.array([-1,-1])))
     assert Utils.aeq(m.points, theorypoints)
     
     print "testing translation"
