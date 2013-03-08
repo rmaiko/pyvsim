@@ -719,29 +719,51 @@ class Camera(Core.Assembly):
                 print "M\n", M                           
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
                 phantom.translate(pinholePosition - phantom.objective.PEcenter)
-                [K, R] = Utils.KQ(M)
-                print "Determinant - ", np.linalg.det(R)
-                camdown  = R[0,:]
-                camright = R[1,:]
-                camback  = R[2,:]
-                x = -camback
-                y = -camdown
-                z =  camright
-                print "X", x
-                print "Y", y
-                print "Z", z
-#                print "XYZ"
-#                print x, "\n", y, "\n", z
-#                print "XYZcross"
-#                print np.cross(y,z)
-#                print np.cross(z,x)
-#                print np.cross(x,y)
-#                print R
-                try:
-                    phantom.alignTo(x,y,z, 1e-3) 
-                except AssertionError:
-                    print x, "\n", y , "\n", z
-                    print "Could not align"
+                
+                [_, Q] = Utils.KQ(M)
+                x = Utils.normalize(self.physicalSamplingCenters[i,j] - 
+                                    pinholePosition)
+                print "X must be ", x
+                compare = Utils.norm(np.abs(Q) - np.abs(x))
+                print compare
+                Q = Q * np.sign(Q[2] / x)
+                print "Q\n", Q
+                phantom.alignTo(Q[2],Q[0],None, 1e-3) 
+#                
+#                if np.linalg.det(Q) > 0:
+#                    Q[:,1] = -Q[:,1]
+#                    Q[:,2] = -Q[:,2]
+                    
+#                SC = np.vstack([-self.sensor.x,
+#                                -self.sensor.y,
+#                                +self.sensor.z,])
+#                print "SCQ"
+#                print np.dot(SC,Q[[2,0,1]])
+#                r = np.dot(SC,Q[[2,0,1]])
+#                [y,z,x] = Q
+#                if np.linalg.det(Q) > 0:
+##                    Q[:,1] = -Q[:,1]
+##                    Q[:,2] = -Q[:,2]
+#                    x =  np.dot(self.sensor.x, Q[[2,0,1]])
+#                    y =  np.dot(self.sensor.y, Q[[2,0,1]])
+#                    z =  np.dot(self.sensor.z, Q[[2,0,1]])
+#                else:
+#                    Q[:,1] = Q[:,1]
+#                    Q[:,2] = -Q[:,2]
+#                camdown  = Q[0,:]
+#                camright = Q[1,:]
+#                camback  = Q[2,:]
+##                x = -camback
+##                y = -camdown
+##                z =  camright
+#                print "X", x
+#                print "Y", y
+#                print "Z", z
+#                try:
+#                    phantom.alignTo(x,y,z, 1e-3) 
+#                except AssertionError:
+#                    print x, "\n", y , "\n", z
+#                    print "Could not align"
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -757,7 +779,7 @@ if __name__=='__main__':
     c.objective.translate(np.array([0.026474,0,0]))
     v = Core.Volume()
     v.dimension = np.array([0.1, 0.3, 0.3])
-    v.indexOfRefraction = 1
+    v.indexOfRefraction = 1.666
     v.surfaceProperty   = v.TRANSPARENT
     v2 = copy.deepcopy(v)
     v2.surfaceProperty = v.TRANSPARENT          
@@ -787,13 +809,13 @@ if __name__=='__main__':
     if phantoms is not None:
 #        print c.mapping
     
-        M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
+#        M = c.mapping[0,0] / np.linalg.norm(c.mapping[0,0,2,:-1])
     
-        print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
-        print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
-        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
-        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
-        print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
+#        print np.dot(M,np.array([0.5,0,0,1]).T) / np.dot(M,np.array([0.5,0,0,1]).T)[2]
+#        print np.dot(M,np.array([0.6,0,0,1]).T) / np.dot(M,np.array([0.6,0,0,1]).T)[2]
+#        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
+#        print np.dot(M,np.array([0.15,  0, -0.2,1]).T)
+#        print np.dot(M,np.array([0.5,0,0,1]).T)-np.dot(M,np.array([0.6,0,0,1]).T)
         
         environment.insert(phantoms)
 

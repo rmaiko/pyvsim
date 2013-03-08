@@ -414,13 +414,16 @@ def KQ(A):
 #        R = -R
 
 #    
-    print "K\n", K
-    print A[:,:3] - np.dot(K,R)
+    print "K\n", K / K[2,2]
+    if np.max(np.abs(A[:,:3] - np.dot(K,R))) > 1e-10:
+        print "WARNING - Residue\n", A[:,:3] - np.dot(K,R)
+        
 #    if np.linalg.det(R) < 0:
 #        print "FIXED DET"
 #        R = -R
     print "R\n", R
-#    print np.linalg.det(R)
+    print "R determinant", np.linalg.det(R)
+    print "D determinant", np.linalg.det(A[:,:3])
 #    print np.linalg.det(R[:2,:2])
 #    print np.linalg.det(R[1:,:2])
 #    print np.linalg.det(R[1:,1:])
@@ -492,14 +495,14 @@ def DLT(uvlist, xyzlist):
         M(2,0:3), because then the depth of points is automatically given as
         the third (the homogeneous) coordinate.
     condition_number : double
-        The condition number proposed in page 108 of Hartley and Zisseman, which
+        The condition number stated in page 108 of Hartley and Zisseman, which
         is the ratio of the first and the second-last singular value (because
         the last should be zero, if the transform is perfect. According to
         `Wikipedia <http://en.wikipedia.org/wiki/Condition_number>`, the 
         log10 of the condition number gives roughly how many digits of 
         accuracy are lost by transforming using the given matrix.
-    last_condition_number: double
-        The smallest condition number. The finding of the DLT matrix is a 
+    last_singular_value: double
+        The smallest singular value. The finding of the DLT matrix is a 
         minimization of the problem abs(A*x) with abs(x) = 1. 
         last_condition_number is exactly abs(A*x), and gives an idea of the
         precision of the matrix found (with 0 being perfect)
@@ -510,8 +513,8 @@ def DLT(uvlist, xyzlist):
     
     [uv,  Tuv]  = DLTnormalization(uvlist)
     [xyz, Txyz] = DLTnormalization(xyzlist)
-    print uvlist
-    print xyzlist
+#    print uvlist
+#    print xyzlist
 #    print uv
 #    print xyz
     
@@ -531,9 +534,10 @@ def DLT(uvlist, xyzlist):
 
     # Remember the fact that the points are in front of the camera
     if V[-1]>0:
+        print "Negated DLT matrix"
         V = -V
 
-    print V
+    print "Minimum singular value", D[-1]
 #    if D[0]/D[-1] < 1e6:
 #        print "Ill conditioned system found: "
 #        print "Minimum singular values: %f %f, cond. number: %f" % (D[0], 
@@ -552,11 +556,12 @@ def DLT(uvlist, xyzlist):
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
 #    print "Check"
-#    for n in range(np.size(uvlist,0)):
-#        uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
-#        xyz = np.array([xyzlist[n,0], xyzlist[n,1], xyzlist[n,2], 1])
-#        ans = np.dot(M,xyz.T)
-#        print uv - ans / ans[2]
+    for n in range(np.size(uvlist,0)):
+        uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
+        xyz = np.array([xyzlist[n,0], xyzlist[n,1], xyzlist[n,2], 1])
+        ans = np.dot(M,xyz.T)
+        if np.max(np.abs(uv - ans / ans[2])) > 1e-3:
+            print "WARNING - imprecise DLT", uv - ans / ans[2]
 #    print "End check"
 #    return (M, D[0]/D[-2], D[-1])
     return (M / np.linalg.norm(V[8:11]), D[0]/D[-2], D[-1])
