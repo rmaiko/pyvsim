@@ -18,12 +18,7 @@ limitations under the License.
 from __future__ import division
 import numpy as np
 import scipy.linalg
-# import copy
-# import vtk
-# import Object
-# import pprint
 import time
-# import threading
 
 HEXA_CONNECTIVITY = np.array([[0,1,4],
                              [1,5,4],
@@ -513,10 +508,6 @@ def DLT(uvlist, xyzlist):
     
     [uv,  Tuv]  = DLTnormalization(uvlist)
     [xyz, Txyz] = DLTnormalization(xyzlist)
-#    print uvlist
-#    print xyzlist
-#    print uv
-#    print xyz
     
     matrix = np.zeros((np.size(xyzlist,0)*3,12))
     
@@ -538,21 +529,7 @@ def DLT(uvlist, xyzlist):
         V = -V
 
     print "Minimum singular value", D[-1]
-#    if D[0]/D[-1] < 1e6:
-#        print "Ill conditioned system found: "
-#        print "Minimum singular values: %f %f, cond. number: %f" % (D[0], 
-#                                                                    D[-1],
-#                                                                    D[0]/D[-1])
-    
-#    print "Singular values %e %e %e" % (D[0], D[-2], D[-1]/D[-2])
-        
-#    print np.vstack([V[0:4],V[4:8],V[8:12]]) / V[-1]
-#    print ""
-#    print Txyz
-#    print Tuv
-#    print np.linalg.inv(Tuv)
-#    print np.dot(np.linalg.inv(Tuv), 
-#                   np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
 #    print "Check"
@@ -604,11 +581,11 @@ def DLTnormalization(pointslist):
            [ 1.,  0.]])
     """
     ncoords = np.size(pointslist,1)+1
-    t = np.mean(pointslist,0)
-    s = np.mean(norm(pointslist - t)) / np.sqrt(ncoords-1) 
-    T = np.eye(ncoords) / s 
-    T[-1,-1] = 1
-    T[:-1,-1] = -t / s
+    t           = np.mean(pointslist,0)
+    s           = np.mean(norm(pointslist - t)) / np.sqrt(ncoords-1) 
+    T           = np.eye(ncoords) / s 
+    T[-1,-1]    = 1
+    T[:-1,-1]   = -t / s
 
     return ((pointslist - t)/s, T)
     
@@ -706,59 +683,7 @@ def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4):
     # N = np.cross(v1,v2)
     # return vec.normalize(N)
 
-    
 
-#points = [[0,0,0],
-#          [1,0,0],
-#          [1,1,0],
-#          [0,1,0],
-#          [0,0,1],
-#          [1,0,1],
-#          [1,1,1],
-#          [0,1,1]]
-#    
-#points = np.array(points)
-#p = np.array([0.5,1,0.5])
-#part2 = np.array([0,0,0,0,1,1,1,1])
-##part2 = np.array([[0,0,0],[0,0,0],[1,0,0],[1,0,0],[0,0,1],[0,0,1],[0,1,1],[0,1,1]])
-#print hexaInterpolation(p, points, part2)
-#
-#p1 = np.array([0,0,0])
-#p2 = np.array([1,0,0])
-#p3 = np.array([0,1,0])
-#p4 = np.array([0,0,1])
-#
-#reps = 100000
-#volumedet = np.zeros(reps)
-#volumevec = np.zeros(reps)
-#
-##
-## Determinant method
-##
-#tic = Tictoc()
-#tic.tic()
-#for n in range(reps):
-#    D = np.ones((4,4))
-#    D[0,1:4] = p1
-#    D[1,1:4] = p2
-#    D[2,1:4] = p3
-#    D[3,1:4] = p4
-#    volumedet[n] = (1/6)*np.linalg.det(D)
-#tic.toc(reps)
-#
-##
-## Vector method
-##
-#P1 = np.tile(p1,(reps,1))
-#P2 = np.tile(p2,(reps,1))
-#P3 = np.tile(p3,(reps,1))
-#P4 = np.tile(p4,(reps,1))
-#
-#tic.tic()
-#volumevec = tetraVolume(P1,P2,P3,P4)
-#tic.toc(reps)
-#
-#assert (volumevec == volumedet).all()
 if __name__ == "__main__":
     print "Will execute doctest"
     import doctest
