@@ -532,7 +532,7 @@ class Lens(Core.Part):
         
     def createPoints(self):
         """
-        This is needed to plot the objective. This will create and the
+        This is needed to plot the lens. This will create and the
         points and the connectivity list of a  tube.
         """
         NPTS    = 20
@@ -579,7 +579,7 @@ class Lens(Core.Part):
 class Camera(Core.Assembly):
     def __init__(self):
         Core.Assembly.__init__(self)
-        self.objective                  = None
+        self.lens                       = None
         self.sensor                     = None
         self.body                       = None
         # Plotting properties
@@ -610,9 +610,9 @@ class Camera(Core.Assembly):
         """
         This method is a shortcut to define the initial position of the camera,
         there is a definition of the initial positioning of the sensor and the 
-        objective.
+        lens.
         """
-        self.objective      = Lens()
+        self.lens      = Lens()
         self.sensor         = Sensor()
         self.body           = Core.Volume(self.length, self.heigth, self.width)
         
@@ -620,7 +620,7 @@ class Camera(Core.Assembly):
         self.body.opacity   = self.opacity
         self.body.translate(-self.x*self.length)
         
-        self.insert(self.objective)
+        self.insert(self.lens)
         self.insert(self.sensor)
         self.insert(self.body)
         
@@ -631,16 +631,16 @@ class Camera(Core.Assembly):
         sensorCoords     = self.sensor.parametricToPhysical(sensorParamCoords)
         
         # Creates vectors to initialize ray tracing for each point in the sensor 
-        initialVectors   = self.objective.rayVector(sensorCoords)
+        initialVectors   = self.lens.rayVector(sensorCoords)
         
         # Does the ray tracing
         bundle = Core.RayBundle()
         self.insert(bundle, 3)
         bundle.insert(initialVectors, 
-                      self.objective.PinholeEntrance, 
+                      self.lens.PinholeEntrance, 
                       referenceWavelength)
-        bundle.maximumRayTrace = self.objective.focusingDistance * 2
-        bundle.stepRayTrace    = self.objective.focusingDistance
+        bundle.maximumRayTrace = self.lens.focusingDistance * 2
+        bundle.stepRayTrace    = self.lens.focusingDistance
         bundle.trace() 
         return bundle
         
@@ -746,14 +746,14 @@ class Camera(Core.Assembly):
                 M = self.mapping[i,j,:,:]
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
-                phantom.translate(pinholePosition - phantom.objective.PinholeEntrance)
+                phantom.translate(pinholePosition - phantom.lens.PinholeEntrance)
 
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates
                 MTM = np.dot(MT, M[:,:-1])
                 [_,Qm] = Utils.KQ(MTM)
                 phantom.alignTo(Qm[0],Qm[1],None,
-                                phantom.objective.PinholeEntrance, 1e-3) 
+                                phantom.lens.PinholeEntrance, 1e-3) 
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -763,9 +763,9 @@ if __name__=='__main__':
     import System
     import copy
     c                               = Camera()
-    c.objective.focusingDistance    = 1
+    c.lens.focusingDistance    = 1
     c.mappingResolution             = [2, 2]
-    c.objective.translate(np.array([0.026474,0,0]))
+    c.lens.translate(np.array([0.026474,0,0]))
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
@@ -813,13 +813,13 @@ if __name__=='__main__':
     if phantoms is not None:       
         environment.insert(phantoms)
 
-    print "Distance from pinholes", (c.objective.PinholeEntrance - c.objective.PinholeExit)
-    print "Focal length", Utils.norm(c.objective.PinholeExit - c.sensor.origin)
-    print "Center of projection", c.objective.PinholeEntrance
-    print "Second main plane", c.objective.H_line*c.objective.x + c.objective.origin + c.objective.focusingOffset*c.objective.x
-    print "First main plane",  c.objective.H*c.objective.x + c.objective.origin + c.objective.focusingOffset*c.objective.x
-    print "Exit pinhole", c.objective.PinholeExit
-    print "Entrance pinhole", c.objective.PinholeEntrance
+    print "Distance from pinholes", (c.lens.PinholeEntrance - c.lens.PinholeExit)
+    print "Focal length", Utils.norm(c.lens.PinholeExit - c.sensor.origin)
+    print "Center of projection", c.lens.PinholeEntrance
+    print "Second main plane", c.lens.H_line*c.lens.x + c.lens.origin + c.lens.focusingOffset*c.lens.x
+    print "First main plane",  c.lens.H*c.lens.x + c.lens.origin + c.lens.focusingOffset*c.lens.x
+    print "Exit pinhole", c.lens.PinholeExit
+    print "Entrance pinhole", c.lens.PinholeEntrance
     System.plot(environment)
 
 #    System.save(environment, "test.dat")
