@@ -746,7 +746,7 @@ class Assembly(Component):
     def items(self):
         del self._items
         
-    def insert(self, component, n = None):
+    def insert(self, component, n = None, overwrite = False):
         """
         Adds element at the component list. If no n parameter is given, the
         element is added at the end of the list, otherwise it is added at the
@@ -757,7 +757,10 @@ class Assembly(Component):
         if n is None:
             self._items = np.append(self._items, component)
         else:
-            self._items = np.insert(self._items, n, component)
+            if not overwrite or len(self._items) < n+1:
+                self._items = np.insert(self._items, n, component)
+            else:
+                self._items[n] = component
             
         component.parent = self
         return len(self._items)
@@ -1068,12 +1071,15 @@ class RayBundle(Assembly):
                                                       angle, axis)
         except TypeError:
             pass
-        
+              
     def trace(self, tracingRule = TRACING_FOV):
         # Make sure everything is clear
         self.clearData()
         
         # Routine to find the top element in the hierarchy
+        if self.parent is None:
+            raise RuntimeError("Could not find parent element. " +
+                    "Is this bundle really inside an assembly?") 
         topComponent = self
         while topComponent.parent is not None:
             topComponent = topComponent.parent

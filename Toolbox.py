@@ -408,10 +408,10 @@ class Sensor(Core.Plane):
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
 
-class Objective(Core.Part):
+class Lens(Core.Part):
     def __init__(self):
         Core.Part.__init__(self)
-        self.name                   = 'Objective '+str(self._id)
+        self.name                   = 'Lens '+str(self._id)
         # Plotting parameters
         self.color                      = [0.2,0.2,0.2]
         self.opacity                    = 0.8
@@ -419,26 +419,52 @@ class Objective(Core.Part):
         self.length                     = 0.091
         self.createPoints()
         # Main planes model
-        self.flangeFocalDistance         =  0.0440
-        self.F                           =  0.1000
-        self.H                           =  0.0460
-        self.H_line                      =  0.0560
-        self.E                           =  0.0214
-        self.X                           =  0.0363
-        self._Edim                       =  0.0500
-        self._Xdim                       =  0.0401
+        self.flangeFocalDistance          =  0.0440
+        self.F                            =  0.1000
+        self.H_scalar                     =  0.0460
+        self.H_line_scalar                =  0.0560
+        self.E_scalar                     =  0.0214
+        self.X_scalar                     =  0.0363
+        self._Edim                        =  0.1000
+        self._Xdim                        =  0.0802
         # Adjustable parameters
-        self._focusingDistance           =  10
-        self.aperture                    =  2
-        self.distortionParameters        = np.array([0,0,0,1])
+        self._focusingDistance            =  10
+        self.aperture                     =  2
+        self.distortionParameters         = np.array([0,0,0,1])
         #Calculated parameters
-        self.focusingOffset             = None
-        self.PEcenter                   = None
-        self.PXcenter                   = None
-        self.Ecenter                    = None
-        self.Xcenter                    = None
+        self.focusingOffset               = 0
+        self.PinholeEntrance              = None
+        self.PinholeExit                  = None
         self.calculatePositions()
-              
+        
+    @property
+    def H(self):
+        return self.x*(self.H_scalar + self.focusingOffset) + self.origin
+    @H.setter
+    def H(self, h):
+        self.H_scalar = h
+        
+    @property
+    def H_line(self):
+        return self.x*(self.H_line_scalar + self.focusingOffset) + self.origin
+    @H_line.setter
+    def H_line(self, h):
+        self.H_line_scalar = h
+        
+    @property
+    def E(self):
+        return self.x*(self.E_scalar + self.focusingOffset) + self.origin
+    @E.setter
+    def E(self, e):
+        self.E_scalar = e
+        
+    @property
+    def X(self):
+        return self.x*(self.X_scalar + self.focusingOffset) + self.origin
+    @X.setter
+    def X(self, x):
+        self.X_scalar = x
+                        
     @property
     def focusingDistance(self):
         return self._focusingDistance
@@ -449,14 +475,14 @@ class Objective(Core.Part):
         
     @property
     def Edim(self):
-        return self._Edim * self.aperture
+        return self._Edim / self.aperture
     @Edim.setter
     def Edim(self, entrancePupilDiameter):
         self._Edim = entrancePupilDiameter
         
     @property
     def Xdim(self):
-        return self._Xdim* self.aperture
+        return self._Xdim / self.aperture
     @Xdim.setter
     def Xdim(self, entrancePupilDiameter):
         self._Xdim = entrancePupilDiameter        
@@ -477,7 +503,7 @@ class Objective(Core.Part):
         #   1            1                     1
         # -----  =  ----------- + ----------------------------
         #   F          F + d'      focusingDistance - SH - d'
-        SH      = self.H + self.flangeFocalDistance
+        SH      = self.H_scalar + self.flangeFocalDistance
         c       = self.F * (self.focusingDistance - SH + self.F)
         b       = self.focusingDistance - SH
         d_line  =     0.5*((b - self.F) - \
@@ -486,15 +512,14 @@ class Objective(Core.Part):
         # Now, we have to find the pseudo position of the pinhole (which is
         # not H'.
         v                       = d_line + self.F
-        a                       = self.E - self.H
+        a                       = self.E_scalar - self.H_scalar
         v_bar                   = v + a - v*a/self.F
         
         self.focusingOffset = d_line
-        self.PXcenter       = self.origin + self.x * (v_bar - 
+        
+        self.PinholeExit       = self.origin + self.x * (v_bar - 
                                                       self.flangeFocalDistance)
-        self.PEcenter       = self.origin + self.x * self.E
-        self.Ecenter        = self.origin + self.x * self.E
-        self.Xcenter        = self.origin + self.x * self.X
+        self.PinholeEntrance       = self.origin + self.x * (self.E_scalar + d_line)
         
     def clearData(self):
         """
@@ -507,7 +532,7 @@ class Objective(Core.Part):
         
     def createPoints(self):
         """
-        This is needed to plot the objective. This will create and the
+        This is needed to plot the lens. This will create and the
         points and the connectivity list of a  tube.
         """
         NPTS    = 20
@@ -532,7 +557,7 @@ class Objective(Core.Part):
         Given a set of points (e.g. in the sensor), will return a list of
         vectors representing the direction to be followed by ray tracing.       
         """
-        return self.lensDistortion(Utils.normalize(self.PXcenter - p))
+        return self.lensDistortion(Utils.normalize(self.PinholeExit - p))
     
     def lensDistortion(self, vectors):
         """
@@ -554,7 +579,7 @@ class Objective(Core.Part):
 class Camera(Core.Assembly):
     def __init__(self):
         Core.Assembly.__init__(self)
-        self.objective                  = None
+        self.lens                       = None
         self.sensor                     = None
         self.body                       = None
         # Plotting properties
@@ -573,6 +598,13 @@ class Camera(Core.Assembly):
         # Create and position subcomponents:
         self.positionComponents()
         
+    def clearData(self):
+        self.mapping                    = None
+        self.sensorSamplingCenters      = None
+        self.physicalSamplingCenters    = None
+        while len(self.items) > 3:
+            self.remove(3)
+        
     @property
     def bounds(self):
         """
@@ -585,9 +617,9 @@ class Camera(Core.Assembly):
         """
         This method is a shortcut to define the initial position of the camera,
         there is a definition of the initial positioning of the sensor and the 
-        objective.
+        lens.
         """
-        self.objective      = Objective()
+        self.lens           = Lens()
         self.sensor         = Sensor()
         self.body           = Core.Volume(self.length, self.heigth, self.width)
         
@@ -595,27 +627,31 @@ class Camera(Core.Assembly):
         self.body.opacity   = self.opacity
         self.body.translate(-self.x*self.length)
         
-        self.insert(self.objective)
+        self.insert(self.lens)
         self.insert(self.sensor)
         self.insert(self.body)
         
         # Flange focal distance adjustment
         self.sensor.translate(self.x*self.sensorPosition)
         
-    def shootRays(self, sensorParamCoords, referenceWavelength):
+    def shootRays(self, sensorParamCoords, 
+                  referenceWavelength = 532e-9,
+                  maximumRayTrace = 10):
         sensorCoords     = self.sensor.parametricToPhysical(sensorParamCoords)
         
         # Creates vectors to initialize ray tracing for each point in the sensor 
-        initialVectors   = self.objective.rayVector(sensorCoords)
+        initialVectors   = self.lens.rayVector(sensorCoords)
         
         # Does the ray tracing
         bundle = Core.RayBundle()
-        self.insert(bundle, 3)
         bundle.insert(initialVectors, 
-                      self.objective.PEcenter, 
+                      self.lens.PinholeEntrance, 
                       referenceWavelength)
-        bundle.maximumRayTrace = self.objective.focusingDistance * 2
-        bundle.stepRayTrace    = self.objective.focusingDistance
+
+        self.insert(bundle, 3, overwrite = True)
+
+        bundle.maximumRayTrace = maximumRayTrace
+        bundle.stepRayTrace    = np.mean(maximumRayTrace) / 2
         bundle.trace() 
         return bundle
         
@@ -628,7 +664,10 @@ class Camera(Core.Assembly):
         UV               = np.reshape(parametricCoords, 
                                       (np.size(U,0),np.size(U,1),2))
         
-        bundle = self.shootRays(parametricCoords, referenceWavelength)
+        bundle = self.shootRays(parametricCoords, 
+                                referenceWavelength,
+                                maximumRayTrace = self.lens.focusingDistance*2)
+        
 
         # Finds the intersections that are important:
         intersections = (bundle.rayIntersections == target)
@@ -696,16 +735,64 @@ class Camera(Core.Assembly):
         cond = cond / (np.size(self.sensorSamplingCenters)/3)
         return cond
     
-    def virtualCameras(self):
+    def depthOfField(self, referenceWavelength = 532e-9):
+        CoC = 29e-6
+        points_param  = np.array([[-1,-1],[-1,+1],[+1,+1],[+1,-1]])
+        points        = self.sensor.parametricToPhysical(points_param)
+        
+        # Distance from H' (second main plane) to points in sensor projected
+        # at the optical axis
+        S_H_line  = np.sum(self.lens.x*(self.lens.H_line - points), 1)
+        # Distance from exit pupil (X) to points in sensor, projected again
+        S_X       = np.sum(self.lens.x*(self.lens.X - points), 1)
+        
+        # Distance from H (first main plane) to entrance pinhole
+        H_PE      = np.sum(self.lens.x*(self.lens.H - self.lens.PinholeEntrance))
+        
+        d         = Utils.norm(S_X) * CoC / self.lens.Xdim
+        d_near    = 1 / (1/self.lens.F - 1/(S_H_line + d))
+        d_far     = 1 / (1/self.lens.F - 1/(S_H_line - d))
+        
+        # Must compensate for the fact that the pinhole is not the main plane
+        d_near    = d_near + H_PE
+        d_far     = d_far  + H_PE
+        
+        # Distance from pinhole exit to points in sensor, no projection
+        S_PX      = (self.lens.PinholeExit - 
+                     self.sensor.parametricToPhysical(points_param))
+        S_PX_x    = np.sum(self.lens.x * S_PX, 1)
+        
+        # Scaling factors
+        VecNear   = S_PX * np.tile(d_near / S_PX_x, (3,1)).T
+        VecFar    = S_PX * np.tile(d_far  / S_PX_x, (3,1)).T
+        bundleNear = self.shootRays(points_param, 
+                                    referenceWavelength, Utils.norm(VecNear))
+        bundleFar  = self.shootRays(points_param, 
+                                    referenceWavelength, Utils.norm(VecFar))
+        Pnear     = bundleNear.rayPaths[-1]
+        Pfar      = bundleFar.rayPaths[-1]
+        P         = np.vstack([Pfar, Pnear])
+        
+        v         = Core.Volume()
+        v.color   = np.array(Utils.metersToRGB(referenceWavelength))
+        v.opacity = 0.25
+        v.points  = P
+        self.insert(v, 4)
+        return v
+
+    
+    def virtualCameras(self, centeronly = True):
         if self.mapping is None:
             raise  ValueError("No mapping available, \
                               could not create virtual cameras")
             return None
         phantomPrototype                    = copy.deepcopy(self)
-        phantomPrototype.items[2].color     = [0.5,0,0]
-        phantomPrototype.items[2].opacity   = 0.2
-        phantomPrototype.items[0].color     = [0.5,0.5,0.5]
-#        phantomPrototype.sensor = None
+        phantomPrototype.body.color         = [0.5,0,0]
+        phantomPrototype.body.opacity       = 0.2
+        phantomPrototype.lens.color         = [0.5,0.5,0.5]
+        phantomPrototype.lens.opacity       = 0.2
+        phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
+
         phantomAssembly                     = Core.Assembly()
         sy                                  = self.sensor.dimension[0]
         sz                                  = self.sensor.dimension[1]
@@ -715,20 +802,29 @@ class Camera(Core.Assembly):
                                                         [sy/2,   0, 0],
                                                         [ 0  ,sz/2, 0]])
 
-        for i in range(np.size(self.mapping,0)):
-            for j in range(np.size(self.mapping,1)):
+        if not centeronly:
+            rangei = range(np.size(self.mapping,0))
+            rangej = range(np.size(self.mapping,1))
+        else:
+            rangei = [np.round(np.size(self.mapping,0)/2)]
+            rangej = [np.round(np.size(self.mapping,1)/2)]
+            
+        for i in rangei:
+            for j in rangej:
                 phantom = copy.deepcopy(phantomPrototype)
                 M = self.mapping[i,j,:,:]
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
-                phantom.translate(pinholePosition - phantom.objective.PEcenter)
+                phantom.translate(pinholePosition - phantom.lens.PinholeEntrance)
 
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates
                 MTM = np.dot(MT, M[:,:-1])
                 [_,Qm] = Utils.KQ(MTM)
-                phantom.alignTo(Qm[0],Qm[1],None,
-                                phantom.objective.PEcenter, 1e-3) 
+                    
+                phantom.mapping = M
+                phantom.alignTo(Qm[0],-Qm[1],None,
+                                phantom.lens.PinholeEntrance, 1e-3) 
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -738,22 +834,24 @@ if __name__=='__main__':
     import System
     import copy
     c                               = Camera()
-    c.objective.focusingDistance    = 1
+    c.lens.focusingDistance         = 1
+    c.lens.aperture                 = 2
     c.mappingResolution             = [10, 10]
-    c.objective.translate(np.array([0.026474,0,0]))
-    c.rotate(np.pi/4,c.x)
+    c.lens.translate(np.array([0.026474,0,0]))
+    c.lens.rotate(-0.1, c.z)
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
     v.indexOfRefraction             = 1.
     v.surfaceProperty               = v.TRANSPARENT
-    v.translate(np.array([0.4,0.5,0])) 
+    v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Core.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty              = v.MIRROR       
-    v2.indexOfRefraction            = 2.   
+    v2.surfaceProperty              = v.MIRROR
+#    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.indexOfRefraction            = 1.   
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -761,6 +859,9 @@ if __name__=='__main__':
     environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
+    
+#    Some geometrical transformations to make the problem more interesting
+    c.rotate(np.pi/4,c.x)    
     environment.rotate(np.pi/0.1314, c.x)
     environment.rotate(np.pi/27, c.y)
     environment.rotate(np.pi/2.1, c.z)
@@ -771,13 +872,13 @@ if __name__=='__main__':
     else:
         c.calculateMapping(v, 532e-9)
         
-    phantoms = c.virtualCameras()
+    c.depthOfField()
+        
+    phantoms = c.virtualCameras(True)
     
     if phantoms is not None:       
         environment.insert(phantoms)
 
-    print "Focal length", Utils.norm(c.objective.PXcenter - c.sensor.origin)
-    print "Center of projection", c.objective.PEcenter
     System.plot(environment)
 
 #    System.save(environment, "test.dat")

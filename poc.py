@@ -20,41 +20,51 @@ limitations under the License.
 Just a sandbox for trying code snippets that I'm not sure how they 
 work.
 """
-class test(object):
-    def __init__(self):
-        self.points = [1,2,3]
+#class test(object):
+#    def __init__(self):
+#        self.points = [1,2,3]
+##        
+#class test2(test):
+#    def __init__(self):
+#        test.__init__(self)
+#        self._other = "other"
+#        self._points = 1
 #        
-class test2(test):
-    def __init__(self):
-        test.__init__(self)
-        self._other = "other"
-        self._points = 1
-        
-    @property
-    def points(self, test = 1):
-        print "Activated getter"
-        return self._points + test
-    
-    @points.setter
-    def points(self,v):
-        print "Activated setter"
-        self._points = v
-        
-    @property
-    def other(self):
-        print "Other getter"
-        return self._other
-    
-    @other.setter
-    def other(self,v):
-        print "Other setter"
-        self._other = v
+#    @property
+#    def points(self, test = 1):
+#        print "Activated getter"
+#        return self._points + test
+#    
+#    @points.setter
+#    def points(self,v):
+#        print "Activated setter"
+#        self._points = v
 #        
-#t1 = test()
-#print t1.points
-#
-t2 = test2()
-print t2.points(3)
+#    @property
+#    def other(self):
+#        print "Other getter"
+#        return self._other
+#    
+#    @other.setter
+#    def other(self,v):
+#        print "Other setter"
+#        self._other = v
+##        
+##t1 = test()
+##print t1.points
+##
+#t2 = test2()
+#print t2.points(3)
+import Core
+import numpy as np
+import System
+a = Core.Assembly()
+b = Core.RayBundle()
+a.insert(b)
+b.insert(np.array([[1,0,0],[0,1,0],[0,0,1],[1,1,1]]))
+b.maximumRayTrace = np.array([5,2,3,4])
+b.trace()
+System.plot(a)
 #t2.points = [2,3,4]
 #print t2.points
 

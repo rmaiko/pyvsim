@@ -554,7 +554,7 @@ def DLT(uvlist, xyzlist):
             warnings.warn("Discrepancy of more than 1e-3 found in DLT", Warning)
 #    print "End check"
 #    return (M, D[0]/D[-2], D[-1])
-    return (M / np.linalg.norm(V[8:11]), D[0]/D[-2], D[-1])
+    return (M / np.linalg.norm(M[2,:3]), D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
     """
