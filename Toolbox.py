@@ -408,10 +408,10 @@ class Sensor(Core.Plane):
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
 
-class Objective(Core.Part):
+class Lens(Core.Part):
     def __init__(self):
         Core.Part.__init__(self)
-        self.name                   = 'Objective '+str(self._id)
+        self.name                   = 'Lens '+str(self._id)
         # Plotting parameters
         self.color                      = [0.2,0.2,0.2]
         self.opacity                    = 0.8
@@ -612,7 +612,7 @@ class Camera(Core.Assembly):
         there is a definition of the initial positioning of the sensor and the 
         objective.
         """
-        self.objective      = Objective()
+        self.objective      = Lens()
         self.sensor         = Sensor()
         self.body           = Core.Volume(self.length, self.heigth, self.width)
         
