@@ -1068,12 +1068,15 @@ class RayBundle(Assembly):
                                                       angle, axis)
         except TypeError:
             pass
-        
+              
     def trace(self, tracingRule = TRACING_FOV):
         # Make sure everything is clear
         self.clearData()
         
         # Routine to find the top element in the hierarchy
+        if self.parent is None:
+            raise RuntimeError("Could not find parent element. " +
+                    "Is this bundle really inside an assembly?") 
         topComponent = self
         while topComponent.parent is not None:
             topComponent = topComponent.parent
