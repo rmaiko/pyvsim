@@ -419,26 +419,52 @@ class Objective(Core.Part):
         self.length                     = 0.091
         self.createPoints()
         # Main planes model
-        self.flangeFocalDistance         =  0.0440
-        self.F                           =  0.1000
-        self.H                           =  0.0460
-        self.H_line                      =  0.0560
-        self.E                           =  0.0214
-        self.X                           =  0.0363
-        self._Edim                       =  0.0500
-        self._Xdim                       =  0.0401
+        self.flangeFocalDistance          =  0.0440
+        self.F                            =  0.1000
+        self.H_scalar                     =  0.0460
+        self.H_line_scalar                =  0.0560
+        self.E_scalar                     =  0.0214
+        self.X_scalar                     =  0.0363
+        self._Edim                        =  0.0500
+        self._Xdim                        =  0.0401
         # Adjustable parameters
-        self._focusingDistance           =  10
-        self.aperture                    =  2
-        self.distortionParameters        = np.array([0,0,0,1])
+        self._focusingDistance            =  10
+        self.aperture                     =  2
+        self.distortionParameters         = np.array([0,0,0,1])
         #Calculated parameters
-        self.focusingOffset             = None
-        self.PEcenter                   = None
-        self.PXcenter                   = None
-        self.Ecenter                    = None
-        self.Xcenter                    = None
+        self.focusingOffset               = 0
+        self.PinholeEntrance              = None
+        self.PinholeExit                  = None
         self.calculatePositions()
-              
+        
+    @property
+    def H(self):
+        return self.x*(self.H_scalar + self.focusingOffset) + self.origin
+    @H.setter
+    def H(self, h):
+        self.H_scalar = h
+        
+    @property
+    def H_line(self):
+        return self.x*(self.H_line_scalar + self.focusingOffset) + self.origin
+    @H_line.setter
+    def H_line(self, h):
+        self.H_line_scalar = h
+        
+    @property
+    def E(self):
+        return self.x*(self.E_scalar + self.focusingOffset) + self.origin
+    @E.setter
+    def E(self, e):
+        self.E_scalar = e
+        
+    @property
+    def X(self):
+        return self.x*(self.X_scalar + self.focusingOffset) + self.origin
+    @X.setter
+    def X(self, x):
+        self.X_scalar = x
+                        
     @property
     def focusingDistance(self):
         return self._focusingDistance
@@ -477,7 +503,7 @@ class Objective(Core.Part):
         #   1            1                     1
         # -----  =  ----------- + ----------------------------
         #   F          F + d'      focusingDistance - SH - d'
-        SH      = self.H + self.flangeFocalDistance
+        SH      = self.H_scalar + self.flangeFocalDistance
         c       = self.F * (self.focusingDistance - SH + self.F)
         b       = self.focusingDistance - SH
         d_line  =     0.5*((b - self.F) - \
@@ -486,15 +512,14 @@ class Objective(Core.Part):
         # Now, we have to find the pseudo position of the pinhole (which is
         # not H'.
         v                       = d_line + self.F
-        a                       = self.E - self.H
+        a                       = self.E_scalar - self.H_scalar
         v_bar                   = v + a - v*a/self.F
         
         self.focusingOffset = d_line
-        self.PXcenter       = self.origin + self.x * (v_bar - 
+        
+        self.PinholeExit       = self.origin + self.x * (v_bar - 
                                                       self.flangeFocalDistance)
-        self.PEcenter       = self.origin + self.x * self.E
-        self.Ecenter        = self.origin + self.x * self.E
-        self.Xcenter        = self.origin + self.x * self.X
+        self.PinholeEntrance       = self.origin + self.x * (self.E_scalar + d_line)
         
     def clearData(self):
         """
@@ -532,7 +557,7 @@ class Objective(Core.Part):
         Given a set of points (e.g. in the sensor), will return a list of
         vectors representing the direction to be followed by ray tracing.       
         """
-        return self.lensDistortion(Utils.normalize(self.PXcenter - p))
+        return self.lensDistortion(Utils.normalize(self.PinholeExit - p))
     
     def lensDistortion(self, vectors):
         """
@@ -612,7 +637,7 @@ class Camera(Core.Assembly):
         bundle = Core.RayBundle()
         self.insert(bundle, 3)
         bundle.insert(initialVectors, 
-                      self.objective.PEcenter, 
+                      self.objective.PinholeEntrance, 
                       referenceWavelength)
         bundle.maximumRayTrace = self.objective.focusingDistance * 2
         bundle.stepRayTrace    = self.objective.focusingDistance
@@ -721,14 +746,14 @@ class Camera(Core.Assembly):
                 M = self.mapping[i,j,:,:]
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
-                phantom.translate(pinholePosition - phantom.objective.PEcenter)
+                phantom.translate(pinholePosition - phantom.objective.PinholeEntrance)
 
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates
                 MTM = np.dot(MT, M[:,:-1])
                 [_,Qm] = Utils.KQ(MTM)
                 phantom.alignTo(Qm[0],Qm[1],None,
-                                phantom.objective.PEcenter, 1e-3) 
+                                phantom.objective.PinholeEntrance, 1e-3) 
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -739,9 +764,8 @@ if __name__=='__main__':
     import copy
     c                               = Camera()
     c.objective.focusingDistance    = 1
-    c.mappingResolution             = [10, 10]
+    c.mappingResolution             = [2, 2]
     c.objective.translate(np.array([0.026474,0,0]))
-    c.rotate(np.pi/4,c.x)
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
@@ -752,8 +776,8 @@ if __name__=='__main__':
     
     v2                              = Core.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty              = v.MIRROR       
-    v2.indexOfRefraction            = 2.   
+    v2.surfaceProperty              = v.TRANSPARENT       
+    v2.indexOfRefraction            = 1.   
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -761,9 +785,12 @@ if __name__=='__main__':
     environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
-    environment.rotate(np.pi/0.1314, c.x)
-    environment.rotate(np.pi/27, c.y)
-    environment.rotate(np.pi/2.1, c.z)
+    
+#    Some geometrical transformations to make the problem more interesting
+#    c.rotate(np.pi/4,c.x)    
+#    environment.rotate(np.pi/0.1314, c.x)
+#    environment.rotate(np.pi/27, c.y)
+#    environment.rotate(np.pi/2.1, c.z)
     
 
     if (v2.surfaceProperty == v.TRANSPARENT).all():
@@ -771,13 +798,28 @@ if __name__=='__main__':
     else:
         c.calculateMapping(v, 532e-9)
         
+
     phantoms = c.virtualCameras()
+    
+    def homog(point):
+        return np.hstack([phantoms.items[0].sensor.parametricToPhysical(np.array(point)), 1])
+    
+    print np.dot(c.mapping[0,0],homog([-1,-1]))
+    print np.dot(c.mapping[0,0],homog([-1,+1]))
+    print np.dot(c.mapping[0,0],homog([+1,+1]))
+    print np.dot(c.mapping[0,0],homog([+1,-1]))   
+    print np.dot(c.mapping[0,0],np.array([+1,0,0,1])) 
     
     if phantoms is not None:       
         environment.insert(phantoms)
 
-    print "Focal length", Utils.norm(c.objective.PXcenter - c.sensor.origin)
-    print "Center of projection", c.objective.PEcenter
+    print "Distance from pinholes", (c.objective.PinholeEntrance - c.objective.PinholeExit)
+    print "Focal length", Utils.norm(c.objective.PinholeExit - c.sensor.origin)
+    print "Center of projection", c.objective.PinholeEntrance
+    print "Second main plane", c.objective.H_line*c.objective.x + c.objective.origin + c.objective.focusingOffset*c.objective.x
+    print "First main plane",  c.objective.H*c.objective.x + c.objective.origin + c.objective.focusingOffset*c.objective.x
+    print "Exit pinhole", c.objective.PinholeExit
+    print "Entrance pinhole", c.objective.PinholeEntrance
     System.plot(environment)
 
 #    System.save(environment, "test.dat")
