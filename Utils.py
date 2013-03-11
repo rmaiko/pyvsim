@@ -390,8 +390,8 @@ def triangleArea(p1,p2,p3):
     
     Assumes::
     
-    1) points are given as numpy arrays (crashes if not met)
-    2) if points lists are given, this will still work
+    1. points are given as numpy arrays (crashes if not met)
+    2. if points lists are given, this will still work
     
     Algorithm:
         v1 = p2 - p1
@@ -400,13 +400,12 @@ def triangleArea(p1,p2,p3):
         
     Parameters
     ----------
-    p1, p2, p3
-        numpy.arrays. If a list of points is given, they must be vertically
-        stacked.
+    p1, p2, p3 : numpy.array
+        If a list of points is given, they must be vertically stacked.
     
     Returns
     -------
-    area
+    area : scalar / numpy.array
         The area of the points defined by the triangles. If lists of points
         were used as inputs, the output is a 1D numpy.array with as many
         elements as given points 
