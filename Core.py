@@ -1467,16 +1467,12 @@ class RayBundle(Assembly):
         assert(Utils.aeq(N, Utils.normalize(N)))
         assert(Utils.aeq(currVector, Utils.normalize(currVector)))
         
-        #=========================================
         # Calculate as if all rays were reflected
-        #=========================================
         reflected = currVector - (2 * N * 
                                   np.tile(np.sum(N * currVector,1),
                                           (GLOBAL_NDIM,1)).T)
         
-        #=========================================
         # Calculate refractions
-        #=========================================
         # Important calculation:
         NdotV       = np.sum(currVector * N, 1)
         # Properties:
@@ -1520,7 +1516,6 @@ class RayBundle(Assembly):
                      N)
         refracted = Utils.normalize(refracted)
     
-        #=========================================
         #   Big if block to sort the cases out
         #=========================================
         # First, assume rays were undisturbed:

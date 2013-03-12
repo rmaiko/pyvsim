@@ -63,6 +63,7 @@ b = Core.RayBundle()
 a.insert(b)
 b.insert(np.array([[1,0,0],[0,1,0],[0,0,1],[1,1,1]]))
 b.maximumRayTrace = np.array([5,2,3,4])
+b.alignTo(np.nan,np.nan,np.nan)
 b.trace()
 System.plot(a)
 #t2.points = [2,3,4]

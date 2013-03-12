@@ -801,12 +801,12 @@ class Camera(Core.Assembly):
                                                         [sy/2,   0, 0],
                                                         [ 0  ,sz/2, 0]])
 
-        if not centeronly:
-            rangei = range(np.size(self.mapping,0))
-            rangej = range(np.size(self.mapping,1))
-        else:
+        if centeronly:
             rangei = [np.round(np.size(self.mapping,0)/2)]
             rangej = [np.round(np.size(self.mapping,1)/2)]
+        else:
+            rangei = range(np.size(self.mapping,0))
+            rangej = range(np.size(self.mapping,1))
             
         for i in rangei:
             for j in rangej:
@@ -834,23 +834,23 @@ if __name__=='__main__':
     import copy
     c                               = Camera()
     c.lens.focusingDistance         = 1
-    c.lens.aperture                 = 2
-    c.mappingResolution             = [10, 10]
+    c.lens.aperture                 = 22
+    c.mappingResolution             = [5, 5]
     c.lens.translate(np.array([0.026474,0,0]))
     c.lens.rotate(-0.1, c.z)
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.indexOfRefraction             = 1.
+    v.indexOfRefraction             = 1.6666
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Core.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty              = v.MIRROR
+    v2.surfaceProperty              = v.TRANSPARENT
 #    v2.surfaceProperty              = v.TRANSPARENT 
-    v2.indexOfRefraction            = 1.   
+    v2.indexOfRefraction            = 5
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -860,10 +860,10 @@ if __name__=='__main__':
     environment.insert(v2)
     
 #    Some geometrical transformations to make the problem more interesting
-    c.rotate(np.pi/4,c.x)    
-    environment.rotate(np.pi/0.1314, c.x)
-    environment.rotate(np.pi/27, c.y)
-    environment.rotate(np.pi/2.1, c.z)
+#    c.rotate(np.pi/4,c.x)    
+#    environment.rotate(np.pi/0.1314, c.x)
+#    environment.rotate(np.pi/27, c.y)
+#    environment.rotate(np.pi/2.1, c.z)
     
 
     if (v2.surfaceProperty == v.TRANSPARENT).all():
@@ -871,9 +871,11 @@ if __name__=='__main__':
     else:
         c.calculateMapping(v, 532e-9)
         
+    print c.mapping
+        
     c.depthOfField()
         
-    phantoms = c.virtualCameras(True)
+    phantoms = c.virtualCameras(False)
     
     if phantoms is not None:       
         environment.insert(phantoms)
