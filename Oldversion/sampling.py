@@ -24,8 +24,6 @@ def partition(n):
         # print "here     ", c1[k*n:(k+1)*n]
         c1[k*n:(k+1)*n] = np.tile(c[k],n) 
     return np.vstack([c1,c2]).T
-    
-def    
 
 def func(x):
     #return np.sum(np.sin(x),1)

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 PyVSim v.1
 Copyright 2013 Ricardo Entz
@@ -110,7 +109,7 @@ def Plotter(mode="vtk"):
     else:
         raise ValueError("Could not understand input " + mode)
     
-    raise ImportError("Could not import a library for plotting. PyVSim" + \
+    raise ImportError("Could not import a library for plotting. PyVSim" +
                         "uses both Matplotlib and VTK")
 
 class Visitor(object):
@@ -292,8 +291,8 @@ class PythonPlotter(Visitor):
     def __init__(self):
         Visitor.__init__(self)
         self.fig = plt.figure()
-        self.fig.canvas.set_window_title('PyVSim Visualization window ' + \
-                                         'ver. ' + VERSION + \
+        self.fig.canvas.set_window_title('PyVSim Visualization window ' + 
+                                         'ver. ' + VERSION + 
                                           ' - powered by Matplotlib') 
         self.ax  = self.fig.gca(projection='3d')
         
@@ -503,9 +502,9 @@ def JSONLoader(name):
             if type(obj.__dict__[key]) == list:
                 obj.__dict__[key] = np.array(obj.__dict__[key])
                 # Reconstruct references from objectStrings
-                if obj.__dict__[key].dtype.char == "S" or \
-                   obj.__dict__[key].dtype.char == "U" or \
-                   obj.__dict__[key].dtype.char == "O":
+                if (obj.__dict__[key].dtype.char == "S" or 
+                    obj.__dict__[key].dtype.char == "U" or 
+                    obj.__dict__[key].dtype.char == "O"):
                     references = np.empty_like(obj.__dict__[key], object)
                     iterator   = np.nditer(obj.__dict__[key], 
                                            flags=['refs_ok','multi_index'])
@@ -522,8 +521,8 @@ def JSONLoader(name):
                     obj.__dict__[key] = references
                 
             # Reconstruct references outside lists
-            if type(obj.__dict__[key]) == str or \
-               type(obj.__dict__[key]) == unicode:
+            if (type(obj.__dict__[key]) == str or 
+               type(obj.__dict__[key]) == unicode):
                 idno = idFromObjectString(obj.__dict__[key])
                 if idno is not None:
                     obj.__dict__[key] = objectlist[idlist.index(idno)]

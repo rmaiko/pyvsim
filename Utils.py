@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 PyVSim part2.1
 Copyright 2013 Ricardo Entz

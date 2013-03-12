@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 PyVSim part2.1
 Copyright 2013 Ricardo Entz
@@ -370,11 +369,11 @@ class Part(Component):
             Format: [Normals(raw), Normals(normalized)
         """
         if len(self.points) > 0:
-            xmin = [min(self.points[:,0]), \
-                    min(self.points[:,1]), \
+            xmin = [min(self.points[:,0]), 
+                    min(self.points[:,1]), 
                     min(self.points[:,2])]
-            xmax = [max(self.points[:,0]), \
-                    max(self.points[:,1]), \
+            xmax = [max(self.points[:,0]), 
+                    max(self.points[:,1]), 
                     max(self.points[:,2])]
             self._bounds = np.array([xmin,xmax])
             
@@ -522,8 +521,8 @@ class Part(Component):
         # The second and third lines check if the point is really at the triangle
         #
         
-        [Ii,Ij] = np.nonzero((T_0 <= tol)+(T_0 > 1+tol)+ \
-                              (S1 < -tol)+(T1 < -tol)+ \
+        [Ii,Ij] = np.nonzero((T_0 <= tol)+(T_0 > 1+tol)+ 
+                              (S1 < -tol)+(T1 < -tol)+ 
                               (S1 + T1 > 1 + tol))
                               
         T_0[Ii,Ij] = 999
@@ -547,11 +546,11 @@ class Part(Component):
         # intersection is found
         #normals[lineParameters > 1] = 0*normals[lineParameters > 1]
                                                              
-        return [lineParameters, \
-                intersectionCoords,\
-                triangleIndexes,\
+        return [lineParameters,
+                intersectionCoords,
+                triangleIndexes,
                 normals,
-                np.array([self]*nlins)]\
+                np.array([self]*nlins)]
         
     def _calculateNormals(self,triangleIndexes,intersectionCoords):
         """ 
@@ -580,9 +579,9 @@ class Part(Component):
                             triangleCoords[:,2])
         
         # Barycentric interpolation
-        result = np.tile(lambdas[:,0],(3,1)).T * np.array(normals[:,0,:]) + \
-                 np.tile(lambdas[:,1],(3,1)).T * np.array(normals[:,1,:]) + \
-                 np.tile(lambdas[:,2],(3,1)).T * np.array(normals[:,2,:])
+        result = (np.tile(lambdas[:,0],(3,1)).T * np.array(normals[:,0,:]) + 
+                  np.tile(lambdas[:,1],(3,1)).T * np.array(normals[:,1,:]) + 
+                  np.tile(lambdas[:,2],(3,1)).T * np.array(normals[:,2,:]))
                  
         # As a side-effect, normals must be normalized after barycentric interp
         result = result / np.tile(np.sum(result*result,1)**0.5, (3,1)).T
@@ -832,20 +831,20 @@ class Assembly(Component):
 
         eliminated1 = (Tmin[:,0] > Tmax[:,1]) + (Tmin[:,1] > Tmax[:,0])
 
-        Tmin[:,0] = Tmin[:,0] * (Tmin[:,1] <= Tmin[:,0]) + \
-                    Tmin[:,1] * (Tmin[:,1] > Tmin[:,0])
+        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,1] <= Tmin[:,0]) + 
+                     Tmin[:,1] * (Tmin[:,1] > Tmin[:,0]))
                     
-        Tmax[:,0] = Tmax[:,0] * (Tmax[:,1] >= Tmax[:,0]) + \
-                    Tmax[:,1] * (Tmax[:,1] < Tmax[:,0])
+        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,1] >= Tmax[:,0]) + 
+                     Tmax[:,1] * (Tmax[:,1] < Tmax[:,0]))
                     
                 
         eliminated2 = (Tmin[:,0] > Tmax[:,2]) + (Tmin[:,2] > Tmax[:,0])
 
-        Tmin[:,0] = Tmin[:,0] * (Tmin[:,2] <= Tmin[:,0]) + \
-                    Tmin[:,2] * (Tmin[:,2] > Tmin[:,0])
+        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,2] <= Tmin[:,0]) + 
+                     Tmin[:,2] * (Tmin[:,2] > Tmin[:,0]))
                     
-        Tmax[:,0] = Tmax[:,0] * (Tmax[:,2] >= Tmax[:,0]) + \
-                    Tmax[:,2] * (Tmax[:,2] < Tmax[:,0])
+        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,2] >= Tmax[:,0]) + 
+                     Tmax[:,2] * (Tmax[:,2] < Tmax[:,0]))
                     
         eliminated3 = (Tmin[:,0] > 1) + (Tmax[:,0] < 0)
 
@@ -880,8 +879,13 @@ class Assembly(Component):
                     p0_refined = p0[boxTest == 1]
                     p1_refined = p1[boxTest == 1]
                     
-                    [lineT, coords, triInd, N, partList]  = \
-                                part.intersections(p0_refined, p1_refined, tol)
+                    [lineT, 
+                     coords,                
+                     triInd, 
+                     N, 
+                     partList]  = part.intersections(p0_refined, 
+                                                     p1_refined, 
+                                                     tol)
                     
                     # Create a mask of elements which must be substituted
                     lineParameter_temp                  = np.zeros(nlins) + 999
@@ -1240,13 +1244,15 @@ class RayBundle(Assembly):
         # First, assume rays were undisturbed:
         result = currVector
         # Then substitute those who were successfully refracted / pass through
-        result[(cosTheta2 <= 1 + GLOBAL_TOL) * surfaceProperty[:,1]] = \
-         Utils.normalize(refracted[(cosTheta2 <= 1 + GLOBAL_TOL) * 
-                                   surfaceProperty[:,1]])
+        result[(cosTheta2 <= 1 + GLOBAL_TOL) * 
+               surfaceProperty[:,1]] = Utils.normalize(
+                                        refracted[(cosTheta2 <= 1 + GLOBAL_TOL)* 
+                                                  surfaceProperty[:,1]])
         # Then zero those rays who found a dump
         if tracingRule == RayBundle.TRACING_FOV:
-            result[surfaceProperty[:,2] + surfaceProperty[:,3]] = \
-             0 * result[surfaceProperty[:,2] + surfaceProperty[:,3]]
+            result[surfaceProperty[:,2] + 
+                   surfaceProperty[:,3]] = (0 * result[surfaceProperty[:,2] + 
+                                                       surfaceProperty[:,3]])
         else:
             result[surfaceProperty[:,3]] = 0 * result[surfaceProperty[:,3]]
         # Then put reflected rays
@@ -1340,9 +1346,10 @@ class Plane(Part):
         up internal variables
         """
         self._dimension = np.array([self._heigth,  self._length])
-        self.points = Plane.PARAMETRIC_COORDS[:,1:3] * np.tile(self.dimension,(4,1))
-        self.points = np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + \
-                      np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z 
+        self.points = (Plane.PARAMETRIC_COORDS[:,1:3] * 
+                       np.tile(self.dimension,(4,1)))
+        self.points = (np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + 
+                       np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z)
           
     def parametricToPhysical(self,coordinates):
         """
@@ -1358,15 +1365,15 @@ class Plane(Part):
         
         if coordinates.ndim == 1:
 #            print "ndim == 1"
-            return self.origin + coordinates[0] * self.y + \
-                                 coordinates[1] * self.z
+            return self.origin + (coordinates[0] * self.y + 
+                                  coordinates[1] * self.z)
         else:
 #            print "ndim > 1"
 #            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
 #            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
-            return self.origin + \
-                   np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + \
-                   np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z
+            return (self.origin + 
+                    np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + 
+                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z)
                     
     def physicalToParametric(self,coords):
         """
@@ -1383,9 +1390,9 @@ class Plane(Part):
             return np.array([py,pz])        
         else:
             nvecs = np.size(part2,0)
-            py = (np.sum(np.tile(self.y,(nvecs,1).T*part2,1) / \
+            py = (np.sum(np.tile(self.y,(nvecs,1).T*part2,1) / 
                           self.dimension[0]))
-            pz = (np.sum(np.tile(self.z,(nvecs,1).T*part2,1) / \
+            pz = (np.sum(np.tile(self.z,(nvecs,1).T*part2,1) / 
                           self.dimension[0]))
             return 2*np.array([py,pz]).T
     
@@ -1508,9 +1515,9 @@ class Volume(Part):
           
     def _resize(self):
         self.points = Volume.PARAMETRIC_COORDS * np.tile(self.dimension,(8,1))
-        self.points = (np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze() + \
-                      (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze() + \
-                      (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze() 
+        self.points =((np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze()+ 
+                      (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze()+ 
+                      (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze()) 
         
     def physicalToParametric(self, c):
         """
@@ -1521,8 +1528,8 @@ class Volume(Part):
         
         0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
         """                
-        return Utils.hexaInterpolation(c, \
-                                       self.points, \
+        return Utils.hexaInterpolation(c, 
+                                       self.points, 
                                        Volume.PARAMETRIC_COORDS[:,1:3])
     
     def parametricToPhysical(self, p):
@@ -1534,8 +1541,8 @@ class Volume(Part):
         
         0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
         """     
-        return Utils.hexaInterpolation(p, \
-                                       Volume.PARAMETRIC_COORDS[:,1:3], \
+        return Utils.hexaInterpolation(p, 
+                                       Volume.PARAMETRIC_COORDS[:,1:3], 
                                        self.points)
           
     def pointInHexa(self,p):

@@ -1,11 +1,6 @@
 from __future__ import division
-import vtk
 import numpy as np
 import math
-import copy
-import Utils
-import vec
-from pprint import pprint
 
 
 def besselj(nu,z):
@@ -27,7 +22,7 @@ def bessely(nu,z):
 
 x = 1e-6 * 2 * np.pi / (532e-9)
 m = 1.333 + 0.00001*1j
-def mie_abcd(m, x)
+def mie_abcd(m, x):
     #
     # Parameter calculation
     # 

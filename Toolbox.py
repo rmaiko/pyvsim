@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 PyVSim v.1
 Copyright 2013 Ricardo Entz
@@ -132,9 +131,9 @@ class Sensor(Core.Plane):
         
         To handle negative values, only the absolute value is taken into account
         """
-        self.rawData = np.abs(self.backgroundMeanLevel + \
-                              self.backgroundNoiseStd * \
-                              np.random.randn(self.resolution[0],\
+        self.rawData = np.abs(self.backgroundMeanLevel + 
+                              self.backgroundNoiseStd * 
+                              np.random.randn(self.resolution[0],
                                               self.resolution[1]))
         
     def readSensor(self):
@@ -247,10 +246,10 @@ class Sensor(Core.Plane):
         # Filtering useless results
         #
         npts         =   np.size(coords,0)
-        killist      = range(1,npts+1)* \
-                      (coords[:,0] <= 1.01) * (coords[:,0] >= -0.01) * \
-                      (coords[:,1] <= 1.01) * (coords[:,1] >= -0.01) * \
-                      ((totalPhotons / (sX * sY)) > 1)
+        killist      = (range(1,npts+1)* 
+                        (coords[:,0] <= 1.01) * (coords[:,0] >= -0.01) * 
+                        (coords[:,1] <= 1.01) * (coords[:,1] >= -0.01) * 
+                        ((totalPhotons / (sX * sY)) > 1))
 
         killist      = np.nonzero(killist)[0]
         
@@ -300,10 +299,10 @@ class Sensor(Core.Plane):
         # Case anchor has negative elements, stick them to the pixel zero 
         anchor[anchor < 0] = 0 * anchor[anchor < 0]
         # Case anchor element is out of the matrix boundaries
-        anchor[:,0][anchor[:,0] + masksize[0] > self.resolution[0]] = \
-            (self.resolution - masksize)[0]
-        anchor[:,1][anchor[:,1] + masksize[1] > self.resolution[1]] = \
-            (self.resolution - masksize)[1]
+        anchor[:,0][anchor[:,0] + masksize[0] > 
+                    self.resolution[0]] = (self.resolution - masksize)[0]
+        anchor[:,1][anchor[:,1] + masksize[1] > 
+                    self.resolution[1]] = (self.resolution - masksize)[1]
 
         anchorX = anchor[:,0]
         anchorY = anchor[:,1]
@@ -323,8 +322,8 @@ class Sensor(Core.Plane):
         gY0 = erf(Y - 0.5 * frY)
         gY1 = erf(Y + 0.5 * frY)    
 
-        level = 0.5*((gX1-gX0)*(gY1-gY0) / (sX * sY))* \
-                totalPhotons*self.quantumEfficiency
+        level = (0.5*((gX1-gX0)*(gY1-gY0) / (sX * sY))* 
+                 totalPhotons*self.quantumEfficiency)
 
         for (n, (ax,ay)) in enumerate(anchor):
             self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]] += level[n]
@@ -506,8 +505,8 @@ class Lens(Core.Part):
         SH      = self.H_scalar + self.flangeFocalDistance
         c       = self.F * (self.focusingDistance - SH + self.F)
         b       = self.focusingDistance - SH
-        d_line  =     0.5*((b - self.F) - \
-                                  np.sqrt((b - self.F)**2 + 4*(self.F * b - c)))
+        d_line  = 0.5*((b - self.F) - np.sqrt((b - self.F)**2 + 
+                                              4*(self.F * b - c)))
         #
         # Now, we have to find the pseudo position of the pinhole (which is
         # not H'.
@@ -540,8 +539,8 @@ class Lens(Core.Part):
         conn    = []
         for l in range(2):
             for n in range(NPTS):
-                pts.append(l*self.length*self.x + self.diameter * 0.5 * \
-                           ((np.cos(2*np.pi*n/NPTS)*self.y) + \
+                pts.append(l*self.length*self.x + self.diameter * 0.5 * 
+                           ((np.cos(2*np.pi*n/NPTS)*self.y) + 
                             (np.sin(2*np.pi*n/NPTS)*self.z)))
         for n in range(NPTS-1):
             conn.append([n,n+1,n+NPTS])
@@ -695,9 +694,9 @@ class Camera(Core.Assembly):
         #print lastInts      
         
         XYZ   = (firstInts + lastInts) / 2
-        self.sensorSamplingCenters    = (UV[:-1,:-1]  + UV[:-1,1:]  +\
+        self.sensorSamplingCenters    = (UV[:-1,:-1]  + UV[:-1,1:]  +
                                          UV[1:,1:]  + UV[1:,:-1])/4
-        self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +\
+        self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
         self.mapping = np.empty((np.size(UV,0)-1,
                                  np.size(UV,1)-1,
@@ -783,8 +782,8 @@ class Camera(Core.Assembly):
     
     def virtualCameras(self, centeronly = True):
         if self.mapping is None:
-            raise  ValueError("No mapping available, \
-                              could not create virtual cameras")
+            raise  ValueError("No mapping available, " +
+                              "could not create virtual cameras")
             return None
         phantomPrototype                    = copy.deepcopy(self)
         phantomPrototype.body.color         = [0.5,0,0]
