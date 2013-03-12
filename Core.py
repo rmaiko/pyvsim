@@ -76,7 +76,7 @@ class Component(object):
     @property
     def origin(self):           return self._origin 
        
-    def getIndexOfRefraction(self, wavelength):
+    def getIndexOfRefraction(self, wavelength = 532e-9):
         """
         Returns the index of refraction of the material given the wavelength
         (or a list of them)
@@ -84,6 +84,16 @@ class Component(object):
         If Sellmeier coefficients are given, calculation will be performed
         based on wavelength. 
         `Reference: <http://en.wikipedia.org/wiki/Sellmeier_equation>`
+        
+        Parameters
+        ----------
+        wavelength : scalar or numpy.array
+            The wavelength of the incoming light given in *meters*
+        
+        Returns
+        -------
+        indexOfRefraction : same dimension as wavelength
+            The index of refraction
         """       
         if self.sellmeierCoeffs is None:
             return self.indexOfRefraction
@@ -98,16 +108,45 @@ class Component(object):
                            
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
-        This is a method used specifically for ray tracing. Its inputs are:
-        p0, p1 - np.array([[x0, y0, z0],
-                           [x1, y1, z1],
-                            ...
-                           [xn, yn, zn]])
-        Defining n segments, which will be tested for intersection with the
-        polygons defined in the structure.
+        This is a method used specifically for ray tracing. The method returns 
+        data about the first intersection between line segments and the 
+        polygons defined in the Component. The implementation of the
+        intersection is given by the inheriting classes.
         
-        *By definition* this method will not search for intersections with lines,
-        if there is any in the assembly.
+        Parameters
+        ----------
+        p0, p1 - numpy.array (N x 3)
+            Coordinates defining N segments by 2 points (each p0, p1 pair), 
+            which will be tested for intersection with the polygons defined in 
+            the structure.
+        tol - double
+            Tolerance used in the criteria for intersection (see documentation
+            of each implementation)
+            
+        Returns
+        -------
+        None
+            If no intersections are found. Otherwise returns a list with::
+        lineParameter
+            This is used to indicate how far the intersection point is from the
+            segment starting point, if 0, the intersection is at p0 and if 1, 
+            the intersection is at p1
+            
+            *Iff* the parameter is > 1 (999), no intersection was found   
+        intersectionCoordinates
+            This is where the intersections are found   
+        triangleIndexes
+            This is the index of the triangle where the intersection was found.
+            If no intersection found, will return 0, *but attention*, the only
+            way to guarantee that no intersection was found is when the 
+            lineParameter is zero.
+        normals
+            The normal vector at the intersection point (if the surface is
+            defined with normals at vertices, interpolation is performed).   
+        part
+            A list with references to this object. This is, in this case, 
+            redundant, but that makes the function signature uniform with the
+            `:class:~Core.Assembly`
         """
         return None
     
@@ -121,6 +160,11 @@ class Component(object):
         
         *If you are inheriting from this class* and your node is non-terminal,
         please override this method
+        
+        Parameters
+        ----------
+        visitor 
+            an object inheriting from `:class:~System.Visitor`
         """
         visitor.visit(self)
     
@@ -131,12 +175,11 @@ class Component(object):
         delegates the responsibility to the inheriting class by means of the
         :meth:`~Core.Component.translateImplementation()` method.
         
-        Inputs::
-        
-        vector
-            Vector to translate the component. A 3-component numpy array with
-            x, y and z coordinates
-        
+        Parameters
+        ----------
+        vector : numpy.array (1 x 3)
+            Vector to translate the component. An array with x, y and z 
+            coordinates
         """
         self._origin     = self._origin + vector
         self.translateImplementation(vector)
@@ -156,6 +199,16 @@ class Component(object):
         
         *This is a protected method, do not use it unless you are inheriting
         from this class!*
+        
+        Parameters
+        ----------
+        vector : numpy.array (1 x 3)
+            Vector to translate the component. An array with x, y and z 
+            coordinates
+                
+        Raises
+        ------
+        NotImplementedError
         """
         raise NotImplementedError
         
@@ -166,17 +219,15 @@ class Component(object):
         vectors. It delegates the responsibility to the inheriting class by 
         means of the :meth:`~Core.Component.rotateImplementation()` method.
         
-        Inputs::
-        
+        Parameters
+        ----------
         angle
-            Angle (in radians)
-        axis
-            Vector around which the rotation occurs. A 3-component numpy array 
-            with x, y and z coordinates
-        pivotPoint
+            Angle : scalar (in radians)
+        axis : numpy.array (1 x 3)
+            Vector around which the rotation occurs.
+        pivotPoint : numpy.array (1 x 3)
             Point in space around which the rotation occurs. If not given, 
-            rotates around origin. A 3-component numpy array with x, y and z 
-            coordinates
+            rotates around origin.
         """
         if (np.abs(angle) < GLOBAL_TOL):
             return
@@ -207,6 +258,20 @@ class Component(object):
         
         *This is a protected method, do not use it unless you are inheriting
         from this class!*
+        
+        Parameters
+        ----------
+        angle
+            Angle : scalar (in radians)
+        axis : numpy.array (1 x 3)
+            Vector around which the rotation occurs.
+        pivotPoint : numpy.array (1 x 3)
+            Point in space around which the rotation occurs. If not given, 
+            rotates around origin.
+        
+        Raises
+        ------
+        NotImplementedError
         """
         raise NotImplementedError
         
@@ -226,6 +291,26 @@ class Component(object):
         
         Obs: No concerns about code efficiency are made, as this method will
         probably not be used all the time.
+        
+        Parameters
+        ----------
+        angle
+            Angle : scalar (in radians)
+        axis : numpy.array (1 x 3)
+            Vector around which the rotation occurs.
+        pivotPoint : numpy.array (1 x 3)
+            Point in space around which the rotation occurs. If not given, 
+            rotates around origin.
+        
+        Raises
+        ------
+        AssertionError
+            If the vectors are not perpendicular to the given tolerance (check
+            is done with a dot product), or if the rotation is performed from
+            a right-handed coordinate system to a left-handed and vice-versa.
+        LinAlgError
+            If the calculation has other mathematical problems.
+            
         """
         if pivotPoint is None:
             pivotPoint = self.origin
@@ -249,7 +334,7 @@ class Component(object):
                          self.y,
                          self.z])
         M   = np.linalg.solve(Xold,Xnew)
-        assert (np.linalg.det(M) - 1)**2 < GLOBAL_TOL # property of rotation Matrix
+        assert (np.linalg.det(M) - 1)**2 < GLOBAL_TOL # prop of rotation Matrix
         
         # Formulation from Wikipedia (See documentation above)
         D,V = np.linalg.eig(M)
@@ -314,6 +399,15 @@ class Part(Component):
         
     @property
     def bounds(self):
+        """
+        Returns the coordinates of the aligned-to-axis-bounding box
+        
+        Returns
+        -------
+        bounds : numpy.array
+            An array with the following data [xmin, xmax, ymin, ymax, zmin,
+            zmax]. Defining a box aligned to axis bounding the Part
+        """
         if self._bounds is None:
             self._computeRaytracingData()
         return self._bounds
@@ -394,49 +488,58 @@ class Part(Component):
             self._bounds = np.zeros((2,3))
                 
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
-        """ Method for finding intersections between polygon and segment
-        Inputs:
-        p0 - segment initial point - list of 3 component list
-        p1 - segment final point   - list of 3 component list
+        """ 
+        This is a method used specifically for ray tracing. The method returns 
+        data about the first intersection between line segments and the 
+        polygons defined in the Component. The implementation of the
+        intersection is given by the inheriting classes.
         
-        The method returns only the first intersection between the line and
-        the polygons. The result is given as five lists::
+        This method is intended for use in raytracing algorithms, as there is
+        an initial, fast verification to see if there is a chance of any 
+        triangle in the polygon to be intersected, then, if it is the case, 
+        it executes expensive search.
+               
+        Special cases when intersecting with individual triangles:
         
+        - if line is contained on triangle plane, will ignore
+        - if intersection is at p0, will not return p0
+        
+        Algorithm adapted from http://geomalgorithms.com/a06-_intersect-2.html
+        
+        Parameters
+        ----------
+        p0, p1 - numpy.array (N x 3)
+            Coordinates defining N segments by 2 points (each p0, p1 pair), 
+            which will be tested for intersection with the polygons defined in 
+            the structure.
+        tol - double
+            Tolerance used in the criteria for intersection (see documentation
+            of each implementation)
+            
+        Returns
+        -------
+        None
+            If no intersections are found. Otherwise returns a list with::
         lineParameter
             This is used to indicate how far the intersection point is from the
-            segment starting point, if 0, the intersection is at p0 and if 1, the
-            intersection is at p1
+            segment starting point, if 0, the intersection is at p0 and if 1, 
+            the intersection is at p1
             
-            *Iff* the parameter is > 1 (999), no intersection was found
-            
+            *Iff* the parameter is > 1 (999), no intersection was found   
         intersectionCoordinates
-            This is where the intersections are found
-            
+            This is where the intersections are found   
         triangleIndexes
             This is the index of the triangle where the intersection was found.
             If no intersection found, will return 0, *but attention*, the only
             way to guarantee that no intersection was found is when the 
             lineParameter is zero.
-        
         normals
             The normal vector at the intersection point (if the surface is
-            defined with normals at vertices, interpolation is performed).
-            
+            defined with normals at vertices, interpolation is performed).   
         part
             A list with references to this object. This is, in this case, 
             redundant, but that makes the function signature uniform with the
             `:class:~Core.Assembly`
-                
-        This method is intended for use in raytracing algorithms, as there is
-        an initial, fast verification to see if there is a chance of any triangle
-        in the polygon to be intersected, then, if it is the case, it executes 
-        expensive search.
-               
-        Special cases when intersecting with individual triangles:
-        - if line is contained on triangle plane, will ignore
-        - if intersection is at p0, will not return p0
-        
-        Algorithm adapted from http://geomalgorithms.com/a06-_intersect-2.html
         """
         #
         # Some assertions to guarantee that the input data is correct:
@@ -555,19 +658,25 @@ class Part(Component):
     def _calculateNormals(self,triangleIndexes,intersectionCoords):
         """ 
         This method returns a 3-element list corresponding to the normalized 
-        normal vector. It returns the interpolation (using barycentric coordinates) 
-        of the normals on the triangle vertices - use this if representing 
-        lenses, etc
+        normal vector. It returns the interpolation (using barycentric 
+        coordinates) of the normals on the triangle vertices - use this if 
+        representing lenses, etc
         
-        Inputs::
-        
-        triangleIndexes
-            indexes of the triangles (numpy array)
-        intersectionCoords
-            coordinates of the intersection point (numpy array of 3 elements array)
-            
         *WARNING* - will return a result even if point is not on the polygon
-                      
+        
+        Parameters
+        ----------
+        triangleIndexes : numpy.array (N x 3)
+            indexes of the triangles vertices (the order is important, otherwise
+            the normals can be inverted. As this method is vectorized, it is
+            possible to execute N calculations at the same time.
+        intersectionCoords : numpy.array (N x 3)
+            coordinates of the intersection points
+            
+        Returns
+        -------
+        result : numpy.array (N x 3)
+            normal vectors
         """
         triangleCoords  = self.points[self.connectivity[triangleIndexes]]
         normals         = self.normals[self.connectivity[triangleIndexes]]
@@ -584,7 +693,7 @@ class Part(Component):
                   np.tile(lambdas[:,2],(3,1)).T * np.array(normals[:,2,:]))
                  
         # As a side-effect, normals must be normalized after barycentric interp
-        result = result / np.tile(np.sum(result*result,1)**0.5, (3,1)).T
+        result = Utils.normalize(result)
  
         return result
         
@@ -596,6 +705,12 @@ class Part(Component):
         There is an exception handling because there is the possibility that 
         the part is translated before the points are defined. This is extremely
         unlikely, but should not stop the program execution.
+        
+        Parameters
+        ----------
+        vector : numpy.array (1 x 3)
+            Vector to translate the component. An array with x, y and z 
+            coordinates
         """
         try:
             self.points = self.points + part2
@@ -615,6 +730,16 @@ class Part(Component):
         
         In case the surface is defined with normals on vertices (thus making
         self.normals not None), these vectors are rotated.
+        
+        Parameters
+        ----------
+        angle
+            Angle : scalar (in radians)
+        axis : numpy.array (1 x 3)
+            Vector around which the rotation occurs.
+        pivotPoint : numpy.array (1 x 3)
+            Point in space around which the rotation occurs. If not given, 
+            rotates around origin.
         """
         try:
             self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
@@ -628,9 +753,10 @@ class Part(Component):
                         
     def clearData(self):
         """
-        Implement this method whenever your object possesses geometrical features
-        that are calculated from their interaction with the ambient (e.g. - any
-        raytraced features). This method is called for all spatial transformations
+        Implement this method whenever your object possesses geometrical 
+        features that are calculated from their interaction with the ambient 
+        (e.g. - any raytraced features). This method is called after all spatial 
+        transformations
         """
         self._bounds                            = None
         self._triangleVectors                   = None
@@ -658,6 +784,11 @@ class Line(Component):
         """
         This signals the ray tracing implementation that no attempt should be
         made to intersect rays with lines
+        
+        Returns
+        -------
+        None
+            signals that no intersections were found
         """
         return None
         
@@ -747,11 +878,25 @@ class Assembly(Component):
         
     def insert(self, component, n = None, overwrite = False):
         """
-        Adds element at the component list. If no n parameter is given, the
-        element is added at the end of the list, otherwise it is added at the
-        n-th position.
+        Adds element at the component list. 
         
-        The method returns the list length.
+        Parameters
+        ----------
+        component : Component
+            The Component to be added
+        n : int = None
+            [Optional] The position of the component to be added. If no 
+            parameter is given, the element is added at the end of the list, 
+            otherwise it is added at the n-th position.
+        overwrite : boolean = False
+            [Optional] If the parameter n is given *and* the n-th position is
+            occupied, this flag specifies whether the element at this position
+            should be overwritten (True) of simply shifted (False).
+        
+        Returns
+        -------
+        n
+            The list length.
         """
         if n is None:
             self._items = np.append(self._items, component)
@@ -768,9 +913,21 @@ class Assembly(Component):
         """
         Remove the element at the n-th position of the component list. This
         also de-registers this assembly as its parent.
+        
+        Parameters
+        ----------
+        n
+            The position of the element
+            
+        Returns
+        -------
+        element
+            A reference to the element, if one is to re-use that.
         """
+        element = self._items[n]
         self._items[n].parent = None
         self._items = np.delete(self._items, n)
+        return element
         
     def acceptVisitor(self, visitor):
         """
@@ -785,22 +942,11 @@ class Assembly(Component):
             part.acceptVisitor(visitor)
       
     def _boundingBoxTest(self, bounds, p0, p1):
-        """ Determines if the line segment intersects the box bounding the polygon
-        Inputs:
-        bounds
-            a 2x3 vector with:: [[xmin,ymin,zmin],[xmax,ymax,zmax]]
-        p0
-            segment initial point - 3 element list
-        p1
-            segment final point   - 3 element list
+        """ 
+        Determines if lines defined by the segments p0-p1 intersects the box 
+        bounding the polygon
         
-        Returns:
-        +----------------------+----+
-        | if intersection   |  1 |
-        +----------------------+----+
-        |if not intersection - 0
-        
-        The algorithm implemented here was taken from:
+        The algorithm implemented was taken from:
         author = {Amy Williams and Steve Barrus and R. Keith and Morley Peter 
         Shirley},
         title = {An efficient and robust ray-box intersection algorithm},
@@ -816,6 +962,26 @@ class Assembly(Component):
             V[V == 0] = GLOBAL_TOL
         
         Which seems to work to avoid the creation of NaNs in the calculation.
+        
+        Parameters
+        ----------
+        bounds : numpy.array([[xmin,ymin,zmin],[xmax,ymax,zmax]])
+            the dimensions of the bounding box
+        p0 : numpy.array (N x 3)
+            segment initial point - accepts simultaneous calculation of N 
+            points
+        p1 : numpy.array (N x 3)
+            segment final point   - accepts simultaneous calculation of N 
+            points
+        
+        Returns
+        -------
+        +----------------------+----+
+        | if intersection      |  1 |
+        +----------------------+----+
+        |if not intersection   |  0 | 
+        +----------------------+----+
+        if N lives were given, will return a N-long numpy.array
         """
         [xmin,xmax] =  bounds
 
@@ -852,16 +1018,45 @@ class Assembly(Component):
           
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
-        This is a method used specifically for ray tracing. Its inputs are:
-        p0, p1 - np.array([[x0, y0, z0],
-                           [x1, y1, z1],
-                            ...
-                           [xn, yn, zn]])
-        Defining n segments, which will be tested for intersection with the
-        polygons defined in the structure.
+        This method searches for intersections between a given set of line
+        segments and the Parts included in this Assembly. Please check the
+        documentation at `:class:~Core.Part` for a better description of its
+        internals.
         
-        *By definition* this method will not search for intersections with lines,
-        if there is any in the assembly.
+        Parameters
+        ----------
+        p0, p1 - numpy.array (N x 3)
+            Coordinates defining N segments by 2 points (each p0, p1 pair), 
+            which will be tested for intersection with the polygons defined in 
+            the structure.
+        tol - double
+            Tolerance used in the criteria for intersection (see documentation
+            of each implementation)
+            
+        Returns
+        -------
+        None
+            If no intersections are found. Otherwise returns a list with::
+        lineParameter
+            This is used to indicate how far the intersection point is from the
+            segment starting point, if 0, the intersection is at p0 and if 1, 
+            the intersection is at p1
+            
+            *Iff* the parameter is > 1 (999), no intersection was found   
+        intersectionCoordinates
+            This is where the intersections are found   
+        triangleIndexes
+            This is the index of the triangle where the intersection was found.
+            If no intersection found, will return 0, *but attention*, the only
+            way to guarantee that no intersection was found is when the 
+            lineParameter is zero.
+        normals
+            The normal vector at the intersection point (if the surface is
+            defined with normals at vertices, interpolation is performed).   
+        part
+            A list with references to this object. This is, in this case, 
+            redundant, but that makes the function signature uniform with the
+            `:class:~Core.Assembly`
         """
         nlins               = np.size(p0,0)
         ndim                = np.size(p0,1)
@@ -975,9 +1170,35 @@ class RayBundle(Assembly):
         
     def insert(self, initialVector, initialPosition = None, wavelength = 532e-9):
         """
-        This method is used to insert new rays in the bundle. This can work in
-        several ways::
+        This method is used to insert new rays in the bundle. 
         
+        Parameters
+        ----------
+        initialVector : numpy.array (N x 3)
+            if N rays are given, each element is the initial vector for ray
+            tracing of each ray
+        initialPosition : numpy.array (N x 3)
+            if no parameter is passed, rays will depart from the origin of the
+            bundle. Otherwise they will depart from the given points. If N
+            points were given, a single common starting point can be given
+        wavelength : numpy.array (N)
+            the wavelength of the rays in meters (this changes the color and
+            the behavior of the rays, if any dispersing element is present in
+            the simulation
+                                 
+        Notes
+        -----
+        
+        *   If the starting point is omitted, it will assume that the rays
+            departs from the origin of the bundle
+            
+        *   This method was not made to be efficient in a loop (there are many
+            checks), so it should be used ideally only once to insert all rays
+            
+        *   This method destroys data that was already ray-traced, if any
+        
+        Examples
+        --------        
         1) A single ray is inserted::
         
         >>> bundle = RayBundle()
@@ -992,16 +1213,6 @@ class RayBundle(Assembly):
         
         >>> bundle.insert(np.array([[1,0,0],[0,1,0]], \\
                           np.array([0,0,0]))
-                          
-        Notes: 
-        
-        *   If the starting point is omitted, it will assume that the rays
-            departs from the origin of the bundle
-            
-        *   This method was not made to be efficient, so it should be used 
-            ideally only once, and not in a loop
-            
-        *   This method destroys data that was already ray-traced, if any
         """
         # clear data, as it would be really difficult to manage rays with 
         # different number of points
@@ -1039,34 +1250,56 @@ class RayBundle(Assembly):
         
     def delete(self, n):
         """
-        This method is not implemented, as deleting a single ray requires 
-        many matrix reshapings. 
+        This method is not implemented, and is present only to respect the 
+        Assembly interface. As deleting a single ray requires many matrix 
+        reshapings, it is better to clear all the data and redo the ray
+        tracing. 
         
-        If you want to delete rays, use the clear method.
+        Raises
+        ------
+        NotImplementedError
         """
         return NotImplementedError
     
     def clear(self):
+        """
+        Removes all rays and ray tracing data from the bundle.
+        """
         self.wavelength                 = None
         self.startingPoints             = None
         self.initialVectors             = None
         self.clearData()
 
-    def translateImplementation(self, part2):
+    def translateImplementation(self, translation):
         """
         This method changes the rays starting points, and waits for clear data
         to delete all ray tracing related information.
+        
+        Parameters
+        ----------
+        translation : numpy.array (3)
+            A [dx, dy, dz] vector
         """
         try:
-            self.startingPoints             = self.startingPoints + part2
+            self.startingPoints             = self.startingPoints + translation
         except TypeError:
             pass # there might be no starting points registered
                
     def rotateImplementation(self, angle, axis, pivotPoint):
         """
-        This method does nothing, because a rotation or a translation of light 
-        rays may completely change the light paths, requiring a full new ray
-        tracing
+        This method rotates the starting points and deletes all ray tracing
+        data, because a rotation or a translation of light 
+        rays may completely change the light paths.
+        
+        Parameters
+        ----------
+        angle
+            Angle : scalar (in radians)
+        axis : numpy.array (1 x 3)
+            Vector around which the rotation occurs.
+        pivotPoint : numpy.array (1 x 3)
+            Point in space around which the rotation occurs. If not given, 
+            rotates around origin.
         """
         try:
             self.startingPoints = Utils.rotatePoints(self.startingPoints, 
@@ -1077,6 +1310,25 @@ class RayBundle(Assembly):
             pass
               
     def trace(self, tracingRule = TRACING_FOV):
+        """
+        A method for starting ray tracing. The bundle must be included in the
+        environment assembly where ray tracing will be done (the position, 
+        however, is not important)
+        
+        Parameters
+        ----------
+        tracingRule
+            Either RayBundle.TRACING_FOV or RayBundle.TRACING_LASER_REFLECTION,
+            this parameter tells if ray tracing should stop at opaque surfaces
+            (this is the case when tracing to determine the field of view) or
+            not (to trace for laser safety calculations)
+            
+        Raises
+        ------
+        RuntimeError
+            If the bundle is not inserted in an assembly, this error will be 
+            raised.
+        """
         # Make sure everything is clear
         self.clearData()
         
@@ -1137,7 +1389,7 @@ class RayBundle(Assembly):
                         (t > 1) * stepsize)
         
             # Calculate the next vectors
-            currVector  = self.calculateNextVectors(currVector, 
+            currVector  = self._calculateNextVectors(currVector, 
                                                     t, 
                                                     N, 
                                                     surfaceRef,
@@ -1172,9 +1424,39 @@ class RayBundle(Assembly):
             self._items[n].points = self.rayPaths[:,n,:]
             self._items[n].color  = Utils.metersToRGB(self.wavelength[n])
             
-    def calculateNextVectors(self, currVector, t, N, surface, tracingRule):
+    def _calculateNextVectors(self, currVector, t, N, surface, tracingRule):
         """
-        TODO
+        A method to calculate the vectors to continue ray tracing. This includes
+        the logic of determining if the tracing stops at opaque interfaces or 
+        not.
+        
+        Parameters
+        ----------
+        currVector : numpy.array (N x 3)
+            The current ray path
+        t : numpy.array (N)
+            The position of the intersection given by the equation
+            p = p0 + t*(p1 - p0). The value of t must be between zero 
+            (exclusive) and 1 (inclusive) to be considered valid.
+        N : numpy.array (N x 3)
+            The normal vector of the intersected surface
+        surface : numpy.array(N) of Components
+            The references to the intersected surfaces
+        tracing rule : RayBundle.TRACING_FOV or TRACING_LASER_REFLECTION
+            This parameter tells if ray tracing should stop at opaque surfaces
+            (this is the case when tracing to determine the field of view) or
+            not (to trace for laser safety calculations)
+            
+        Returns
+        -------
+        vectors : numpy.array (N x 3)
+            the vectors indicating the direction that ray paths must continue
+            in ray tracing
+            
+        Raises
+        ------
+        AssertionError
+            If the norm(N) or norm(currVector) is not 1. 
         """
         # Returns same vector if no intersection was found
         if (t > 1 + GLOBAL_TOL).all():
