@@ -218,16 +218,23 @@ def rotateVector(x,angle,axis):
     formulation of the `Euler-Rodrigues formula 
     <http://en.wikipedia.org/wiki/Euler%E2%80%93Rodrigues_parameters>`_
     
-    x
-        A vector (size = 3) or a list of vectors (n rows, 3 columns) to be
+    Parameters
+    ----------
+    x : numpy.array (N x 3)
+        A vector (size = 3) or a list of vectors (N rows, 3 columns) to be
         rotated
-    angle
+    angle : double
         scalar (in radians)
-    axis
+    axis : numpy.array (3)
         A vector around which the vector is rotated
         
-    For example::
-    
+    Returns
+    -------
+    vectors : numpy.array (N x 3)
+        The vectors after rotation
+        
+    Examples
+    --------
     >>> [x,y,z] = np.eye(3)
     >>> temp = rotateVector(x, np.pi/2, z)
     >>> aeq(temp, y)
@@ -252,18 +259,25 @@ def rotatePoints(points,angle,axis,origin):
     <http://en.wikipedia.org/wiki/Euler%E2%80%93Rodrigues_parameters>`_
     formula for rotating a point cloud
     
-    points
-        A point (size = 3) or a list of points (n rows, 3 columns) to be
+    Parameters
+    ----------
+    points : numpy.array (N x 3)
+        A point (size = 3) or a list of points (N rows, 3 columns) to be
         rotated
-    angle
+    angle : scalar
         scalar (in radians)
-    axis
+    axis : numpy.array (3)
         A vector around which the points are rotated
-    origin
+    origin : numpy.array (3)
         A point around which the points are rotated
         
-    For example::
-    
+    Returns
+    -------
+    points : numpy.array (N x 3)
+        A list of rotated points
+        
+    Examples
+    --------    
     >>> o = np.array([0,0,0])
     >>> [x,y,z] = np.eye(3)
     >>> temp = rotatePoints(x, np.pi/2, z, o)
@@ -284,48 +298,76 @@ def rotatePoints(points,angle,axis,origin):
     else:
         return points
         
-def normalize(part2):
+def normalize(vectors):
     """
     This can be used to normalize a vector or a list of vectors, provided
     they are given as numpy arrays.
     
+    Parameters
+    ----------
+    vectors : numpy.array (N x 3)
+        A list of vectors to be normalized
+        
+    Returns
+    -------
+    vectors : numpy.array (N x 3)
+        The normalized vectors
+    
+    Examples
+    --------    
     >>> result = normalize(np.array([2,0,0]))
     >>> assert(aeq(result, np.array([1,0,0])))
     
     And for multiple vectors:
     
-    >>> result = normalize(np.array([[2,0,0], [0,0,1]]))
-    >>> assert(aeq(result, np.array([[1,0,0], [0,0,1]])))
+    >>> result = normalize(np.array([[2,0,0], 
+    ...                              [0,0,1]]))
+    >>> assert(aeq(result, np.array([[1,0,0], 
+    ...                              [0,0,1]])))
     
     """
-    if part2.ndim == 1:
-        return part2 / np.dot(part2,part2)**0.5
-    if part2.ndim == 2:
-        ncols = np.size(part2,1)
-        norms = norm(part2)
+    if vectors.ndim == 1:
+        return vectors / np.dot(vectors,vectors)**0.5
+    if vectors.ndim == 2:
+        ncols = np.size(vectors,1)
+        norms = norm(vectors)
         norms[norms == 0] = 1
         norms = np.tile(norms.T,(ncols,1)).T
-        return part2 / norms
+        return vectors / norms
         
-def norm(part2):
+def norm(vectors):
     """
     This can be used to calculate the euclidean norm of vector or a list of 
-    vectors, provided they are given as numpy arrays of the following form::
+    vectors, provided they are given as numpy arrays.
     
+    Parameters
+    ----------
+    vectors : numpy.array (N x 3)
+        A list of vectors
+        
+    Returns
+    -------
+    norms : numpy.array (N)
+        A list with the euclidean norm of the vectors
+        
+    Examples
+    --------    
     >>> inp = norm(np.array([1,1,0]))
     >>> out = np.sqrt(2)
     >>> assert(aeq(inp, out))
     
     And for multiple vectors:
     
-    >>> inp = norm(np.array([[1,1,0],[1,1,1]]))
-    >>> out = np.array([np.sqrt(2), np.sqrt(3)])
+    >>> inp = norm(np.array([[1,1,0],
+    ...                      [1,1,1]]))
+    >>> out = np.array([np.sqrt(2), 
+    ...                 np.sqrt(3)])
     >>> assert(aeq(inp, out))
     """
-    if part2.ndim == 1:
-        return np.dot(part2,part2)**0.5
-    if part2.ndim == 2:
-        return np.sum(part2*part2,1)**0.5
+    if vectors.ndim == 1:
+        return np.dot(vectors,vectors)**0.5
+    if vectors.ndim == 2:
+        return np.sum(vectors*vectors,1)**0.5
        
 def barycentricCoordinates(p,p1,p2,p3):
     """
@@ -334,6 +376,17 @@ def barycentricCoordinates(p,p1,p2,p3):
     
     For more information on barycentric coordinates, see `Wikipedia 
     <http://en.wikipedia.org/wiki/Barycentric_coordinate_system>`
+    
+    Assumes::
+    1) points are given as numpy arrays (crashes if not met)
+    
+    Algorithm
+    ---------
+    area        = Object.triangleArea(p1,p2,p3)
+    lambda1     = Object.triangleArea(p,p2,p3)
+    lambda2     = Object.triangleArea(p,p1,p3)
+    lambda3     = Object.triangleArea(p,p1,p2)
+    return np.array([lambda1,lambda2,lambda3])/area
     
     Parameters
     ----------
@@ -347,20 +400,9 @@ def barycentricCoordinates(p,p1,p2,p3):
     [lambda1,lambda2,lambda3]
         the barycentric coordinates of point p with respect to the defined 
         triangle
-    
-    Assumes::
-    1) points are given as numpy arrays (crashes if not met)
-    
-    Algorithm::
-        area        = Object.triangleArea(p1,p2,p3)
-        lambda1     = Object.triangleArea(p,p2,p3)
-        lambda2     = Object.triangleArea(p,p1,p3)
-        lambda3     = Object.triangleArea(p,p1,p2)
-        return np.array([lambda1,lambda2,lambda3])/area
-    
+        
     Examples
     --------   
-    
     >>> [p,p1,p2,p3] = np.array([[0.5,0.5,0],[0,0,0],[1,0,0],[0,1,0]])
     >>> barycentricCoordinates(p,p1,p2,p3)
     array([ 0. ,  0.5,  0.5])
@@ -392,10 +434,11 @@ def triangleArea(p1,p2,p3):
     1. points are given as numpy arrays (crashes if not met)
     2. if points lists are given, this will still work
     
-    Algorithm:
-        v1 = p2 - p1
-        v2 = p3 - p1
-        return 0.5*norm(np.cross(v1,v2))
+    Algorithm
+    ---------
+    v1 = p2 - p1
+    v2 = p3 - p1
+    return 0.5*norm(np.cross(v1,v2))
         
     Parameters
     ----------
@@ -455,6 +498,43 @@ def KQ(A):
     return K / K[-1,-1], Q
 
 def linesIntersection(v,p):
+    """
+    Calculates the intersection of a list of lines. If no intersection exists,
+    will return a point that minimizes the square of the distances to the
+    given lines.
+    
+    Parameters
+    ----------
+    v : numpy.array (N x M)
+        A list of vectors with the direction of the lines (for 3D vectors, 
+        M = 3)
+    p : numpy.array (N x M)
+        A list of vectors with a point in the line
+        
+    Returns
+    -------
+    x : numpy.array (M)
+        The point that minimizes the square of the distance to each line
+        
+    Raises
+    ------
+    numpy.linalg.LinAlgError
+        If the given lines are almost parallel, so no unique solution can be
+        found
+        
+    Examples
+    --------
+    >>> v = np.array([[1,0,0],
+    ...               [0,1,0]])
+    >>> p = np.array([[0,0,0],
+    ...               [0,-1,0]])
+    >>> linesIntersection(v,p)
+    array([ 0.,  0.,  0.])
+    
+    >>> p = np.array([[0,0,0],[0,-1,0.1]]) # No intersection exists
+    >>> linesIntersection(v,p)
+    array([ 0.  ,  0.  ,  0.05])
+    """
     v = normalize(v)
     nlines  = np.size(v,0)
     NN      = np.zeros((nlines,3,3))
@@ -468,7 +548,6 @@ def linesIntersection(v,p):
     part2 = np.sum(NNp, 0)
         
     [U,D,V] = np.linalg.svd(part1)
-    print D
     if D[0]/D[-1] > 1e10:
         raise np.linalg.LinAlgError("Could not converge calculation")
     
@@ -604,10 +683,14 @@ def DLTnormalization(pointslist):
         
     Examples
     --------
-    >>> pointslist = np.array([[0,0],[0,1],[1,1],[1,0]])
+    >>> pointslist = np.array([[0,0],
+    ...                        [0,1],
+    ...                        [1,1],
+    ...                        [1,0]])
     >>> [normpoints, T] = DLTnormalization(pointslist)
     >>> (np.mean(normpoints,0) == 0).all()
     True
+    
     >>> homogeneouspoints = np.ones((4,3))       #must convert to homog. coords.
     >>> homogeneouspoints[:,:-1] = normpoints
     >>> np.dot(np.linalg.inv(T),homogeneouspoints.T).T[:,:-1] #inverse transform
@@ -635,7 +718,36 @@ def pointInHexa(p,hexapoints):
         - calculate normal pointing outwards
         - verify if point is "behind" the plane defined by the face
        
-    Returns 1 if inside or on the face, 0 otherwise
+    Parameters
+    ----------
+    p : numpy.array (N x 3)
+        List of points to be tested
+    hexapoints : numpy.array (8 x 3)
+        List of points defining an hexahedron, must obey the conventional order
+        of defining hexas
+       
+    Returns
+    -------
+    1 
+        if points lies inside the hexahedron
+    0 
+        otherwise
+        
+    Examples
+    --------
+    >>> hexapoints = np.array([[0,0,0], 
+    ...                        [0,1,0], 
+    ...                        [0,1,1], 
+    ...                        [0,0,1], 
+    ...                        [1,0,0], 
+    ...                        [1,1,0], 
+    ...                        [1,1,1], 
+    ...                        [1,0,1]])
+    >>> p = np.array([[0  ,  0,  0], 
+    ...               [0.5,0.5,0.5], 
+    ...               [  2,  0,  0]])
+    >>> pointInHexa(p, hexapoints)
+    array([ 0.,  1.,  0.])
     """
 
    
@@ -645,9 +757,9 @@ def pointInHexa(p,hexapoints):
         truthtable = 1
               
     for n in range(6):
-        vout = np.cross(hexapoints[HEXA_CONN_PARTIAL[n,0]] - \
+        vout = np.cross(hexapoints[HEXA_CONN_PARTIAL[n,0]] - 
                         hexapoints[HEXA_CONN_PARTIAL[n,2]],
-                        hexapoints[HEXA_CONN_PARTIAL[n,1]] - \
+                        hexapoints[HEXA_CONN_PARTIAL[n,1]] - 
                         hexapoints[HEXA_CONN_PARTIAL[n,2]])
         truthtable = truthtable * \
                     (listdot(p - hexapoints[HEXA_CONN_PARTIAL[n,2]], vout) < 0)

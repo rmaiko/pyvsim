@@ -843,7 +843,8 @@ class Camera(Core.Assembly):
                 M = self.mapping[i,j,:,:]
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
-                phantom.translate(pinholePosition - phantom.lens.PinholeEntrance)
+                phantom.translate(pinholePosition - 
+                                  phantom.lens.PinholeEntrance)
 
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates

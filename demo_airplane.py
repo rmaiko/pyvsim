@@ -85,4 +85,4 @@ c.depthOfField()
 tic.toc()
 
 # This is to display the scenario
-System.plot(a)
+System.plot(a,mode="vtk",displayAxes=False)
