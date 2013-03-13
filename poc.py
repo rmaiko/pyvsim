@@ -55,17 +55,17 @@ work.
 ##
 #t2 = test2()
 #print t2.points(3)
-import Core
-import numpy as np
-import System
-a = Core.Assembly()
-b = Core.RayBundle()
-a.insert(b)
-b.insert(np.array([[1,0,0],[0,1,0],[0,0,1],[1,1,1]]))
-b.maximumRayTrace = np.array([5,2,3,4])
-b.alignTo(np.nan,np.nan,np.nan)
-b.trace()
-System.plot(a)
+#import Core
+#import numpy as np
+#import System
+#a = Core.Assembly()
+#b = Core.RayBundle()
+#a.insert(b)
+#b.insert(np.array([[1,0,0],[0,1,0],[0,0,1],[1,1,1]]))
+#b.maximumRayTrace = np.array([5,2,3,4])
+#b.alignTo(np.nan,np.nan,np.nan)
+#b.trace()
+#System.plot(a)
 #t2.points = [2,3,4]
 #print t2.points
 
@@ -147,3 +147,58 @@ System.plot(a)
 ##import Utils
 ##m = calculateDLT(uv, xyz)
 ##print m
+
+import numpy as np
+import Utils
+v = np.array([[1, 0.0001,0],
+              [1,-0.0001,0],
+              [1,       0,0]])
+
+p = np.array([[0,-0.01,0],
+              [0, 0.01,0],
+              [0, 0.00,0.1]])
+
+def linesIntersection(v,p):
+    v = Utils.normalize(v)
+    nlines  = np.size(v,0)
+    NN      = np.zeros((nlines,3,3))
+    NNp     = np.zeros((nlines,3,1))
+    for n in range(nlines):
+        NN[n]  = np.eye(3) - np.dot(np.reshape(v[n],(3,1)), 
+                                    np.reshape(v[n],(1,3)))
+        NNp[n] = np.dot(NN[n], np.reshape(p[n],(3,1))) 
+        
+    part1 = np.sum(NN,  0)
+    part2 = np.sum(NNp, 0)
+        
+    [U,D,V] = np.linalg.svd(part1)
+    print D
+    if D[0]/D[-1] > 1e10:
+        raise np.linalg.LinAlgError("Could not converge calculation")
+    
+    part1 = np.dot(V.T, np.dot(np.diag(1/D), U.T))
+    
+    return np.dot(part1,part2).squeeze()
+    
+if __name__ == "__main__":
+    print linesIntersection(v,p)
+#
+#n1 = np.eye(3) - np.dot(v1.T,v1)
+#n2 = np.eye(3) - np.dot(v2.T,v2)
+#print n1
+#print n2
+#
+#x = ((np.eye(3) - np.dot(v1.T,v1)) + (np.eye(3) - np.dot(v2.T,v2)))
+#print x
+#x_inv = np.linalg.inv(x)
+#print "Inverse"
+#print x_inv
+#[U,D,V] = np.linalg.svd(x)
+#print "Pinv"
+#print np.dot(V.T, np.dot(np.diag(1/D), U.T))
+
+#x = np.dot(V.T, np.dot(np.diag(1/D), U.T))
+#print "%e" % (D[0]/D[-1])
+#x = np.dot(x,np.dot((np.eye(3) - np.dot(v1.T,v1)), p1.T) + 
+#             np.dot((np.eye(3) - np.dot(v2.T,v2)), p2.T) )
+#print x

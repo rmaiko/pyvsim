@@ -768,6 +768,35 @@ class Camera(Core.Assembly):
                                     referenceWavelength, Utils.norm(VecNear))
         bundleFar  = self.shootRays(points_param, 
                                     referenceWavelength, Utils.norm(VecFar))
+        
+#        ptsy = np.zeros((4,3))
+#        ptsz = np.zeros((4,3))
+#        for n in range(4):
+#            pupilPoints = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
+#                                    self.lens.E + self.lens.z*self.lens.Edim/2,
+#                                    self.lens.E - self.lens.y*self.lens.Edim/2,
+#                                    self.lens.E - self.lens.z*self.lens.Edim/2,])
+#            vectors     = (self.lens.PinholeEntrance + 0.5 * (VecNear[n] + VecFar[n]) -
+#                           pupilPoints)
+#            bundletest  = Core.RayBundle()
+#            bundletest.insert(Utils.normalize(vectors), pupilPoints, 532e-9)
+#            self.insert(bundletest)
+#            bundletest.maximumRayTrace = 1.5
+#            bundletest.stepRayTrace    = 1.5
+#            bundletest.trace()
+#            p = bundletest.rayPaths[-1]
+#            v = bundletest.rayPaths[-2] - bundletest.rayPaths[-1]
+#            ptsy[n] = Utils.linesIntersection(v[[0,2]], p[[0,2]])
+#            ptsz[n] = Utils.linesIntersection(v[[1,3]], p[[1,3]])
+#        plane = Core.Plane()
+#        plane.points = ptsy
+#        plane.color  = [1,0,0]
+#        self.insert(plane)
+#        plane = Core.Plane()
+#        plane.points = ptsz
+#        plane.color  = [1,1,0]
+#        self.insert(plane)
+        
         Pnear     = bundleNear.rayPaths[-1]
         Pfar      = bundleFar.rayPaths[-1]
         P         = np.vstack([Pfar, Pnear])
@@ -833,24 +862,24 @@ if __name__=='__main__':
     import System
     import copy
     c                               = Camera()
-    c.lens.focusingDistance         = 1
-    c.lens.aperture                 = 22
+    c.lens.focusingDistance         = 0.7
+    c.lens.aperture                 = 4
     c.mappingResolution             = [5, 5]
     c.lens.translate(np.array([0.026474,0,0]))
-    c.lens.rotate(-0.1, c.z)
+#    c.lens.rotate(-0.1, c.z)
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.indexOfRefraction             = 1.6666
+    v.indexOfRefraction             = 1.666
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Core.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty              = v.TRANSPARENT
-#    v2.surfaceProperty              = v.TRANSPARENT 
-    v2.indexOfRefraction            = 5
+#    v2.surfaceProperty              = v.MIRROR
+    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.indexOfRefraction            = 3.666
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -860,10 +889,10 @@ if __name__=='__main__':
     environment.insert(v2)
     
 #    Some geometrical transformations to make the problem more interesting
-#    c.rotate(np.pi/4,c.x)    
-#    environment.rotate(np.pi/0.1314, c.x)
-#    environment.rotate(np.pi/27, c.y)
-#    environment.rotate(np.pi/2.1, c.z)
+    c.rotate(np.pi/4,c.x)    
+    environment.rotate(np.pi/0.1314, c.x)
+    environment.rotate(np.pi/27, c.y)
+    environment.rotate(np.pi/2.1, c.z)
     
 
     if (v2.surfaceProperty == v.TRANSPARENT).all():
@@ -875,10 +904,10 @@ if __name__=='__main__':
         
     c.depthOfField()
         
-    phantoms = c.virtualCameras(False)
-    
-    if phantoms is not None:       
-        environment.insert(phantoms)
+#    phantoms = c.virtualCameras(False)
+#    
+#    if phantoms is not None:       
+#        environment.insert(phantoms)
 
     System.plot(environment)
 

@@ -454,6 +454,28 @@ def KQ(A):
         
     return K / K[-1,-1], Q
 
+def linesIntersection(v,p):
+    v = normalize(v)
+    nlines  = np.size(v,0)
+    NN      = np.zeros((nlines,3,3))
+    NNp     = np.zeros((nlines,3,1))
+    for n in range(nlines):
+        NN[n]  = np.eye(3) - np.dot(np.reshape(v[n],(3,1)), 
+                                    np.reshape(v[n],(1,3)))
+        NNp[n] = np.dot(NN[n], np.reshape(p[n],(3,1))) 
+        
+    part1 = np.sum(NN,  0)
+    part2 = np.sum(NNp, 0)
+        
+    [U,D,V] = np.linalg.svd(part1)
+    print D
+    if D[0]/D[-1] > 1e10:
+        raise np.linalg.LinAlgError("Could not converge calculation")
+    
+    part1 = np.dot(V.T, np.dot(np.diag(1/D), U.T))
+    
+    return np.dot(part1,part2).squeeze()
+
 def readSTL(filename):
     import vtk
     import Core
