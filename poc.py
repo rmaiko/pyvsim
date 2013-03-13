@@ -55,98 +55,6 @@ work.
 ##
 #t2 = test2()
 #print t2.points(3)
-#import Core
-#import numpy as np
-#import System
-#a = Core.Assembly()
-#b = Core.RayBundle()
-#a.insert(b)
-#b.insert(np.array([[1,0,0],[0,1,0],[0,0,1],[1,1,1]]))
-#b.maximumRayTrace = np.array([5,2,3,4])
-#b.alignTo(np.nan,np.nan,np.nan)
-#b.trace()
-#System.plot(a)
-#t2.points = [2,3,4]
-#print t2.points
-
-#import numpy as np
-##M = np.random.rand(3,3,3)
-##print M
-##it = np.nditer(M, flags=['multi_index'])
-##while not it.finished:
-##    print it[0], it.multi_index
-##    M[it.multi_index] = 1
-##    it.iternext()
-##print M
-##
-#ints =[[[None],
-#        [None],
-#        [None],
-#        [None]],
-#       [[1],
-#        [1],
-#        [1],
-#        [1]],
-#       [[1],
-#        [0],
-#        [1],
-#        [0]],
-#       [[0],
-#        [1],
-#        [1],
-#        [1]]]
-#
-#coords = [[[  0.5    ,      0.5    ,      0.5       ],
-#           [  0.5    ,      0.5    ,      0.5       ],
-#           [  0.5    ,      0.5    ,      0.5       ],
-#           [  0.5    ,      0.5    ,      0.5       ]],
-#          [[  1.         ,  1.         ,  0.5       ],
-#           [  0.         ,  1.         ,  0.5       ],
-#           [  0.         ,  1.         ,  0.5       ],
-#           [  0.5        ,  0.5        ,  1.        ]],
-#          [[  4.53553391 ,  4.53553391 ,  0.5       ],
-#           [ -3.53553391 ,  4.53553391 ,  0.5       ],
-#           [ -3.53553391 ,  4.53553391 ,  0.5       ],
-#           [  0.5        ,  0.5        ,  6.        ]],
-#          [[  7.57106781 ,  7.57106781 ,  0.5       ],
-#           [ -6.57106781 ,  7.57106781 ,  0.5       ],
-#           [ -6.57106781 ,  7.57106781 ,  0.5       ],
-#           [  0.5        ,  0.5        , 10.5       ]]]
-#
-#coords = np.array(coords)
-#       
-#ints = np.tile(ints,3) == 1
-#firstInts = np.zeros_like(coords[0])
-#firstMask = np.ones_like(coords[0])
-#lastInts  = np.zeros_like(coords[0])
-#
-#for n in range(np.size(coords,0)):
-#    #firstInts = firstInts + (firstMask * ints[n]) * coords[n]
-#    firstInts[firstMask * ints[n] == 1] = coords[n][firstMask * ints[n] == 1]
-#    firstMask = (ints[n] == 0) * (firstMask == 1)
-#    lastInts[ints[n] == 1] = coords[n,ints[n] == 1]
-#    
-#print np.reshape(firstInts,(2,2,3)) 
-#print firstInts
-#
-#    
-##ph  = np.array([0,0,-300])
-##pt1 = np.array([[0,0,0],
-##                [0,1,0],
-##                [1,1,0],
-##                [1,0,0]])
-##pt2 = pt1 + 0.00333333333*(pt1 - ph)
-##xyz = np.vstack([pt1, pt2]) - np.array([0,0,0.5])
-##uv = np.array([[0,0],
-##               [0,1],
-##               [1,1],
-##               [1,0]])
-##uv = np.vstack([uv, uv])
-##print xyz
-##print uv
-##import Utils
-##m = calculateDLT(uv, xyz)
-##print m
 
 import numpy as np
 import Utils
@@ -154,52 +62,17 @@ import System
 import Core
 import Toolbox
 
-part = Utils.readSTL("halfmodel.stl")
-part.surfaceProperty = part.TRANSPARENT
-part.opacity = 1
-part.color = np.array([1,1,1])
-
-c = Toolbox.Camera()
-c.lens.translate(np.array([0.026474,0,0]))
-c.lens.rotate(-0.05, c.z)
-v = np.array([7, -0.921, -1.404]) - np.array([1.711, -3.275, 0.75])
-vp = np.array([-v[1]*v[2], 
-               -v[0]*v[2], 
-               2*v[0]*v[1]])
-vx = Utils.normalize(v)
-vy = Utils.normalize(vp)
-print vx, vy
-c.alignTo(vx, vy)  
-c.translate(np.array([1.711, -3.275, 0.75]))
-
-a = Core.Assembly()
-a.insert(part)
-a.insert(c)
-c.mappingResolution = [10, 10]
-c.lens.focusingDistance = 5.2
-
-c.calculateMapping(part)
-
-c.depthOfField()
-
-System.plot(a)
-#
-#n1 = np.eye(3) - np.dot(v1.T,v1)
-#n2 = np.eye(3) - np.dot(v2.T,v2)
-#print n1
-#print n2
-#
-#x = ((np.eye(3) - np.dot(v1.T,v1)) + (np.eye(3) - np.dot(v2.T,v2)))
-#print x
-#x_inv = np.linalg.inv(x)
-#print "Inverse"
-#print x_inv
-#[U,D,V] = np.linalg.svd(x)
-#print "Pinv"
-#print np.dot(V.T, np.dot(np.diag(1/D), U.T))
-
-#x = np.dot(V.T, np.dot(np.diag(1/D), U.T))
-#print "%e" % (D[0]/D[-1])
-#x = np.dot(x,np.dot((np.eye(3) - np.dot(v1.T,v1)), p1.T) + 
-#             np.dot((np.eye(3) - np.dot(v2.T,v2)), p2.T) )
-#print x
+hexapoints = np.array([[0,0,0], 
+                       [0,1,0], 
+                       [0,1,1], 
+                       [0,0,1], 
+                       [1,0,0], 
+                       [1,1,0], 
+                       [1,1,1], 
+                       [1,0,1]])
+values = hexapoints
+#values = np.array([0,0,0,0,1,1,1,1])
+print Utils.hexaInterpolation(np.array([[0.5,0.5,0.5],
+                                        [1.0,0.5,0.2],
+                                        [1.1,1.1,1.1]]), hexapoints, values)
+print Utils.hexaInterpolation(np.array([0.5,0.5,0.5]), hexapoints, values)

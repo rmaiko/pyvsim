@@ -865,7 +865,7 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 0.7
     c.lens.aperture                 = 4
-    c.mappingResolution             = [5, 5]
+    c.mappingResolution             = [2, 2]
     c.lens.translate(np.array([0.026474,0,0]))
 #    c.lens.rotate(-0.1, c.z)
     

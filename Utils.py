@@ -52,38 +52,77 @@ HEXA_CONN_PARTIAL = np.array([[1,4,0],
 
 
 
-def hexaInterpolation(p, pHexa, part2):
+
+def hexaInterpolation(p, hexapoints, values):
     """
-    Interpolates values in an hexahedron.
+    This function interpolates values given on vertices of an hexahedron to 
+    a point. The algorithm relies on the ratio of volumes of tetrahedrons
+    defined by the hexa faces and the point, and its behavior is approximately
+    linear.
     
-    Vectorization here is totally ad-hoc, use with care
+    *Warning* - there is no verification whether the points are inside the 
+    hexahedron. One must check it using other methods.
+    
+    Parameters
+    ----------
+    p : numpy.array (N x 3)
+        List of points to be interpolated
+    hexapoints : numpy.array (8 x 3)
+        List of points defining the hexahedron
+    values : numpy.array (M x 8)
+        List of values at the vertices of the hexahedron
+        
+    Returns
+    -------
+    interpolated : numpy.array (N x M)
+        Values interpolated at points p
     """
-    if p.ndim == 2:
-        result = []
-        for pint in p:
-            result.append(hexaInterpolation(pint, pHexa, part2))
-        return result
+    if p.ndim == 1:
+        # This is done if only one point is given
+        p = np.reshape(p,(1,np.size(p)))
+
+    # Creates the list of coordinates of the tetrahedrons
+    p1 = np.reshape(p,(np.size(p,0),1,np.size(p,1)))
+    p2 = [hexapoints[HEXA_CONNECTIVITY[:,0]]]
+    p3 = [hexapoints[HEXA_CONNECTIVITY[:,1]]]
+    p4 = [hexapoints[HEXA_CONNECTIVITY[:,2]]]
+
+    # The lists are repeated to match dimensions
+    # Notice that there are 12, as it's not possible to calculate the volume of
+    # a tetra with square base
+    p1 = np.tile(p1,(1,12,1))
+    p2 = np.tile(p2,(np.size(p,0),1,1))
+    p3 = np.tile(p3,(np.size(p,0),1,1))
+    p4 = np.tile(p4,(np.size(p,0),1,1))
+    
+    # Calculate the volumes
+    tetraVols = tetraVolume(p1,p2,p3,p4)
+    
+    # Allocates list to store the tetra volumes
+    # Notice there are only 6 slots, so we have to add the areas
+    Vp = np.empty((np.size(p,0),6))
+
+    # We have to sum the areas to obtain the volume of tetras with quad base
+    k = 0
+    for n in range(0,12,2):
+        Vp[:,k] = (tetraVols[:,n] + tetraVols[:,n+1])
+        k = k + 1
+
+    # Takes the area of opposite hexahedrons
+    den = (Vp[:,0] + Vp[:,2]) * (Vp[:,1] + Vp[:,3]) * (Vp[:,5] + Vp[:,4])
+
+    # Now we take the corresponding volumes per node and divide by the factor
+    # calculated above. This yields the weights to average the values
+    C = np.prod(Vp[:,HEXA_FACES_PER_NODE],2) / np.reshape(den,(np.size(p,0),1))
+    
+    if values.ndim == 1:
+        return np.sum(C * values,1).squeeze()
     else:
-        p1 = np.tile(p,(12,1))
-        p2 = pHexa[HEXA_CONNECTIVITY[:,0]]
-        p3 = pHexa[HEXA_CONNECTIVITY[:,1]]
-        p4 = pHexa[HEXA_CONNECTIVITY[:,2]]
-        tetraVols = tetraVolume(p1,p2,p3,p4)
-        
-        Vp = np.empty(6)
-        k = 0
-        for n in range(0,12,2):
-            Vp[k] = (tetraVols[n] + tetraVols[n+1])
-            k = k + 1
-            
-        den = (Vp[0] + Vp[2]) * (Vp[1] + Vp[3]) * (Vp[5] + Vp[4])
-    
-        C = np.prod(Vp[HEXA_FACES_PER_NODE],1) / (den)
-        
-        if part2.ndim == 1:
-            return np.sum(C * part2)
-        else:
-            return np.sum(np.tile(C,(np.size(part2,1),1)).T * part2, 0)
+        C = np.reshape(C,(np.size(C,0),1,8))
+        C = np.tile(C, (1,3,1))
+        values = np.array([values.T])
+        return np.sum(C * values,2).squeeze()
+
     
     
     
@@ -103,38 +142,56 @@ def tetraVolume(p1,p2,p3,p4):
     (This works faster than numpy.linalg.det repeated over the list
     """
     part2 = np.array([p1-p4, p2-p4, p3-p4])
-    return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] + \
-                         part2[2,:,0]*part2[0,:,1]*part2[1,:,2] + \
-                         part2[1,:,0]*part2[2,:,1]*part2[0,:,2] - \
-                         part2[2,:,0]*part2[1,:,1]*part2[0,:,2] - \
-                         part2[0,:,0]*part2[2,:,1]*part2[1,:,2] - \
-                         part2[1,:,0]*part2[0,:,1]*part2[2,:,2])
+    if p1.ndim == 3:
+        return (1/6)* np.abs(part2[0,:,:,0]*part2[1,:,:,1]*part2[2,:,:,2] +
+                             part2[2,:,:,0]*part2[0,:,:,1]*part2[1,:,:,2] +
+                             part2[1,:,:,0]*part2[2,:,:,1]*part2[0,:,:,2] -
+                             part2[2,:,:,0]*part2[1,:,:,1]*part2[0,:,:,2] -
+                             part2[0,:,:,0]*part2[2,:,:,1]*part2[1,:,:,2] -
+                             part2[1,:,:,0]*part2[0,:,:,1]*part2[2,:,:,2])
+    else:
+        return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] +
+                             part2[2,:,0]*part2[0,:,1]*part2[1,:,2] +
+                             part2[1,:,0]*part2[2,:,1]*part2[0,:,2] -
+                             part2[2,:,0]*part2[1,:,1]*part2[0,:,2] -
+                             part2[0,:,0]*part2[2,:,1]*part2[1,:,2] -
+                             part2[1,:,0]*part2[0,:,1]*part2[2,:,2]) 
 
 def metersToRGB(wl):
     """
     Converts light wavelength to a RGB vector, the algorithm comes from:
     `This blog <http://codingmess.blogspot.de/2009/05/conversion-of-wavelength-in-nanometers.html>`
+    
+    Parameters
+    ----------
+    wl : scalar
+        The wavelength in meters
+        
+    Returns
+    -------
+    [R,G,B] : numpy.array (3)
+        The normalized (0..1) RGB value for this wavelength
     """
     gamma = 0.8
     wl = wl * 1e9
-    f = (wl >= 380) * (wl < 420) * (0.3 + 0.7 * (wl - 380) / (420 - 380)) + \
-        (wl >= 420) * (wl < 700) * 1 + \
-        (wl >= 700) * (wl < 780) * (1 - 0.7 * (wl - 700) / (780 - 700))
+    f =((wl >= 380) * (wl < 420) * (0.3 + 0.7 * (wl - 380) / (420 - 380)) + 
+        (wl >= 420) * (wl < 700) * 1 + 
+        (wl >= 700) * (wl < 780) * (1 - 0.7 * (wl - 700) / (780 - 700)))
     
-    r = (wl >= 380) * (wl < 440) * (1 - (wl - 380) / (440 - 380)) + \
-        (wl >= 440) * (wl < 510) * 0 + \
-        (wl >= 510) * (wl < 580) * ((wl - 510) / (580 - 510)) + \
-        (wl >= 580) * (wl < 780) * 1
+    r =((wl >= 380) * (wl < 440) * (1 - (wl - 380) / (440 - 380)) + 
+        (wl >= 440) * (wl < 510) * 0 + 
+        (wl >= 510) * (wl < 580) * ((wl - 510) / (580 - 510)) + 
+        (wl >= 580) * (wl < 780) * 1)
     
-    g = (wl >= 380) * (wl < 440) * 0 + \
-        (wl >= 440) * (wl < 490) * ((wl - 440) / (490 - 440)) + \
-        (wl >= 490) * (wl < 580) * 1 + \
-        (wl >= 580) * (wl < 645) * (1 - (wl - 580) / (645 - 580)) + \
-        (wl >= 645) * (wl < 780) * 0
+    g =((wl >= 380) * (wl < 440) * 0 + 
+        (wl >= 440) * (wl < 490) * ((wl - 440) / (490 - 440)) + 
+        (wl >= 490) * (wl < 580) * 1 + 
+        (wl >= 580) * (wl < 645) * (1 - (wl - 580) / (645 - 580)) + 
+        (wl >= 645) * (wl < 780) * 0)
         
-    b = (wl >= 380) * (wl < 490) * 1 + \
-        (wl >= 490) * (wl < 510) * (1 - (wl - 490) / (510 - 490)) + \
-        (wl >= 510) * (wl < 780) * 0
+    b =((wl >= 380) * (wl < 490) * 1 + 
+        (wl >= 490) * (wl < 510) * (1 - (wl - 490) / (510 - 490)) + 
+        (wl >= 510) * (wl < 780) * 0)
         
     return ((np.array([r,g,b])*f)**gamma)
     
@@ -142,8 +199,23 @@ def metersToRGB(wl):
 def aeq(a,b,tol=1e-8):
     """
     A tool for comparing numpy nparrays and checking if all their values
-    are Almost EQual up to a given tolerance::
+    are *A*lmost *EQ*ual up to a given tolerance.
     
+    Parameters
+    ----------
+    a,b : numpy.arrays or scalars
+        Values to be compared, must have the same size
+    tol = 1e-8
+        The tolerance of the comparison
+        
+    Returns
+    -------
+    True, False
+        Depending if the absolute difference between of one of the values of
+        the inputs exceeds the tolerance
+    
+    Examples
+    --------
     >>> aeq(0,0.00000000000001)
     True
     >>> aeq(np.array([1,0,0]),np.array([0.99999999999999,0,0]))
