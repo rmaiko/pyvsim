@@ -499,7 +499,9 @@ def readSTL(filename):
     obj                 = Core.Part()
     obj.points          = np.array(pts)
     obj.connectivity    = np.array(cts)
-   
+    
+    print "Read %i triangles" % np.size(cts,0)
+    
     return obj
 
 def DLT(uvlist, xyzlist):

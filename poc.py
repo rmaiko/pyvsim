@@ -150,38 +150,39 @@ work.
 
 import numpy as np
 import Utils
-v = np.array([[1, 0.0001,0],
-              [1,-0.0001,0],
-              [1,       0,0]])
+import System
+import Core
+import Toolbox
 
-p = np.array([[0,-0.01,0],
-              [0, 0.01,0],
-              [0, 0.00,0.1]])
+part = Utils.readSTL("halfmodel.stl")
+part.surfaceProperty = part.TRANSPARENT
+part.opacity = 1
+part.color = np.array([1,1,1])
 
-def linesIntersection(v,p):
-    v = Utils.normalize(v)
-    nlines  = np.size(v,0)
-    NN      = np.zeros((nlines,3,3))
-    NNp     = np.zeros((nlines,3,1))
-    for n in range(nlines):
-        NN[n]  = np.eye(3) - np.dot(np.reshape(v[n],(3,1)), 
-                                    np.reshape(v[n],(1,3)))
-        NNp[n] = np.dot(NN[n], np.reshape(p[n],(3,1))) 
-        
-    part1 = np.sum(NN,  0)
-    part2 = np.sum(NNp, 0)
-        
-    [U,D,V] = np.linalg.svd(part1)
-    print D
-    if D[0]/D[-1] > 1e10:
-        raise np.linalg.LinAlgError("Could not converge calculation")
-    
-    part1 = np.dot(V.T, np.dot(np.diag(1/D), U.T))
-    
-    return np.dot(part1,part2).squeeze()
-    
-if __name__ == "__main__":
-    print linesIntersection(v,p)
+c = Toolbox.Camera()
+c.lens.translate(np.array([0.026474,0,0]))
+c.lens.rotate(-0.05, c.z)
+v = np.array([7, -0.921, -1.404]) - np.array([1.711, -3.275, 0.75])
+vp = np.array([-v[1]*v[2], 
+               -v[0]*v[2], 
+               2*v[0]*v[1]])
+vx = Utils.normalize(v)
+vy = Utils.normalize(vp)
+print vx, vy
+c.alignTo(vx, vy)  
+c.translate(np.array([1.711, -3.275, 0.75]))
+
+a = Core.Assembly()
+a.insert(part)
+a.insert(c)
+c.mappingResolution = [10, 10]
+c.lens.focusingDistance = 5.2
+
+c.calculateMapping(part)
+
+c.depthOfField()
+
+System.plot(a)
 #
 #n1 = np.eye(3) - np.dot(v1.T,v1)
 #n2 = np.eye(3) - np.dot(v2.T,v2)
