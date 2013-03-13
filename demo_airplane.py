@@ -24,8 +24,13 @@ import Utils
 import System
 import Core
 import Toolbox
+tic = Utils.Tictoc()
 
+tic.tic()
 part = Utils.readSTL("halfmodel.stl")
+tic.toc()
+
+tic.tic()
 part.surfaceProperty = part.TRANSPARENT
 part.opacity = 1
 part.color = np.array([1,1,1])
@@ -52,5 +57,6 @@ c.lens.focusingDistance = 5.2
 c.calculateMapping(part)
 
 c.depthOfField()
+tic.toc()
 
 System.plot(a)
