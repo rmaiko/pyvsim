@@ -578,6 +578,7 @@ class Lens(Core.Part):
 class Camera(Core.Assembly):
     def __init__(self):
         Core.Assembly.__init__(self)
+        self.name                       = 'Camera '+str(self._id)
         self.lens                       = None
         self.sensor                     = None
         self.body                       = None
@@ -635,24 +636,24 @@ class Camera(Core.Assembly):
         
     def shootRays(self, sensorParamCoords, 
                   referenceWavelength = 532e-9,
-                  maximumRayTrace = 10):
-        sensorCoords     = self.sensor.parametricToPhysical(sensorParamCoords)
-        
-        # Creates vectors to initialize ray tracing for each point in the sensor 
-        initialVectors   = self.lens.rayVector(sensorCoords)
-        
-        # Does the ray tracing
-        bundle = Core.RayBundle()
-        bundle.insert(initialVectors, 
-                      self.lens.PinholeEntrance, 
-                      referenceWavelength)
+                  maximumRayTrace = 10,
+                  restart = False):
+        if not restart:
+            sensorCoords   = self.sensor.parametricToPhysical(sensorParamCoords)
+            # Creates vectors to initialize ray tracing for each point in the 
+            # sensor 
+            initialVectors = self.lens.rayVector(sensorCoords)
+            bundle         = Core.RayBundle()
+            bundle.insert(initialVectors, 
+                          self.lens.PinholeEntrance, 
+                          referenceWavelength)
+            self.insert(bundle, 3, overwrite = True)
 
-        self.insert(bundle, 3, overwrite = True)
-
-        bundle.maximumRayTrace = maximumRayTrace
-        bundle.stepRayTrace    = np.mean(maximumRayTrace) / 2
-        bundle.trace() 
-        return bundle
+        self.items[3].maximumRayTrace   = maximumRayTrace
+        self.items[3].stepRayTrace      = np.mean(maximumRayTrace) / 2
+        self.items[3].trace(tracingRule = Core.RayBundle.TRACING_FOV,
+                            restart     = restart) 
+        return self.items[3]
         
     def calculateMapping(self, target, referenceWavelength = 532e-9):
         # First determine the points in the sensor to be reference for the
@@ -764,42 +765,27 @@ class Camera(Core.Assembly):
         # Scaling factors
         VecNear   = S_PX * np.tile(d_near / S_PX_x, (3,1)).T
         VecFar    = S_PX * np.tile(d_far  / S_PX_x, (3,1)).T
-        bundleNear = self.shootRays(points_param, 
-                                    referenceWavelength, Utils.norm(VecNear))
-        bundleFar  = self.shootRays(points_param, 
-                                    referenceWavelength, Utils.norm(VecFar))
         
-#        ptsy = np.zeros((4,3))
-#        ptsz = np.zeros((4,3))
-#        for n in range(4):
-#            pupilPoints = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
-#                                    self.lens.E + self.lens.z*self.lens.Edim/2,
-#                                    self.lens.E - self.lens.y*self.lens.Edim/2,
-#                                    self.lens.E - self.lens.z*self.lens.Edim/2,])
-#            vectors     = (self.lens.PinholeEntrance + 0.5 * (VecNear[n] + VecFar[n]) -
-#                           pupilPoints)
-#            bundletest  = Core.RayBundle()
-#            bundletest.insert(Utils.normalize(vectors), pupilPoints, 532e-9)
-#            self.insert(bundletest)
-#            bundletest.maximumRayTrace = 1.5
-#            bundletest.stepRayTrace    = 1.5
-#            bundletest.trace()
-#            p = bundletest.rayPaths[-1]
-#            v = bundletest.rayPaths[-2] - bundletest.rayPaths[-1]
-#            ptsy[n] = Utils.linesIntersection(v[[0,2]], p[[0,2]])
-#            ptsz[n] = Utils.linesIntersection(v[[1,3]], p[[1,3]])
-#        plane = Core.Plane()
-#        plane.points = ptsy
-#        plane.color  = [1,0,0]
-#        self.insert(plane)
-#        plane = Core.Plane()
-#        plane.points = ptsz
-#        plane.color  = [1,1,0]
-#        self.insert(plane)
+        bundle    = self.shootRays(points_param, 
+                                   referenceWavelength, 
+                                   Utils.norm(VecNear))
+#        print Utils.norm(VecNear)
+        Pnear     = bundle.rayPaths[-1]
+#        print bundle.rayLength
+#        print bundle.rayLastVectors
+#        print bundle.rayPaths
         
-        Pnear     = bundleNear.rayPaths[-1]
-        Pfar      = bundleFar.rayPaths[-1]
-        P         = np.vstack([Pfar, Pnear])
+        bundle    = self.shootRays(None, 
+                                   None, 
+                                   Utils.norm(VecFar),
+                                   restart = True)
+#        print Utils.norm(VecFar)
+#        print bundle.rayLength
+#        print bundle.rayLastVectors
+#        print bundle.rayPaths
+        Pfar      = bundle.rayPaths[-1]
+        
+        P         = np.vstack([Pnear, Pfar])
         
         v         = Core.Volume()
         v.color   = np.array(Utils.metersToRGB(referenceWavelength))
@@ -858,7 +844,101 @@ class Camera(Core.Assembly):
         
         return phantomAssembly
         
+class Laser(Core.Assembly):
+    def __init__(self):
+        Core.Assembly.__init__(self)
+        self.name                       = 'Laser '+str(self._id)
+        self.body                       = None
+        self.rays                       = None
+        self.volume                     = None
+        # Plotting properties
+        self.color                      = [0.1,0.1,0.1]
+        self.opacity                    = 0.900
+        self.width                      = 0.250
+        self.heigth                     = 0.270
+        self.length                     = 1.000
+        self.wavelength                 = 532e-9
+        # Beam properties
+#        self.beamProfile                = self.gaussianProfile
+        self.beamDiameter               = 0.005
+        self.beamDivergence             = np.array([0.0001, 0.25])
+        self.power                      = 0.300
+        # Ray tracing characteristics
+        self.usefulLength               = np.array([6, 7])
+        self.safeEnergy                 = 1e-7
+        self.positionComponents()
         
+    @property
+    def bounds(self):
+        """
+        TODO
+        """
+        if self.volume is not None:
+            return self.volume.bounds
+        else:
+            return None
+        
+    def positionComponents(self):
+        """
+        TODO
+        """
+        self.body           = Core.Volume(self.length, self.heigth, self.width)
+        self.rays           = Core.RayBundle()
+        self.insert(self.body)
+        self.insert(self.rays)
+        
+        self.body.translate(-self.x*self.length)
+        
+        vectors        = np.tile(self.x,(4,1))
+        # Divergence in the xz plane
+        vectors = np.vstack([Utils.rotateVector(vectors[:2], 
+                                                self.beamDivergence[1]/2,
+                                                self.y),
+                             Utils.rotateVector(vectors[2:], 
+                                                -self.beamDivergence[1]/2,
+                                                self.y)])
+        # Divergence in the xy plane
+        vectors = np.vstack([Utils.rotateVector(vectors[0], 
+                                                -self.beamDivergence[0]/2,
+                                                self.z),
+                             Utils.rotateVector(vectors[[1,2]], 
+                                                self.beamDivergence[0]/2,
+                                                self.z),
+                             Utils.rotateVector(vectors[3], 
+                                                -self.beamDivergence[0]/2,
+                                                self.z)])
+        # Position the four main rays with some spacing, according to the
+        # initial beam diameter
+        positions   = self.origin + (self.beamDiameter/2 * 
+                                     np.array([-self.y -self.z,
+                                               +self.y -self.z,
+                                               +self.y +self.z,
+                                               -self.y +self.z]))
+
+        self.rays.insert(vectors, positions, self.wavelength)
+
+
+    def trace(self):
+        """
+        """
+        self.rays.maximumRayTrace = self.usefulLength[0]
+        self.rays.stepRayTrace    = self.usefulLength[0]
+        self.rays.trace(tracingRule = self.rays.TRACING_FOV)
+        
+        points = self.rays.rayPaths[-1]
+        
+        self.rays.maximumRayTrace = self.usefulLength[1]
+        self.rays.stepRayTrace    = self.usefulLength[1]
+        self.rays.trace(tracingRule = self.rays.TRACING_FOV, restart= True)
+        
+        points = np.vstack([points, self.rays.rayPaths[-1]])
+        
+        self.volume = Core.Volume()
+        self.insert(self.volume)
+        self.volume.points = points
+
+        
+    
 if __name__=='__main__':
     import System
     import copy
