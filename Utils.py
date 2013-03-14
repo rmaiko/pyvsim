@@ -65,16 +65,16 @@ def hexaInterpolation(p, hexapoints, values):
     
     Parameters
     ----------
-    p : numpy.array (N x 3)
+    p : numpy.array (N, 3)
         List of points to be interpolated
-    hexapoints : numpy.array (8 x 3)
+    hexapoints : numpy.array (8, 3)
         List of points defining the hexahedron
-    values : numpy.array (M x 8)
+    values : numpy.array (M, 8)
         List of values at the vertices of the hexahedron
         
     Returns
     -------
-    interpolated : numpy.array (N x M)
+    interpolated : numpy.array (N, M)
         Values interpolated at points p
     """
     if p.ndim == 1:
@@ -156,6 +156,13 @@ def tetraVolume(p1,p2,p3,p4):
                              vecs[2,:,0]*vecs[1,:,1]*vecs[0,:,2] -
                              vecs[0,:,0]*vecs[2,:,1]*vecs[1,:,2] -
                              vecs[1,:,0]*vecs[0,:,1]*vecs[2,:,2]) 
+
+def jet(value, minval, maxval):
+    val = 4 * (value - minval)/(maxval-minval)
+    r   = min(val - 1.5, -val + 4.5)
+    g   = min(val - 0.5, -val + 3.5)
+    b   = min(val + 0.5, -val + 2.5)
+    return np.clip(np.array([r,g,b]), 0, 1);
 
 def metersToRGB(wl):
     """
@@ -248,7 +255,7 @@ def rotateVector(x,angle,axis):
     
     Parameters
     ----------
-    x : numpy.array (N x 3)
+    x : numpy.array (N, 3)
         A vector (size = 3) or a list of vectors (N rows, 3 columns) to be
         rotated
     angle : double
@@ -258,7 +265,7 @@ def rotateVector(x,angle,axis):
         
     Returns
     -------
-    vectors : numpy.array (N x 3)
+    vectors : numpy.array (N, 3)
         The vectors after rotation
         
     Examples
@@ -289,7 +296,7 @@ def rotatePoints(points,angle,axis,origin):
     
     Parameters
     ----------
-    points : numpy.array (N x 3)
+    points : numpy.array (N, 3)
         A point (size = 3) or a list of points (N rows, 3 columns) to be
         rotated
     angle : scalar
@@ -301,7 +308,7 @@ def rotatePoints(points,angle,axis,origin):
         
     Returns
     -------
-    points : numpy.array (N x 3)
+    points : numpy.array (N, 3)
         A list of rotated points
         
     Examples
@@ -333,12 +340,12 @@ def normalize(vectors):
     
     Parameters
     ----------
-    vectors : numpy.array (N x 3)
+    vectors : numpy.array (N, 3)
         A list of vectors to be normalized
         
     Returns
     -------
-    vectors : numpy.array (N x 3)
+    vectors : numpy.array (N, 3)
         The normalized vectors
     
     Examples
@@ -370,7 +377,7 @@ def norm(vectors):
     
     Parameters
     ----------
-    vectors : numpy.array (N x 3)
+    vectors : numpy.array (N, 3)
         A list of vectors
         
     Returns
@@ -455,7 +462,7 @@ def barycentricCoordinates(p,p1,p2,p3):
    
 def triangleArea(p1,p2,p3):
     """
-    Given three points in space, returns the triangle area. 
+    Given three points in 3D space, returns the triangle area. 
     
     Assumes::
     
@@ -533,10 +540,10 @@ def linesIntersection(v,p):
     
     Parameters
     ----------
-    v : numpy.array (N x M)
+    v : numpy.array (N, M)
         A list of vectors with the direction of the lines (for 3D vectors, 
         M = 3)
-    p : numpy.array (N x M)
+    p : numpy.array (N, M)
         A list of vectors with a point in the line
         
     Returns
@@ -748,9 +755,9 @@ def pointInHexa(p,hexapoints):
        
     Parameters
     ----------
-    p : numpy.array (N x 3)
+    p : numpy.array (N, 3)
         List of points to be tested
-    hexapoints : numpy.array (8 x 3)
+    hexapoints : numpy.array (8, 3)
         List of points defining an hexahedron, must obey the conventional order
         of defining hexas
        
@@ -771,7 +778,7 @@ def pointInHexa(p,hexapoints):
     ...                        [1,1,0], 
     ...                        [1,1,1], 
     ...                        [1,0,1]])
-    >>> p = np.array([[0  ,  0,  0], 
+    >>> p = np.array([[  0,  0,  0], 
     ...               [0.5,0.5,0.5], 
     ...               [  2,  0,  0]])
     >>> pointInHexa(p, hexapoints)
@@ -812,32 +819,67 @@ def listdot(a,b):
         # Dot product of two list of vectors:
         if (small.ndim == large.ndim) and (np.size(small) == np.size(large)):
             return np.sum(a*b,1)
-           
-def listTimesVec(vector1,vector2):
-    try:
-        if vector2.ndim > 1:
-            return np.tile(vector1,(len(vector2[0]),1)).T * vector2
-        else:
-            return np.tile(vector1,(len(vector2),1)).T * \
-                   np.tile(vector2,(len(vector1),1))
-    except ValueError:
-        return vector1*vector2
-       
-def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4): 
+                 
+def quadInterpolation(p,pquad,values): 
     """
     Performs barycentric interpolation extended to the case of a planar quad
+    
+    Parameters
+    ----------
+    p : numpy.array (N, 3)
+    pquad : numpy.array (4, 3)
+    values : numpy.array (4, M)
+    
+    Returns
+    -------
+    result : numpy.array (N, M)        
+    
+    Examples
+    --------
+    >>> pquad = [[-1,-1,0],
+    ...          [+1,-1,0],
+    ...          [+1,+1,0],
+    ...          [-1,+1,0]]
+    >>> p     = [[0,-1  ,0],
+    ...          [0,-0.5,0],
+    ...          [0,   0,0],
+    ...          [0,  +1,0]]
+    >>> values = [0,0,1,1]
+    >>> quadInterpolation(np.array(p), 
+    ...                   np.array(pquad),
+    ...                   np.array(values))
+    array([ 0.  ,  0.25,  0.5 ,  1.  ])
+    
+    For interpolation of vectors
+    
+    >>> values = [[-1,-1,0],
+    ...           [+1,-1,0],
+    ...           [+1,+1,0],
+    ...           [-1,+1,0]]
+    >>> quadInterpolation(np.array(p), 
+    ...                   np.array(pquad),
+    ...                   np.array(values))
+    array([[ 0. , -1. ,  0. ],
+           [ 0. , -0.5,  0. ],
+           [ 0. ,  0. ,  0. ],
+           [ 0. ,  1. ,  0. ]])
     """
-    Su = triangleArea(p,p4,p3)
-    Sr = triangleArea(p,p3,p2)
-    Sd = triangleArea(p,p1,p2)
-    Sl = triangleArea(p,p1,p4)
+    if p.ndim > 1:
+        npts = np.size(p,0)
+    else:
+        npts = 1
+        
+    Su = triangleArea(p,pquad[3],pquad[2])
+    Sr = triangleArea(p,pquad[2],pquad[1])
+    Sd = triangleArea(p,pquad[0],pquad[1])
+    Sl = triangleArea(p,pquad[0],pquad[3])
     den = (Su + Sd)*(Sr + Sl)
-    c1 = Sr*Su/den
-    c2 = Sl*Su/den
-    c3 = Sl*Sd/den
-    c4 = Sr*Sd/den
-    return listTimesVec(c1,v1) + listTimesVec(c2,v2) + \
-           listTimesVec(c3,v3) + listTimesVec(c4,v4)
+    c1 = np.reshape(Sr*Su/den,(npts,1,1))
+    c2 = np.reshape(Sl*Su/den,(npts,1,1))
+    c3 = np.reshape(Sl*Sd/den,(npts,1,1))
+    c4 = np.reshape(Sr*Sd/den,(npts,1,1))
+    
+    return (c1*values[0] + c2*values[1] + c3*values[2] + c4*values[3]).squeeze()
            
 class Tictoc:
     """
@@ -891,8 +933,8 @@ class Tictoc:
             print "Can execute: %f calculations / second" % (n/t)
             return n/t
            
-# def quadArea(p1,p2,p3,p4):
-    # return triangleArea(p1,p2,p3) + triangleArea(p1,p3,p4)
+def quadArea(p1,p2,p3,p4):
+    return triangleArea(p1,p2,p3) + triangleArea(p1,p3,p4)
        
 # def triangleNormal(p1,p2,p3):
     # """
