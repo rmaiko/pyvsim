@@ -283,6 +283,14 @@ class Tictoc:
         else:
             print "Can execute: %f calculations / second" % (n/t)
             return n/t
+        
+def reallocateArray(array, extrasteps):
+    size = [np.size(array,0) + extrasteps]
+    for n in range(1,array.ndim):
+        size.append(np.size(array,n))
+    temp = np.empty(size, dtype = array.dtype)
+    temp[range(np.size(array,0))] = array
+    return temp
                
 def rotateVector(x,angle,axis):
     """
