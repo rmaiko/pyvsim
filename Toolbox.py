@@ -39,8 +39,8 @@ class Mirror(Core.Plane):
     """
     def __init__(self):
         Core.Plane.__init__(self)
-        self.name           = 'Mirror '+str(self._id)
-        self.reflectAlways  = True
+        self.name               = 'Mirror '+str(self._id)
+        self.surfaceProperty    = self.MIRROR
         
 class Dump(Core.Plane):
     """
@@ -53,8 +53,8 @@ class Dump(Core.Plane):
     """
     def __init__(self):
         Core.Plane.__init__(self)
-        self.name           = 'Dump '+str(self._id)
-        self.terminalAlways = True
+        self.name               = 'Dump '+str(self._id)
+        self.surfaceProperty    = self.DUMP
 
 class Sensor(Core.Plane):
     def __init__(self):
@@ -853,19 +853,21 @@ class Laser(Core.Assembly):
         self.volume                     = None
         # Plotting properties
         self.color                      = [0.1,0.1,0.1]
-        self.opacity                    = 0.900
+        self.opacity                    = 1.000
         self.width                      = 0.250
         self.heigth                     = 0.270
-        self.length                     = 1.000
+        self.length                     = 1.060
         self.wavelength                 = 532e-9
         # Beam properties
 #        self.beamProfile                = self.gaussianProfile
-        self.beamDiameter               = 0.005
+        self.beamDiameter               = 0.009
+#        self.beamDivergence             = np.array([0.5e-3, 0.25])
         self.beamDivergence             = np.array([0.0001, 0.25])
         self.power                      = 0.300
         # Ray tracing characteristics
-        self.usefulLength               = np.array([6, 7])
-        self.safeEnergy                 = 1e-7
+        self.usefulLength               = np.array([1, 3])
+        self.safeEnergy                 = 1e-3
+        self.safetyTracingResolution    = 15
         self.positionComponents()
         
     @property
@@ -888,6 +890,8 @@ class Laser(Core.Assembly):
         self.insert(self.rays)
         
         self.body.translate(-self.x*self.length)
+        self.body.color     = self.color
+        self.body.opacity   = self.opacity
         
         vectors        = np.tile(self.x,(4,1))
         # Divergence in the xz plane
@@ -925,65 +929,158 @@ class Laser(Core.Assembly):
         self.rays.stepRayTrace    = self.usefulLength[0]
         self.rays.trace(tracingRule = self.rays.TRACING_FOV)
         
-        points = self.rays.rayPaths[-1]
+        start = np.size(self.rays.rayPaths,0) - 1
         
         self.rays.maximumRayTrace = self.usefulLength[1]
         self.rays.stepRayTrace    = self.usefulLength[1]
         self.rays.trace(tracingRule = self.rays.TRACING_FOV, restart= True)
         
-        points = np.vstack([points, self.rays.rayPaths[-1]])
+        end   = np.size(self.rays.rayPaths,0)
         
-        self.volume = Core.Volume()
+        self.volume = Core.Assembly()
         self.insert(self.volume)
-        self.volume.points = points
+        for n in range(start, end-1):
+            vol = Core.Volume()
+            vol.points   = np.vstack([self.rays.rayPaths[n],
+                                      self.rays.rayPaths[n+1]])
+            vol.color    = Utils.metersToRGB(self.wavelength)
+            vol.opacity  = 1
+            self.volume.insert(vol)
+            
+    def traceReflections(self):
+        """
+        """
+        npts = self.safetyTracingResolution**2
+        nres = self.safetyTracingResolution
+        x = np.linspace(-1, +1, nres)
+        [X,Y] = np.meshgrid(x,x)
+        points = np.vstack([X.ravel(), 
+                            Y.ravel(), 
+                            np.zeros(npts)]).T
+        physicalPoints = (np.reshape(X.ravel(),(npts,1,1))*self.y +
+                          np.reshape(Y.ravel(),(npts,1,1))*self.z).squeeze()
+        physicalPoints = physicalPoints * self.beamDiameter / 2
+        physicalPoints = physicalPoints + self.origin
+        
+        pts1 = physicalPoints
+        
+        vectors = Utils.quadInterpolation(points, 
+                                          np.array([[-1,-1,0],
+                                                    [+1,-1,0],
+                                                    [+1,+1,0],
+                                                    [-1,+1,0]]), 
+                                          self.rays.initialVectors)
+        
+        vectors = Utils.normalize(vectors)
+        
+        bundle = Core.RayBundle()
+        bundle.insert(vectors, 
+                      physicalPoints, 
+                      self.wavelength)
+        self.insert(bundle)        
+        bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,)
+        
+        energy =  self.power / (nres)**2
+#        initdensity = energy / (self.beamDiameter / nres)**2
+#        print np.log10(initdensity)
+#        print np.log10(self.safeEnergy)
+        [I,J] = np.meshgrid(range(nres),range(nres))
+        I0 = np.vstack([I[ :-1, :-1].ravel(), J[ :-1, :-1].ravel()]).T
+        I1 = np.vstack([I[1:  , :-1].ravel(), J[1:  , :-1].ravel()]).T
+        I2 = np.vstack([I[1:  ,1:  ].ravel(), J[1:  ,1:  ].ravel()]).T
+        I3 = np.vstack([I[ :-1,1:  ].ravel(), J[ :-1,1:  ].ravel()]).T
+#        print I0
+        currentEnergy = 10
+        volumeCollection = Core.Assembly()
+        
+        while(np.max(currentEnergy) > self.safeEnergy):
+            bundle.maximumRayTrace = bundle.maximumRayTrace + 300
+            bundle.stepRayTrace    = bundle.maximumRayTrace
+            pts2 = bundle.rayPaths[-1]
+            pts1 = np.reshape(pts1,(nres,nres,3))
+            pts2 = np.reshape(pts2,(nres,nres,3))
 
+            currentEnergy = (energy / 
+                             np.reshape(Utils.quadArea(pts2[I0[:,0],I0[:,1]],
+                                                       pts2[I1[:,0],I1[:,1]],
+                                                       pts2[I2[:,0],I2[:,1]],
+                                                       pts2[I3[:,0],I3[:,1]]),
+                                        (nres-1,nres-1)))
+
+            for i in range(nres-1):
+                for j in range(nres-1):
+                    if currentEnergy[j,i] > self.safeEnergy:
+                        vol        = Core.Volume()
+                        vol.points = np.vstack([pts1[i,j],
+                                                pts1[i+1,j],
+                                                pts1[i+1,j+1],
+                                                pts1[i,j+1],
+                                                pts2[i,j],
+                                                pts2[i+1,j],
+                                                pts2[i+1,j+1],
+                                                pts2[i,j+1]])
+                        vol.color = Utils.jet(currentEnergy[j,i], 
+                                              self.safeEnergy, 
+                                              self.safeEnergy*100)
+                        volumeCollection.insert(vol)
+            pts1 = pts2
+            bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,
+                         restart = True)
+            
+        self.volume = volumeCollection
+        self.insert(volumeCollection)
+        print self.volume.bounds
         
     
 if __name__=='__main__':
     import System
     import copy
-    c                               = Camera()
-    c.lens.focusingDistance         = 0.7
-    c.lens.aperture                 = 4
-    c.mappingResolution             = [2, 2]
-    c.lens.translate(np.array([0.026474,0,0]))
+#    c                               = Camera()
+#    c.lens.focusingDistance         = 0.7
+#    c.lens.aperture                 = 4
+#    c.mappingResolution             = [2, 2]
+#    c.lens.translate(np.array([0.026474,0,0]))
 #    c.lens.rotate(-0.1, c.z)
+    l                               = Laser()
+    
     
     v                               = Core.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.indexOfRefraction             = 1.666
+    v.indexOfRefraction             = 5.666
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Core.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
 #    v2.surfaceProperty              = v.MIRROR
-    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.surfaceProperty              = v.MIRROR 
     v2.indexOfRefraction            = 3.666
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
     environment = Core.Assembly()
-    environment.insert(c)
+#    environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
+    environment.insert(l)
+    l.traceReflections()
     
 #    Some geometrical transformations to make the problem more interesting
-    c.rotate(np.pi/4,c.x)    
-    environment.rotate(np.pi/0.1314, c.x)
-    environment.rotate(np.pi/27, c.y)
-    environment.rotate(np.pi/2.1, c.z)
+#    c.rotate(np.pi/4,c.x)    
+#    environment.rotate(np.pi/0.1314, c.x)
+#    environment.rotate(np.pi/27, c.y)
+#    environment.rotate(np.pi/2.1, c.z)
     
 
-    if (v2.surfaceProperty == v.TRANSPARENT).all():
-        c.calculateMapping(v2, 532e-9)
-    else:
-        c.calculateMapping(v, 532e-9)
-        
-    print c.mapping
-        
-    c.depthOfField()
+#    if (v2.surfaceProperty == v.TRANSPARENT).all():
+#        c.calculateMapping(v2, 532e-9)
+#    else:
+#        c.calculateMapping(v, 532e-9)
+#        
+#    print c.mapping
+#        
+#    c.depthOfField()
         
 #    phantoms = c.virtualCameras(False)
 #    
