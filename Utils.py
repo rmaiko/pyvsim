@@ -1,5 +1,5 @@
 """
-PyVSim part2.1
+PyVSim v.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -131,31 +131,31 @@ def tetraVolume(p1,p2,p3,p4):
     Calculates the volume of a tetrahedron. This is simply the unrolled
     determinant::
     
-    | 1  x1  y1  z1 |
-    | 1  x2  y2  z2 |      1
-    | 1  x3  y3  z3 | *  -----
-    | 1  x4  y4  z4 |      6
+    | Vx1  Vy1  Vz1 |     1
+    | Vx2  Vy2  Vz2 | * -----
+    | Vx3  Vy3  Vz3 |     6
+    
     
     This function works only for list of vectors, for performance reasons
     will not check the inputs, will throw an error instead.
     
     (This works faster than numpy.linalg.det repeated over the list
     """
-    part2 = np.array([p1-p4, p2-p4, p3-p4])
+    vecs = np.array([p1-p4, p2-p4, p3-p4])
     if p1.ndim == 3:
-        return (1/6)* np.abs(part2[0,:,:,0]*part2[1,:,:,1]*part2[2,:,:,2] +
-                             part2[2,:,:,0]*part2[0,:,:,1]*part2[1,:,:,2] +
-                             part2[1,:,:,0]*part2[2,:,:,1]*part2[0,:,:,2] -
-                             part2[2,:,:,0]*part2[1,:,:,1]*part2[0,:,:,2] -
-                             part2[0,:,:,0]*part2[2,:,:,1]*part2[1,:,:,2] -
-                             part2[1,:,:,0]*part2[0,:,:,1]*part2[2,:,:,2])
+        return (1/6)* np.abs(vecs[0,:,:,0]*vecs[1,:,:,1]*vecs[2,:,:,2] +
+                             vecs[2,:,:,0]*vecs[0,:,:,1]*vecs[1,:,:,2] +
+                             vecs[1,:,:,0]*vecs[2,:,:,1]*vecs[0,:,:,2] -
+                             vecs[2,:,:,0]*vecs[1,:,:,1]*vecs[0,:,:,2] -
+                             vecs[0,:,:,0]*vecs[2,:,:,1]*vecs[1,:,:,2] -
+                             vecs[1,:,:,0]*vecs[0,:,:,1]*vecs[2,:,:,2])
     else:
-        return (1/6)* np.abs(part2[0,:,0]*part2[1,:,1]*part2[2,:,2] +
-                             part2[2,:,0]*part2[0,:,1]*part2[1,:,2] +
-                             part2[1,:,0]*part2[2,:,1]*part2[0,:,2] -
-                             part2[2,:,0]*part2[1,:,1]*part2[0,:,2] -
-                             part2[0,:,0]*part2[2,:,1]*part2[1,:,2] -
-                             part2[1,:,0]*part2[0,:,1]*part2[2,:,2]) 
+        return (1/6)* np.abs(vecs[0,:,0]*vecs[1,:,1]*vecs[2,:,2] +
+                             vecs[2,:,0]*vecs[0,:,1]*vecs[1,:,2] +
+                             vecs[1,:,0]*vecs[2,:,1]*vecs[0,:,2] -
+                             vecs[2,:,0]*vecs[1,:,1]*vecs[0,:,2] -
+                             vecs[0,:,0]*vecs[2,:,1]*vecs[1,:,2] -
+                             vecs[1,:,0]*vecs[0,:,1]*vecs[2,:,2]) 
 
 def metersToRGB(wl):
     """
@@ -231,59 +231,7 @@ def aeq(a,b,tol=1e-8):
             return True
     except IndexError:
         return not temp
-
-class Tictoc:
-    """
-    Just something simpler than the timeit from Python 
-    (and more Matlab-style)
-    """
-    def __init__(self):
-        """
-        This is the class constructor
-        >>> tic = Tictoc()
-        """
-        self.begin = 0
-        
-    def tic(self):
-        """
-        Resets the timer, must be used at the before each timed method
-        >>> tic = Tictoc()
-        >>> tic.tic()
-        """
-        self.begin = time.clock()
-        
-    def toc(self,n=None):
-        """
-        Gives the calculation time or speed, depending if the number of 
-        calculations executed from the last reset is provided as the 
-        input n.
-        
-        >>> tic = Tictoc()
-        >>> tic.tic()
-        >>> tic.toc() # doctest: +ELLIPSIS
-        Elapsed time: ...
-        ...
-        
-        or
-        
-        >>> tic = Tictoc()
-        >>> tic.tic()
-        >>> tic.toc(10) # doctest: +ELLIPSIS
-        Can execute: ... calculations / second
-        ...
-        
-        """
-        t = (time.clock()-self.begin)
-        if t == 0:
-            print "Elapsed time too short to measure"
-            return 0
-        if n is None:
-            print "Elapsed time: %f seconds" % t
-            return t
-        else:
-            print "Can execute: %f calculations / second" % (n/t)
-            return n/t
-        
+       
 def reallocateArray(array, extrasteps):
     size = [np.size(array,0) + extrasteps]
     for n in range(1,array.ndim):
@@ -865,15 +813,15 @@ def listdot(a,b):
         if (small.ndim == large.ndim) and (np.size(small) == np.size(large)):
             return np.sum(a*b,1)
            
-def listTimesVec(HEXA_CONN_PARTIAL,part2):
+def listTimesVec(vector1,vector2):
     try:
-        if part2.ndim > 1:
-            return np.tile(HEXA_CONN_PARTIAL,(len(part2[0]),1)).T * part2
+        if vector2.ndim > 1:
+            return np.tile(vector1,(len(vector2[0]),1)).T * vector2
         else:
-            return np.tile(HEXA_CONN_PARTIAL,(len(part2),1)).T * \
-                   np.tile(part2,(len(HEXA_CONN_PARTIAL),1))
+            return np.tile(vector1,(len(vector2),1)).T * \
+                   np.tile(vector2,(len(vector1),1))
     except ValueError:
-        return HEXA_CONN_PARTIAL*part2
+        return vector1*vector2
        
 def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4): 
     """
@@ -890,6 +838,58 @@ def quadInterpolation(p,p1,p2,p3,p4,v1,v2,v3,v4):
     c4 = Sr*Sd/den
     return listTimesVec(c1,v1) + listTimesVec(c2,v2) + \
            listTimesVec(c3,v3) + listTimesVec(c4,v4)
+           
+class Tictoc:
+    """
+    Just something simpler than the timeit from Python 
+    (and more Matlab-style)
+    """
+    def __init__(self):
+        """
+        This is the class constructor
+        >>> tic = Tictoc()
+        """
+        self.begin = 0
+        
+    def tic(self):
+        """
+        Resets the timer, must be used at the before each timed method
+        >>> tic = Tictoc()
+        >>> tic.tic()
+        """
+        self.begin = time.clock()
+        
+    def toc(self,n=None):
+        """
+        Gives the calculation time or speed, depending if the number of 
+        calculations executed from the last reset is provided as the 
+        input n.
+        
+        >>> tic = Tictoc()
+        >>> tic.tic()
+        >>> tic.toc() # doctest: +ELLIPSIS
+        Elapsed time: ...
+        ...
+        
+        or
+        
+        >>> tic = Tictoc()
+        >>> tic.tic()
+        >>> tic.toc(10) # doctest: +ELLIPSIS
+        Can execute: ... calculations / second
+        ...
+        
+        """
+        t = (time.clock()-self.begin)
+        if t == 0:
+            print "Elapsed time too short to measure"
+            return 0
+        if n is None:
+            print "Elapsed time: %f seconds" % t
+            return t
+        else:
+            print "Can execute: %f calculations / second" % (n/t)
+            return n/t
            
 # def quadArea(p1,p2,p3,p4):
     # return triangleArea(p1,p2,p3) + triangleArea(p1,p3,p4)

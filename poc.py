@@ -61,7 +61,10 @@ import Utils
 import System
 import Core
 import Toolbox
-
-v = np.array([1,0,0])
-v = np.tile(v,(2,1))
-print Utils.rotateVector(v, 0.0, np.array([0,1,0]))
+tic = Utils.Tictoc()
+v = np.random.rand(100,100,100)
+tic.tic()
+v = Utils.reallocateArray(v, 100)
+tic.toc()
+#v = np.tile(v,(2,1))
+#print Utils.rotateVector(v, 0.0, np.array([0,1,0]))

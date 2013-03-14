@@ -1,5 +1,5 @@
 """
-PyVSim part2.1
+PyVSim v.1
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -185,13 +185,13 @@ class Component(object):
         self.translateImplementation(vector)
         self.clearData()
         
-    def translateImplementation(self, part2):
+    def translateImplementation(self, vector):
         """
         This method must be implemented by the interested inheriting class in
         case a translation affects its internals.
         
         For example: a class with a vector of points P will probably need to
-        update that to P+part2
+        update that to P+vector
         
         This is a way of implementing the `Chain of Responsibility 
         <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>` 
@@ -606,7 +606,7 @@ class Part(Component):
         #        V1 \     /
         #            \   /    (P)
         #             \ /
-        #              part2 
+        #              v 
         U       = P - Ptriangles[:,0]
         
         UW      = np.sum(V1 * U,2)
@@ -697,7 +697,7 @@ class Part(Component):
  
         return result
         
-    def translateImplementation(self, part2):
+    def translateImplementation(self, vector):
         """
         This method is in charge of updating the position of the point cloud
         (provided it exists) when the Part is translated.
@@ -713,7 +713,7 @@ class Part(Component):
             coordinates
         """
         try:
-            self.points = self.points + part2
+            self.points = self.points + vector
         except TypeError:
             # There is no problem if a translation is executed before the points
             # are defined
@@ -792,7 +792,7 @@ class Line(Component):
         """
         return None
         
-    def translateImplementation(self, part2):
+    def translateImplementation(self, vector):
         """
         This method is in charge of updating the position of the point cloud
         (provided it exists) when the Line is translated.
@@ -802,7 +802,7 @@ class Line(Component):
         unlikely, but should not stop the program execution.
         """
         try:
-            self.points = self.points + part2
+            self.points = self.points + vector
         except TypeError:
             # There is no problem if a translation is executed before the points
             # are defined
@@ -1148,7 +1148,7 @@ class RayBundle(Assembly):
         # Ray tracing configuration
         self.maximumRayTrace            = 10
         self.stepRayTrace               = 0.1
-        self.preAllocatedSteps          = 3
+        self.preAllocatedSteps          = 10
         self.wavelength                 = None
         self.startingPoints             = None
         self.initialVectors             = None
@@ -1207,13 +1207,13 @@ class RayBundle(Assembly):
         
         2) Several rays are inserted, each with a starting point::
         
-        >>> bundle.insert(np.array([[1,0,0],[1,0,0]]), \\
-                          np.array([[0,0,0],[0,0,1]]))
+        >>> bundle.insert(np.array([[1,0,0],[1,0,0]]), 
+        ...               np.array([[0,0,0],[0,0,1]]))
         
         3) Several rays are inserted, with a common starting point::
         
-        >>> bundle.insert(np.array([[1,0,0],[0,1,0]], \\
-                          np.array([0,0,0]))
+        >>> bundle.insert(np.array([[1,0,0],[0,1,0]], 
+        ...               np.array([0,0,0]))
         """
         # clear data, as it would be really difficult to manage rays with 
         # different number of points
@@ -1677,16 +1677,16 @@ class Plane(Part):
         
         Vectorization for this method is implemented.
         """
-        part2 = coords - self.origin
+        vector = coords - self.origin
         if coords.ndim == 1:
-            py = 2*(np.dot(self.y,part2) / self.dimension[0]) 
-            pz = 2*(np.dot(self.z,part2) / self.dimension[1])
+            py = 2*(np.dot(self.y,vector) / self.dimension[0]) 
+            pz = 2*(np.dot(self.z,vector) / self.dimension[1])
             return np.array([py,pz])        
         else:
-            nvecs = np.size(part2,0)
-            py = (np.sum(np.tile(self.y,(nvecs,1).T*part2,1) / 
+            nvecs = np.size(vector,0)
+            py = (np.sum(np.tile(self.y,(nvecs,1).T*vector,1) / 
                           self.dimension[0]))
-            pz = (np.sum(np.tile(self.z,(nvecs,1).T*part2,1) / 
+            pz = (np.sum(np.tile(self.z,(nvecs,1).T*vector,1) / 
                           self.dimension[0]))
             return 2*np.array([py,pz]).T
     
@@ -1742,7 +1742,7 @@ class Volume(Part):
                         width   
                         /
                        /
-                      part2  Y
+                      v Y
                       
         The point numbering convention is::
         
@@ -1752,7 +1752,7 @@ class Volume(Part):
         7--------4  |    |
         |        |  |    +-> (Z)
         |   2    |  1   /
-        |        | /   part2 
+        |        | /   v
         |        |/    (Y)
         3--------0
         """
@@ -1966,7 +1966,7 @@ if __name__=="__main__":
     [t, coords, inds, norms, refs] = assembly.intersections(p0, p1, GLOBAL_TOL)
     tic.toc(cases*triangles*repetitions)
     assert Utils.aeq(t, t2)
-    print "Reference result from PIVSim part2.0 - 71500 polygon intersection / second"
+    print "Reference result from PIVSim v.0 - 71500 polygon intersection / sec"
 
     #=============================
     # Testing the provided normals
