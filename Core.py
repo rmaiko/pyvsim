@@ -932,7 +932,7 @@ class Assembly(Component):
     def acceptVisitor(self, visitor):
         """
         This method is a provision for the `Visitor Pattern 
-        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`_ and is be used
+        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`  and is be used
         for traversing the tree.
         
         As an assembly has sub-elements, we must iterate through them
@@ -1137,7 +1137,7 @@ class RayBundle(Assembly):
     having them wrapped in a single class is that it allows full vectorization
     of the raytracing procedure.
     
-    This can be called a discardable class
+    This can be called a disposable class
     """
     TRACING_FOV               = 1
     TRACING_LASER_REFLECTION  = 0
@@ -1154,6 +1154,7 @@ class RayBundle(Assembly):
         self.initialVectors             = None
         # Ray tracing statistics
         self.rayPaths                   = None
+        self.rayLastVectors             = None
         self.rayIntersections           = None
         self.rayLength                  = None
         self.steps                      = None
@@ -1309,7 +1310,7 @@ class RayBundle(Assembly):
         except TypeError:
             pass
               
-    def trace(self, tracingRule = TRACING_FOV):
+    def trace(self, tracingRule = TRACING_FOV, restart = False):
         """
         A method for starting ray tracing. The bundle must be included in the
         environment assembly where ray tracing will be done (the position, 
@@ -1330,8 +1331,46 @@ class RayBundle(Assembly):
             raised.
         """
         # Make sure everything is clear
-        self.clearData()
+        nrays = np.size(self.startingPoints, 0)
         
+        if restart:
+            # Memorize scope variables
+            currVector = self.rayLastVectors
+            step       = self.steps
+            rayPoints  = self.rayPaths
+            rayIntersc = self.rayIntersections
+            
+            # Reallocate vectors
+            rayPoints  = Utils.reallocateArray(rayPoints, 
+                                               self.preAllocatedSteps)
+            rayIntersc = Utils.reallocateArray(rayIntersc, 
+                                               self.preAllocatedSteps)
+            distance   = self.rayLength
+        else:
+            self.clearData() 
+            # Shortcut to the number of rays being traced:
+            
+            # Initialize variables
+            distance                    = np.zeros(nrays)
+            currVector                  = copy.deepcopy(self.initialVectors)
+            self.finalIntersections     = np.empty(nrays,dtype='object')
+            self.rayLastVectors         = copy.deepcopy(self.initialVectors)
+            # Do matrix pre-allocation to store ray paths
+            rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM),
+                                    dtype='double')
+            rayIntersc  = np.empty((self.preAllocatedSteps, nrays, 1),
+                                    dtype='object')
+            step                  = 0
+            rayPoints[0,:,:]      = copy.deepcopy(self.startingPoints)
+                   
+        stepsize              = np.ones(nrays) * self.stepRayTrace
+        stepsize[distance + stepsize > 
+                 self.maximumRayTrace] = self.maximumRayTrace - distance
+        
+        rayPoints[step+1,:,:] = (rayPoints[step,:,:] + 
+                                 np.tile(stepsize,(GLOBAL_NDIM,1)).T*
+                                 self.initialVectors)
+
         # Routine to find the top element in the hierarchy
         if self.parent is None:
             raise RuntimeError("Could not find parent element. " +
@@ -1339,47 +1378,23 @@ class RayBundle(Assembly):
         topComponent = self
         while topComponent.parent is not None:
             topComponent = topComponent.parent
-        
-        # Shortcut to the number of rays being traced:
-        nrays = np.size(self.startingPoints, 0)
-        
-        # Initialize variables
-        distance                    = np.zeros(nrays)
-        currVector                  = copy.deepcopy(self.initialVectors)
-        self.finalIntersections     = np.empty(nrays,dtype='object')
-        # Do matrix pre-allocation to store ray paths
-        rayPoints   = np.empty((self.preAllocatedSteps, nrays, GLOBAL_NDIM),
-                                dtype='double')
-        rayIntersc  = np.empty((self.preAllocatedSteps, nrays, 1),
-                                dtype='object')
-        step                  = 0
-        stepsize              = np.ones(nrays) * self.stepRayTrace
-        rayPoints[step  ,:,:] = copy.deepcopy(self.startingPoints)
-        rayPoints[step+1,:,:] = (self.startingPoints + 
-                                 self.stepRayTrace*self.initialVectors)
-
+        # Ray tracing loop
         while np.sum(stepsize) > GLOBAL_TOL:
             # Increase matrix size (if this is done too often, performance is
             # really, really bad. So adjust self.preAllocatedSteps wisely
             if step + 2 >= np.size(rayPoints,0):
-                # Reallocate points vector
-                temp = np.empty((step + self.preAllocatedSteps, 
-                                 nrays, GLOBAL_NDIM), dtype = "double")
-                temp[range(np.size(rayPoints,0))] = rayPoints
-                rayPoints = temp
-                # Reallocate intersections vector
-                temp = np.empty((step + self.preAllocatedSteps, 
-                                 nrays, 1), dtype = "object")
-                temp[range(np.size(rayIntersc,0))] = rayIntersc
-                rayIntersc = temp
+                rayPoints  = Utils.reallocateArray(rayPoints, 
+                                                   self.preAllocatedSteps)
+                rayIntersc = Utils.reallocateArray(rayIntersc, 
+                                                   self.preAllocatedSteps)
               
             # Ask for the top assembly to intersect the rays with the whole
             # Component tree, will receive results only for the first 
             # intersection of each ray
-            [t, coords, _, N, surfaceRef]   = topComponent.intersections(
-                                                     rayPoints[step],
-                                                     rayPoints[step+1],
-                                                     GLOBAL_TOL)
+            [t, coords, _, N, 
+             surfaceRef]   = topComponent.intersections(rayPoints[step],
+                                                        rayPoints[step+1],
+                                                        GLOBAL_TOL)
             self.finalIntersections[t <= 1] = surfaceRef[t <= 1]
             rayIntersc[step+1,:,:]          = np.reshape(surfaceRef,(nrays,1))
         
@@ -1390,17 +1405,19 @@ class RayBundle(Assembly):
         
             # Calculate the next vectors
             currVector  = self._calculateNextVectors(currVector, 
-                                                    t, 
-                                                    N, 
-                                                    surfaceRef,
-                                                    tracingRule)
+                                                     t, N, 
+                                                     surfaceRef,
+                                                     tracingRule)
+            self.rayLastVectors[Utils.norm(currVector) > 0] = \
+                                        currVector[Utils.norm(currVector) > 0]
             # Calculate next step size
-            stepsize = ((self.stepRayTrace * 
-                        (distance + self.stepRayTrace <= self.maximumRayTrace)+ 
-                        (self.maximumRayTrace - distance) * 
-                        (distance + self.stepRayTrace > self.maximumRayTrace))*
-                       Utils.norm(currVector))
-                
+#            stepsize = ((self.stepRayTrace * 
+#                        (distance + self.stepRayTrace <= self.maximumRayTrace)+ 
+#                        (self.maximumRayTrace - distance) * 
+#                        (distance + self.stepRayTrace > self.maximumRayTrace)))#*
+#                       #Utils.norm(currVector))           
+            stepsize[distance + stepsize > 
+                self.maximumRayTrace] = self.maximumRayTrace - distance
             # Calculate next inputs:
             step              = step + 1
             rayPoints[step]   = coords
