@@ -852,14 +852,16 @@ class Assembly(Component):
     @property
     def bounds(self):
         if self._bounds is None:
-            [mini,maxi] = np.zeros((2,3))
-             
+            mini =  np.ones((len(self.items),3))*1000
+            maxi = -np.ones((len(self.items),3))*1000
+            print len(self._items)
             if len(self._items) > 0:
-                for part in self.items:
-                    [xmin,xmax] = part.bounds
-                    mini = mini * (mini < xmin) + xmin * (mini > xmin)
-                    maxi = maxi * (maxi > xmax) + xmax * (maxi < xmax)
-            self._bounds = np.array([mini,maxi])  
+                for n in range(len(self._items)):
+                    b = self._items[n].bounds
+                    if b is not None:
+                        [mini[n],maxi[n]] = b 
+
+            self._bounds = np.array([np.min(mini,0),np.max(maxi,0)])  
         return self._bounds
     
     @property
@@ -907,6 +909,7 @@ class Assembly(Component):
                 self._items[n] = component
             
         component.parent = self
+        self._bounds = None
         return len(self._items)
         
     def remove(self, n):
@@ -1346,6 +1349,7 @@ class RayBundle(Assembly):
             rayIntersc = Utils.reallocateArray(rayIntersc, 
                                                self.preAllocatedSteps)
             distance   = self.rayLength
+            surfaceRef = self.finalIntersections
         else:
             self.clearData() 
             # Shortcut to the number of rays being traced:
@@ -1361,6 +1365,7 @@ class RayBundle(Assembly):
             rayIntersc  = np.empty((self.preAllocatedSteps, nrays, 1),
                                     dtype='object')
             step                  = 0
+            
             rayPoints[0,:,:]      = copy.deepcopy(self.startingPoints)
                    
         stepsize              = np.ones(nrays) * self.stepRayTrace
@@ -1369,7 +1374,7 @@ class RayBundle(Assembly):
         
         rayPoints[step+1,:,:] = (rayPoints[step,:,:] + 
                                  np.tile(stepsize,(GLOBAL_NDIM,1)).T*
-                                 self.initialVectors)
+                                 currVector)
 
         # Routine to find the top element in the hierarchy
         if self.parent is None:
