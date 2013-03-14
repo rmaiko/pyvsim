@@ -61,6 +61,8 @@ vp = np.array([-v[1]*v[2],
 vx = Utils.normalize(v)
 vy = Utils.normalize(vp)
 # Makes the camera align to the vectors we've created
+l = Toolbox.Laser()
+l.translate(windowCenter - l.origin - np.array([0.1,-2.5,0]))
 c.alignTo(vx, vy)  
 # Moves the camera to the window
 c.translate(windowCenter - c.origin)
@@ -70,6 +72,8 @@ a = Core.Assembly()
 # Insert the airplane and the camera
 a.insert(part)
 a.insert(c)
+a.insert(l)
+l.trace()
 # The mapping resolution must be more than [2, 2] if there is refraction in 
 # the way (because it could distort the field of view), in this case we put
 # [10, 10] just to check performance
@@ -85,4 +89,4 @@ c.depthOfField()
 tic.toc()
 
 # This is to display the scenario
-System.plot(a,mode="vtk",displayAxes=False)
+System.plot(a)

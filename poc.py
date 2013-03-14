@@ -62,17 +62,6 @@ import System
 import Core
 import Toolbox
 
-hexapoints = np.array([[0,0,0], 
-                       [0,1,0], 
-                       [0,1,1], 
-                       [0,0,1], 
-                       [1,0,0], 
-                       [1,1,0], 
-                       [1,1,1], 
-                       [1,0,1]])
-values = hexapoints
-#values = np.array([0,0,0,0,1,1,1,1])
-print Utils.hexaInterpolation(np.array([[0.5,0.5,0.5],
-                                        [1.0,0.5,0.2],
-                                        [1.1,1.1,1.1]]), hexapoints, values)
-print Utils.hexaInterpolation(np.array([0.5,0.5,0.5]), hexapoints, values)
+v = np.array([1,0,0])
+v = np.tile(v,(2,1))
+print Utils.rotateVector(v, 0.0, np.array([0,1,0]))
