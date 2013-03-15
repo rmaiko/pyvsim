@@ -1607,7 +1607,7 @@ class Plane(Part):
                                   [+0,+0.5,-0.5],
                                   [+0,+0.5,+0.5],
                                   [+0,-0.5,+0.5]])
-    def __init__(self, length = 1, heigth = 1):
+    def __init__(self, length = 1, heigth = 1, fastInit=False):
         Part.__init__(self)
         self.name           = 'Plane '+str(self._id)
         self._length        = length
@@ -1615,7 +1615,8 @@ class Plane(Part):
         self.connectivity   = np.array([[0,1,2], [0,2,3]])
         self.normals        = None
         self._dimension     = None
-        self._resize()
+        if not fastInit:
+            self._resize()
     
     @property
     def length(self):
@@ -1723,7 +1724,7 @@ class Volume(Part):
                                    [+1,-0.5,+0.5],
                                    [+1,-0.5,-0.5],
                                    [+1,+0.5,-0.5],])
-    def __init__(self, heigth = 1, depth = 1, width = 1):
+    def __init__(self, heigth = 1, depth = 1, width = 1, fastInit=False):
         """
         This is another convenience class to represent volumes (a hexahedron).
         
@@ -1779,7 +1780,8 @@ class Volume(Part):
                                         [4,6,7],[4,5,6], # normal +x
                                         [0,3,2],[2,1,0]]) # normal -x
         self.normals        = None
-        self._resize()
+        if not fastInit:
+            self._resize()
 
     @property
     def width(self):

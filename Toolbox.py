@@ -867,7 +867,7 @@ class Laser(Core.Assembly):
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
         self.safeEnergy                 = 1e-3
-        self.safetyTracingResolution    = 15
+        self.safetyTracingResolution    = 20
         self.positionComponents()
         
     @property
@@ -1011,7 +1011,7 @@ class Laser(Core.Assembly):
             for i in range(nres-1):
                 for j in range(nres-1):
                     if currentEnergy[j,i] > self.safeEnergy:
-                        vol        = Core.Volume()
+                        vol        = Core.Volume(fastInit = True)
                         vol.points = np.vstack([pts1[i,j],
                                                 pts1[i+1,j],
                                                 pts1[i+1,j+1],

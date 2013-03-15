@@ -156,6 +156,7 @@ class VTKPlotter(Visitor):
         Attention: This will stop the program execution until the
         window is closed. This is a "feature" of matplotlib and VTK.
         """
+        print "There are %i elements to be plotted" % len(self.actorList)
         if displayAxes:
             axesActor = vtk.vtkAxesActor()
             axesActor.SetShaftTypeToLine()
