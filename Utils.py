@@ -933,8 +933,13 @@ class Tictoc:
             print "Can execute: %f calculations / second" % (n/t)
             return n/t
            
-def quadArea(p1,p2,p3,p4):
+def quadArea(p1,p2,p3,p4): 
     return triangleArea(p1,p2,p3) + triangleArea(p1,p3,p4)
+       
+def displayProfile(filename):
+    import pstats
+    p = pstats.Stats(filename)
+    p.strip_dirs().sort_stats('cumulative').print_stats(30)
        
 # def triangleNormal(p1,p2,p3):
     # """
@@ -959,6 +964,7 @@ if __name__ == "__main__":
     import doctest
     doctest.testmod()
     print "If nothing was printed, it was ok"
+    displayProfile("profile.txt")
     
 #    ph  = np.array([0,0,-3e2])
 #    pt1 = np.array([[-1,-1,0],

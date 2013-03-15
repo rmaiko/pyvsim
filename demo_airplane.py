@@ -36,7 +36,7 @@ tic.toc()
 tic.tic()
 # The part was set as transparent, because the camera rays must pass through
 # it in order to be able to create a mapping
-part.surfaceProperty = part.TRANSPARENT
+part.surfaceProperty = part.MIRROR
 # Only visualization properties, they don't affect calculation
 part.opacity = 1
 part.color = np.array([1,1,1])
@@ -62,7 +62,10 @@ vx = Utils.normalize(v)
 vy = Utils.normalize(vp)
 # Makes the camera align to the vectors we've created
 l = Toolbox.Laser()
+m = Toolbox.Mirror()
 l.translate(windowCenter - l.origin - np.array([0.1,-2.5,0]))
+m.translate(windowCenter - l.origin - np.array([-5,-1.5,-0.1]))
+m.rotate(0.25, m.z)
 c.alignTo(vx, vy)  
 # Moves the camera to the window
 c.translate(windowCenter - c.origin)
@@ -73,7 +76,8 @@ a = Core.Assembly()
 a.insert(part)
 a.insert(c)
 a.insert(l)
-l.trace()
+a.insert(m)
+l.traceReflections()
 # The mapping resolution must be more than [2, 2] if there is refraction in 
 # the way (because it could distort the field of view), in this case we put
 # [10, 10] just to check performance
@@ -82,9 +86,9 @@ c.mappingResolution = [10, 10]
 c.lens.focusingDistance = 5.2
 # This is used to create a mapping for the camera, not useful here, but just
 # demonstrated
-c.calculateMapping(part)
+#c.calculateMapping(part)
 # This makes the camera calculate (and display) its depth of field
-c.depthOfField()
+#c.depthOfField()
 # Stop timing
 tic.toc()
 

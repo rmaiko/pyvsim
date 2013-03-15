@@ -61,10 +61,25 @@ import Utils
 import System
 import Core
 import Toolbox
-tic = Utils.Tictoc()
-v = np.random.rand(100,100,100)
-tic.tic()
-v = Utils.reallocateArray(v, 100)
-tic.toc()
+pts = [[-1,-1,0],
+       [+1,-1,0],
+       [+1,+1,0],
+       [-1,+1,0]]
+values = [0,0,1,1]
+p = [[0,-1  ,0],
+     [0,-0.5,0],
+     [0,   0,0],
+     [0,  +1,0]]
+print Utils.quadInterpolation(np.array(p), 
+                              np.array(pts),
+                              np.array(values))
+
+values = [[-1,-1,0],
+          [+1,-1,0],
+          [+1,+1,0],
+          [-1,+1,0]]
+print Utils.quadInterpolation(np.array(p), 
+                              np.array(pts),
+                              np.array(values))
 #v = np.tile(v,(2,1))
 #print Utils.rotateVector(v, 0.0, np.array([0,1,0]))

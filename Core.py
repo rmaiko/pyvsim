@@ -1150,7 +1150,7 @@ class RayBundle(Assembly):
         self.name                       = 'Bundle ' + str(self._id)
         # Ray tracing configuration
         self.maximumRayTrace            = 10
-        self.stepRayTrace               = 0.1
+        self.stepRayTrace               = 10
         self.preAllocatedSteps          = 10
         self.wavelength                 = None
         self.startingPoints             = None
@@ -1439,12 +1439,16 @@ class RayBundle(Assembly):
         self.finalIntersections         = surfaceRef
         
         # And create lines to represent the rays
-        self._items = np.empty(nrays,"object")
-        for n in range(nrays):
-            self._items[n]        = Line()
-            self._items[n].parent = self
-            self._items[n].points = self.rayPaths[:,n,:]
-            self._items[n].color  = Utils.metersToRGB(self.wavelength[n])
+        if restart:
+            for n in range(nrays):
+                self._items[n].points = self.rayPaths[:,n,:]
+        else:
+            self._items = np.empty(nrays,"object")
+            for n in range(nrays):
+                self._items[n]        = Line()
+                self._items[n].parent = self
+                self._items[n].points = self.rayPaths[:,n,:]
+                self._items[n].color  = Utils.metersToRGB(self.wavelength[n])
             
     def _calculateNextVectors(self, currVector, t, N, surface, tracingRule):
         """

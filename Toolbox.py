@@ -994,7 +994,8 @@ class Laser(Core.Assembly):
         volumeCollection = Core.Assembly()
         
         while(np.max(currentEnergy) > self.safeEnergy):
-            bundle.maximumRayTrace = bundle.maximumRayTrace + 300
+#            print "PREPARING TO CONTINUE"
+            bundle.maximumRayTrace = bundle.maximumRayTrace + 100
             bundle.stepRayTrace    = bundle.maximumRayTrace
             pts2 = bundle.rayPaths[-1]
             pts1 = np.reshape(pts1,(nres,nres,3))
@@ -1029,7 +1030,8 @@ class Laser(Core.Assembly):
             
         self.volume = volumeCollection
         self.insert(volumeCollection)
-        print self.volume.bounds
+#        print self.volume.bounds
+#        print bundle.steps
         
     
 if __name__=='__main__':
