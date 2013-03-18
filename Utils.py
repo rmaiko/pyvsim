@@ -942,11 +942,49 @@ class Tictoc:
             return n/t
            
 def quadArea(p1,p2,p3,p4): 
+    """
+    Returns the area of a quadrilateral defined by its edge points. The 
+    following assumptions are made:
+        - All points lie in the same plane        
+        - The quadrilateral is convex
+        
+    Parameters
+    ----------
+    p1, p2, p3, p4 : numpy.array (N,3)
+        Points or list of points defining quadrilaterals
+        
+    Returns
+    -------
+    result : (N)
+        The area of the quadrilaterals
+        
+    Examples
+    --------
+    >>> pts    = np.array([[0,0,0], 
+    ...                    [0,1,0], 
+    ...                    [0,1,1], 
+    ...                    [0,0,1]])
+    >>> quadArea(pts[0], pts[1], pts[2], pts[3])
+    1.0
+    """
     return triangleArea(p1,p2,p3) + triangleArea(p1,p3,p4)
        
 def displayProfile(filename):
+    """
+    Internal utility to profile a module and display the function calls sorted 
+    by the cumulative time taken by each of them. This is a tool for development 
+    of the code.
+    
+    Parameters
+    ----------
+    filename : string
+        Name of the module to be profiled. The module must have some executable
+        part.
+    """
     import pstats
-    p = pstats.Stats(filename)
+    import os
+    os.system("python -m cProfile -o autogenprofile.txt " + filename)
+    p = pstats.Stats("autogenprofile.txt")
     p.strip_dirs().sort_stats('cumulative').print_stats(70)
        
 # def triangleNormal(p1,p2,p3):
@@ -971,6 +1009,4 @@ if __name__ == "__main__":
     print "Will execute doctest"
     import doctest
     doctest.testmod()
-    
-#    print "If nothing was printed, it was ok"
-#    displayProfile("profile.txt")
+    print "If nothing was printed, Utils module is running ok"
