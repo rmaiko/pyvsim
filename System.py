@@ -37,6 +37,22 @@ def plot(obj, mode="vtk", displayAxes = True):
     """
     Convenience function to avoid the routine of creating visitor, making it
     visit the part tree and ask for plotting.
+    
+    *Warning* - Due to bugs both in Matplotlib and VTK, the program execution
+    is paused until the window is closed. So plotting should be the last 
+    operation in the pipeline.
+    
+    Parameters
+    ----------
+    obj : Core.Assembly
+        The scenario to be displayed
+    mode : "vtk" or "mpl"
+        The library to be used in displaying the scenario, the standard option
+        is "vtk", which is faster and supports rendering complex scenarios.
+        Some scenarios, however, can be plotted using Matplotlib.
+    displayAxes : boolean
+        When plotting with VTK, the axis can be hidden by setting this option
+        to false.
     """
     plotter = Plotter(mode)
     obj.acceptVisitor(plotter)
@@ -44,11 +60,19 @@ def plot(obj, mode="vtk", displayAxes = True):
     
 def save(obj, filename=None, mode="pickle"): 
     """
-    Convenience function for saving a part tree. Pickle is chosen
-    by default, use JSON only if you need human readable output
+    Convenience function for saving a Core.Assembly object.
     
-    mode
-        Can be None (trial and error), json or pickle
+    Parameters
+    ----------
+    obj : Core.Assembly
+        The scenario to be saved. 
+    filename : string
+        The name of the output file
+    mode : "pickle" or "json"
+        Specifies the file format to be used in saving. The default option is
+        pickle (which is fast and bug free), use JSON only if you need to edit
+        the file in a human-readable way.
+        
     """
     if mode == "pickle":
         saver = Saver()
@@ -65,8 +89,20 @@ def load(filename, mode = None):
     Convenience function for loading a part tree. Pickle/JSON is chosen
     by trial and error
     
-    mode
-        Can be None (trial and error), json or pickle
+    Parameters
+    ----------
+    filename : string
+        The name of the input file
+    mode : "pickle" or "json"
+        Specifies the file format of the input file. The default option is
+        None, which will make the loader first try to unpickle the file
+        (which is fast and bug free). Use JSON only if you need to edit
+        the file in a human-readable way.
+        
+    Raises
+    ------
+    ValueError
+        If decoding was not possible
     """
     if mode is not "json":
         try:
@@ -86,23 +122,22 @@ def Plotter(mode="vtk"):
     """
     This is a factory that returns a plotter visitor.
     
-    It uses information about the python installation to return a 
+    It uses information about the Python installation to return a 
     compatible plotter.
     
-    mode can be either "vtk" or "mpl"
-    
-    "vtk"
-        Uses the Python wrapping of the Visualization Toolkit (VTK) to plot
-        the environment
-        
-    "mpl"
-        Uses Matplotlib to plot the environment
+    Parameters
+    ----------
+    mode : "vtk" or "mpl"
+        "vtk" Uses the Python wrapping of the Visualization Toolkit (VTK) to 
+        plot the environment, whereas "mpl" uses Matplotlib to plot the 
+        environment (this option is not so efficient in plotting environments
+        with complex objects)
     """
     if mode == "vtk":
         if VTK_PRESENT:
             return VTKPlotter()
         else:
-            print "Could not return a VTK plotter, returning a Matplotlib plotter"
+            print "Could not import VTK, returning a Matplotlib plotter"
             return PythonPlotter()
     elif mode == "mpl":
         return PythonPlotter()
@@ -170,14 +205,17 @@ class VTKPlotter(Visitor):
         
     def lineActor(self,obj):
         """
-        Returns an object of type vtkLODActor for rendering within a VTK pipeline
+        Returns an object of type vtkLODActor for rendering within a VTK 
+        pipeline
         """
         me  = vtk.vtkPolyData()
         pts = vtk.vtkPoints()
         cts = vtk.vtkCellArray()
             
         for n in range(len(obj.points)):
-            pts.InsertPoint(n,obj.points[n][0],obj.points[n][1],obj.points[n][2])
+            pts.InsertPoint(n,obj.points[n][0],
+                              obj.points[n][1],
+                              obj.points[n][2])
             
         for n in range(1,len(obj.points)):
             cts.InsertNextCell(2)
@@ -194,7 +232,9 @@ class VTKPlotter(Visitor):
         dataActor.SetMapper(dataMapper)
         
         if obj.color is not None:
-            dataActor.GetProperty().SetColor(obj.color[0],obj.color[1],obj.color[2])
+            dataActor.GetProperty().SetColor(obj.color[0],
+                                             obj.color[1],
+                                             obj.color[2])
         if obj.opacity is not None:
             dataActor.GetProperty().SetOpacity(obj.opacity)
             
@@ -202,14 +242,17 @@ class VTKPlotter(Visitor):
     
     def polyActor(self,obj): 
         """
-        Returns an object of type vtkLODActor for rendering within a VTK pipeline
+        Returns an object of type vtkLODActor for rendering within a VTK 
+        pipeline
         """
         actor   = vtk.vtkPolyData()
         pts     = vtk.vtkPoints()
         cts     = vtk.vtkCellArray()
             
         for n in range(len(obj.points)):
-            pts.InsertPoint(n,obj.points[n,0],obj.points[n,1],obj.points[n,2])
+            pts.InsertPoint(n,obj.points[n,0], 
+                              obj.points[n,1],
+                              obj.points[n,2])
            
         for n in range(len(obj.connectivity)):
             cts.InsertNextCell(3)
@@ -234,7 +277,9 @@ class VTKPlotter(Visitor):
         dataActor.SetMapper(dataMapper)
         
         if obj.color is not None:
-            dataActor.GetProperty().SetColor(obj.color[0],obj.color[1],obj.color[2])
+            dataActor.GetProperty().SetColor(obj.color[0],
+                                             obj.color[1],
+                                             obj.color[2])
         if obj.opacity is not None:
             dataActor.GetProperty().SetOpacity(obj.opacity)
             
@@ -444,13 +489,13 @@ class JSONSaver(Visitor):
                     for element in np.nditer(tempdict[k], 
                                              flags=['refs_ok'],
                                              op_flags=['readwrite']):
-                        element[...] = objectString(element[()])
+                        element[...] = _objectString(element[()])
                 tempdict[k] = tempdict[k].tolist()
                     
             if isinstance(tempdict[k], Core.Component):
-                tempdict[k] = objectString(tempdict[k])
+                tempdict[k] = _objectString(tempdict[k])
                 
-        self.myobjects[objectString(obj)] = tempdict
+        self.myobjects[_objectString(obj)] = tempdict
                 
     def dump(self, name = None):
         """
@@ -492,7 +537,7 @@ def JSONLoader(name):
     objectlist = []
     idlist     = []
     for key in allobjects.keys():
-        objectlist.append(instantiateFromObjectString(key))
+        objectlist.append(_instantiateFromObjectString(key))
         idlist.append(allobjects[key]["_id"])
         objectlist[-1].__dict__ = allobjects[key]
         
@@ -510,7 +555,7 @@ def JSONLoader(name):
                     iterator   = np.nditer(obj.__dict__[key], 
                                            flags=['refs_ok','multi_index'])
                     while not iterator.finished:
-                        idno = idFromObjectString(iterator[0][()])
+                        idno = _idFromObjectString(iterator[0][()])
                         #print iterator[0][()], idno, objectlist[idlist.index(idno)]
                         if idno is not None:
                             references[iterator.multi_index] = \
@@ -524,7 +569,7 @@ def JSONLoader(name):
             # Reconstruct references outside lists
             if (type(obj.__dict__[key]) == str or 
                type(obj.__dict__[key]) == unicode):
-                idno = idFromObjectString(obj.__dict__[key])
+                idno = _idFromObjectString(obj.__dict__[key])
                 if idno is not None:
                     obj.__dict__[key] = objectlist[idlist.index(idno)]
                     
@@ -533,7 +578,7 @@ def JSONLoader(name):
         if obj.parent is None:
             return obj
 
-def idFromObjectString(string):
+def _idFromObjectString(string):
     """
     This method is used for validating a string describing an object and 
     returning the internal identification number of this object (this is 
@@ -548,7 +593,7 @@ def idFromObjectString(string):
                 return int(p[3])
     return None
 
-def instantiateFromObjectString(string):
+def _instantiateFromObjectString(string):
     """
     This method is capable of reading and validating a string describing 
     an object. If everything is ok, will return an instance of this object
@@ -563,7 +608,7 @@ def instantiateFromObjectString(string):
     module = __import__(p[1])
     return getattr(module,str(p[2]))()
 
-def objectString(obj):
+def _objectString(obj):
     """
     Takes an object derivated from the Core.Component class and generates
     a string to identify it.
