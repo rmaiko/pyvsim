@@ -200,15 +200,15 @@ def metersToRGB(wl):
 #        (wl >= 490) * (wl < 510) * (1 - (wl - 490) / (510 - 490)) + 
 #        (wl >= 510) * (wl < 780) * 0)
         
-    r =((wl >= 380) * (wl < 475) * (1 - (wl - 380) / (440 - 380)) + 
-        (wl >= 475) * (wl < 580) * ((wl - 510) / (580 - 510)))
+    r =((wl < 475)  * (1 - (wl - 380) / (440 - 380)) + 
+        (wl >= 475) * ((wl - 510) / (580 - 510)))
     
-    g =((wl >= 440) * (wl < 535) * ((wl - 440) / (490 - 440)) + 
-        (wl >= 535) * (wl < 645) * (1 - (wl - 580) / (645 - 580)))
+    g =((wl < 535) * ((wl - 440) / (490 - 440)) + 
+        (wl >= 535)* (1 - (wl - 580) / (645 - 580)))
     
-    b =((wl >= 380) * (wl < 780) * (1 - (wl - 490) / (510 - 490)))
+    b =(1 - (wl - 490) / (510 - 490))
     
-    return ((np.clip([r,g,b],0,1)*f)**gamma)
+    return (((np.clip([r,g,b],0,1))*f)**gamma)
 #    return ((np.array([r,g,b])*f)**gamma)
 
 def aeq(a,b,tol=1e-8):
@@ -973,6 +973,17 @@ if __name__ == "__main__":
     doctest.testmod()
     print "If nothing was printed, it was ok"
     displayProfile("profile.txt")
+    
+    
+    wl = np.linspace(300, 800, 100)
+    [r,g,b] = metersToRGB(wl*1e-9)
+
+    import matplotlib.pyplot as plt
+    plt.hold(True)
+    plt.plot(wl, r, 'r')
+    plt.plot(wl, g, 'g')
+    plt.plot(wl, b, 'b')
+    plt.show()
     
 #    ph  = np.array([0,0,-3e2])
 #    pt1 = np.array([[-1,-1,0],
