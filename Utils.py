@@ -971,59 +971,6 @@ if __name__ == "__main__":
     print "Will execute doctest"
     import doctest
     doctest.testmod()
-    print "If nothing was printed, it was ok"
-    displayProfile("profile.txt")
     
-    
-    wl = np.linspace(300, 800, 100)
-    [r,g,b] = metersToRGB(wl*1e-9)
-
-    import matplotlib.pyplot as plt
-    plt.hold(True)
-    plt.plot(wl, r, 'r')
-    plt.plot(wl, g, 'g')
-    plt.plot(wl, b, 'b')
-    plt.show()
-    
-#    ph  = np.array([0,0,-3e2])
-#    pt1 = np.array([[-1,-1,0],
-#                    [-1,+1,0],
-#                    [+1,+1,0],
-#                    [+1,-1,0]])
-#    pt2 = pt1 + 0.00333333333*(pt1 - ph)
-#
-#    xyz = np.vstack([pt1, pt2])*32152131
-##    xyz = xyz + np.array([0.3114,0,0])
-##    print xyz
-##    xyz = rotatePoints(xyz, 
-##                       2.2135648132, 
-##                       normalize(np.array([1,1,1])),
-##                       np.array([10, 19, 5]))
-#    print xyz
-#
-#    uv = np.array([[-1,-1],
-#                   [-1,+1],
-#                   [+1,+1],
-#                   [+1,-1]])
-#    uv = np.vstack([uv, uv])
-#
-#    m = DLT(uv, xyz)
-#    
-#    print m / m[2,3]
-#    
-#    def detr(m, p):
-#        p = np.hstack([p,1])
-#        r = np.dot(m, p)
-#        return r/r[2]
-#    
-##    for n in range(10):
-##        p1 = np.random.randint(0,8)
-##        p2 = np.random.randint(0,8)
-##        print p1, p2, 0.5*(uv[p1]+uv[p2]), \
-##        np.max(np.abs(detr(m, 0.5*(xyz[p1]+xyz[p2])) - np.hstack([0.5*(uv[p1]+uv[p2]), 1]))), \
-##        detr(m, 0.5*(xyz[p1]+xyz[p2]))# - np.hstack([0.5*(uv[p1]+uv[p2]), 1])
-#        
-#    print 0.5*(xyz[3]+xyz[1])
-#    print detr(m, 0.5*(xyz[3]+xyz[1]))
-#    print 0.5*(xyz[5]+xyz[3])
-#    print detr(m, 0.5*(xyz[5]+xyz[3]))
+#    print "If nothing was printed, it was ok"
+#    displayProfile("profile.txt")
