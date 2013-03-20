@@ -83,9 +83,9 @@ if __name__=="__main__":
     import Curves
     refractiveIndexLaw   = Curves.SellmeierEquation()
     refractiveIndexLaw.refractiveIndexConstants = \
-                            np.array([[1.03961212, 6.00069867e-15],
-                                      [0.23179234, 2.00179144e-14],
-                                      [1.01046945, 1.03560653e-10]])
+                            np.array([[1.03961212, 0.00600069867],
+                                      [0.23179234, 0.02001791440],
+                                      [1.01046945, 103.560653000]])
     # Now, we import the sellmeier equation and substitute it into our part
     part.refractiveIndexLaw = refractiveIndexLaw
     

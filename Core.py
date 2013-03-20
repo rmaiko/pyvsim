@@ -20,9 +20,7 @@ class PyvsimObject(object):
     def __init__(self):
         self._id                           = PyvsimObject.instanceCounter
         self.name                          = str(self._id)
-        PyvsimObject.instanceCounter     += 1
+        PyvsimObject.instanceCounter      += 1
         
     @property
     def id(self):               return self._id
-    
-    

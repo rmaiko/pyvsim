@@ -31,14 +31,14 @@ class SellmeierEquation(Core.PyvsimObject):
         Core.PyvsimObject.__init__(self)
         self.name                     = 'Sellmeier Equation '+str(self._id)
         if coeffs is None:
-            coeffs = np.array([[1.03961212, 6.00069867e-15],
-                               [0.23179234, 2.00179144e-14],
-                               [1.01046945, 1.03560653e-10]])
+            coeffs = np.array([[1.03961212, 0.00600069867],
+                               [0.23179234, 0.02001791440],
+                               [1.01046945, 103.560653000]])
         self.refractiveIndexConstants = coeffs
         
     def eval(self,wavelength):
         Nc = np.size(self.refractiveIndexConstants,0)
-        w2 = wavelength ** 2                 
+        w2 = (wavelength*1e6) ** 2                 
         return np.sqrt(1 +
                np.sum((w2 * self.refractiveIndexConstants[:,0].reshape(Nc,1,1)) /
                       (w2 - self.refractiveIndexConstants[:,1].reshape(Nc,1,1)),
@@ -50,7 +50,8 @@ class KasarovaEquation(Core.PyvsimObject):
         self.name                     = 'Kasarova Equation '+str(self._id)
         self.refractiveIndexConstants = coeffs
         
-    def eval(self,wavelength):             
+    def eval(self,wavelength):   
+        wavelength = wavelength*1e6 
         return np.sqrt(self.refractiveIndexConstants[0] +
                        self.refractiveIndexConstants[1]*wavelength**2 +
                        self.refractiveIndexConstants[1]*wavelength**-2 +

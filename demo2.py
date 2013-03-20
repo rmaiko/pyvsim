@@ -31,9 +31,9 @@ if __name__ == '__main__':
                            [1e-6,0,0.1]])
     vol.surfaceProperty = vol.TRANSPARENT
     import Curves
-    sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
-                                     [0.23179234, 2.00179144e-14],
-                                     [70.01046945, 1.03560653e-10]])
+    sellmeierCoeffs     = np.array([[1.03961212, 0.00600069867],
+                                    [0.23179234, 0.02001791440],
+                                    [70.01046945, 103.560653000]])
     vol.refractiveIndexLaw = Curves.SellmeierEquation(sellmeierCoeffs)
     
     r = Primitives.RayBundle()

@@ -1906,9 +1906,9 @@ if __name__=="__main__":
     print "************     Index of refraction calculation   ******************"
     part.refractiveIndexConstant    = 1
     assert Utils.aeq(part.refractiveIndex(532e-9), 1)
-    sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
-                                     [0.23179234, 2.00179144e-14],
-                                     [1.01046945, 1.03560653e-10]])
+    sellmeierCoeffs      = np.array([[1.03961212, 0.00600069867],
+                                     [0.23179234, 0.02001791440],
+                                     [1.01046945, 103.560653000]])
     part.refractiveIndexLaw = Curves.SellmeierEquation(sellmeierCoeffs)
     
     assert Utils.aeq(part.refractiveIndex(532e-9), 1.51947, 1e-3)
