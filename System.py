@@ -19,6 +19,7 @@ import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import matplotlib.pyplot as plt
 import copy
+import Primitives
 import Core
 import pprint 
 import json
@@ -44,7 +45,7 @@ def plot(obj, mode="vtk", displayAxes = True):
     
     Parameters
     ----------
-    obj : Core.Assembly
+    obj : Primitives.Assembly
         The scenario to be displayed
     mode : "vtk" or "mpl"
         The library to be used in displaying the scenario, the standard option
@@ -60,11 +61,11 @@ def plot(obj, mode="vtk", displayAxes = True):
     
 def save(obj, filename=None, mode="pickle"): 
     """
-    Convenience function for saving a Core.Assembly object.
+    Convenience function for saving a Primitives.Assembly object.
     
     Parameters
     ----------
-    obj : Core.Assembly
+    obj : Primitives.Assembly
         The scenario to be saved. 
     filename : string
         The name of the output file
@@ -110,11 +111,8 @@ def load(filename, mode = None):
         except cPickle.UnpicklingError:
             print "Could not decode pickle, trying JSON"
         
-    try:
-        return JSONLoader(filename)
-    except ValueError:
-        print "Could not decode JSON"
-        raise ValueError("Could not decode either pickle or JSON")
+    return JSONLoader(filename)
+
         
         
 
@@ -191,7 +189,7 @@ class VTKPlotter(Visitor):
         Attention: This will stop the program execution until the
         window is closed. This is a "feature" of matplotlib and VTK.
         """
-        print "There are %i elements to be plotted" % len(self.actorList)
+#        print "There are %i elements to be plotted" % len(self.actorList)
         if displayAxes:
             axesActor = vtk.vtkAxesActor()
             axesActor.SetShaftTypeToLine()
@@ -470,6 +468,7 @@ class JSONSaver(Visitor):
     is not fast and not very reliable. The advantage is that is generates
     human-readable (or almost) outputs.
     """
+           
     def __init__(self):
         Visitor.__init__(self)
         self.myobjects = {}
@@ -492,7 +491,9 @@ class JSONSaver(Visitor):
                         element[...] = _objectString(element[()])
                 tempdict[k] = tempdict[k].tolist()
                     
-            if isinstance(tempdict[k], Core.Component):
+            if isinstance(tempdict[k], Core.PyvsimObject):
+                if not isinstance(tempdict[k], Primitives.Component):
+                    self.visit(tempdict[k])
                 tempdict[k] = _objectString(tempdict[k])
                 
         self.myobjects[_objectString(obj)] = tempdict
@@ -519,11 +520,11 @@ def JSONLoader(name):
     This function returns an assembly tree with the contents of the specified
     file. Please note that absolutely no checks are performed to guarantee that
     the file is really a JSON (not a pickle).
-    
+   
     This implementation is definetely not elegant, as it has to check for some
     very specific data structures (viz. lists of lists of lists of strings) and
     reconstructs only simulation objects, however this seems to be the only
-    simple way of doing JSON parsing of such objects, as json, contrary to 
+    simple way of doing JSON parsing of such objects, as json, contrary to
     pickle has no support for user classes.
     """
     f = open(name, 'r')
@@ -531,7 +532,7 @@ def JSONLoader(name):
         filecontent = f.read()
     finally:
         f.close()
-        
+       
     allobjects = json.loads(filecontent)
     # Reconstruct all objects first
     objectlist = []
@@ -540,7 +541,7 @@ def JSONLoader(name):
         objectlist.append(_instantiateFromObjectString(key))
         idlist.append(allobjects[key]["_id"])
         objectlist[-1].__dict__ = allobjects[key]
-        
+       
     # Now reconstruct internal object references and numpy arrays
     for obj in objectlist:
         for key in obj.__dict__:
@@ -548,11 +549,11 @@ def JSONLoader(name):
             if type(obj.__dict__[key]) == list:
                 obj.__dict__[key] = np.array(obj.__dict__[key])
                 # Reconstruct references from objectStrings
-                if (obj.__dict__[key].dtype.char == "S" or 
-                    obj.__dict__[key].dtype.char == "U" or 
+                if (obj.__dict__[key].dtype.char == "S" or
+                    obj.__dict__[key].dtype.char == "U" or
                     obj.__dict__[key].dtype.char == "O"):
                     references = np.empty_like(obj.__dict__[key], object)
-                    iterator   = np.nditer(obj.__dict__[key], 
+                    iterator   = np.nditer(obj.__dict__[key],
                                            flags=['refs_ok','multi_index'])
                     while not iterator.finished:
                         idno = _idFromObjectString(iterator[0][()])
@@ -563,20 +564,23 @@ def JSONLoader(name):
                         iterator.iternext()
 #                    print "***** REFERENCES  ******"
 #                    print key
-#                    print references 
+#                    print references
                     obj.__dict__[key] = references
-                
+               
             # Reconstruct references outside lists
-            if (type(obj.__dict__[key]) == str or 
+            if (type(obj.__dict__[key]) == str or
                type(obj.__dict__[key]) == unicode):
                 idno = _idFromObjectString(obj.__dict__[key])
                 if idno is not None:
                     obj.__dict__[key] = objectlist[idlist.index(idno)]
-                    
+                   
     # Find parent
     for obj in objectlist:
-        if obj.parent is None:
-            return obj
+        try:
+            if obj.parent is None:
+                return obj
+        except AttributeError:
+            pass
 
 def _idFromObjectString(string):
     """
@@ -610,7 +614,7 @@ def _instantiateFromObjectString(string):
 
 def _objectString(obj):
     """
-    Takes an object derivated from the Core.Component class and generates
+    Takes an object derived from the Core.PyvsimObject class and generates
     a string to identify it.
     """
     if obj is not None:

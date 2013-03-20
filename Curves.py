@@ -15,26 +15,48 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import numpy as np
+import Core
 
-def constant(parameter):
-    def constant(x):
-        return parameter
-    return constant
+class Constant(Core.PyvsimObject):
+    def __init__(self, value = 1):
+        Core.PyvsimObject.__init__(self)
+        self.name                     = 'Constant '+str(self._id)
+        self.value                    = value
+        
+    def eval(self,wavelength):            
+        return self.value
 
-def gaussian1d(parameter):
-    def gaussian1d(x):
-        return parameter[0]*np.exp(-(x-parameter[1])**2/(parameter[2]))
-    return gaussian1d
-
-def sellmeierEquation(sellmeierCoeffs):
-    Nc = np.size(sellmeierCoeffs,0)
-    def sellmeierEquation(wavelength):
+class SellmeierEquation(Core.PyvsimObject):
+    def __init__(self, coeffs = None):
+        Core.PyvsimObject.__init__(self)
+        self.name                     = 'Sellmeier Equation '+str(self._id)
+        if coeffs is None:
+            coeffs = np.array([[1.03961212, 6.00069867e-15],
+                               [0.23179234, 2.00179144e-14],
+                               [1.01046945, 1.03560653e-10]])
+        self.refractiveIndexConstants = coeffs
+        
+    def eval(self,wavelength):
+        Nc = np.size(self.refractiveIndexConstants,0)
         w2 = wavelength ** 2                 
         return np.sqrt(1 +
-                   np.sum((w2 * sellmeierCoeffs[:,0].reshape(Nc,1,1)) /
-                          (w2 - sellmeierCoeffs[:,1].reshape(Nc,1,1)),
+               np.sum((w2 * self.refractiveIndexConstants[:,0].reshape(Nc,1,1)) /
+                      (w2 - self.refractiveIndexConstants[:,1].reshape(Nc,1,1)),
                           0)).squeeze()
-    return sellmeierEquation
+
+class KasarovaEquation(Core.PyvsimObject):
+    def __init__(self):
+        Core.PyvsimObject.__init__(self, coeffs = None)
+        self.name                     = 'Kasarova Equation '+str(self._id)
+        self.refractiveIndexConstants = coeffs
+        
+    def eval(self,wavelength):             
+        return np.sqrt(self.refractiveIndexConstants[0] +
+                       self.refractiveIndexConstants[1]*wavelength**2 +
+                       self.refractiveIndexConstants[1]*wavelength**-2 +
+                       self.refractiveIndexConstants[1]*wavelength**-4 +
+                       self.refractiveIndexConstants[1]*wavelength**-6 +
+                       self.refractiveIndexConstants[1]*wavelength**-8)
 
 
     

@@ -18,45 +18,45 @@ from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt 
 import Utils
-import Core
+import Primitives
 from scipy.special import erf
 import warnings
 
 MEMSIZE     = 1e6
 MEM_SAFETY  = 8
 STD_PARAM   = 0.040
-GLOBAL_TOL  = 1e-6
+GLOBAL_TOL  = 1e-8
 GLOBAL_NDIM = 3
 
-class Mirror(Core.Plane):
+class Mirror(Primitives.Plane):
     """
     This class initializes a 1x1m mirror, which can be resized by the
     methods::
     
-    * :meth:`~Core.Plane.dimension` (preferred); or
-    * :meth:`~Core.Plane.length`
-    * :meth:`~Core.Plane.heigth`  
+    * :meth:`~Primitives.Plane.dimension` (preferred); or
+    * :meth:`~Primitives.Plane.length`
+    * :meth:`~Primitives.Plane.heigth`  
     """
     def __init__(self):
-        Core.Plane.__init__(self)
+        Primitives.Plane.__init__(self)
         self.name               = 'Mirror '+str(self._id)
         self.surfaceProperty    = self.MIRROR
         
-class Dump(Core.Plane):
+class Dump(Primitives.Plane):
     """
     This class initializes a 1x1m beam dump, that will stop any ray that
     arrives at it.
     
-    * :meth:`~Core.Plane.dimension` (preferred); or
-    * :meth:`~Core.Plane.length`
-    * :meth:`~Core.Plane.heigth`  
+    * :meth:`~Primitives.Plane.dimension` (preferred); or
+    * :meth:`~Primitives.Plane.length`
+    * :meth:`~Primitives.Plane.heigth`  
     """
     def __init__(self):
-        Core.Plane.__init__(self)
+        Primitives.Plane.__init__(self)
         self.name               = 'Dump '+str(self._id)
         self.surfaceProperty    = self.DUMP
 
-class Sensor(Core.Plane):
+class Sensor(Primitives.Plane):
     def __init__(self):
         """
         --|----------------------------------> 
@@ -71,7 +71,7 @@ class Sensor(Core.Plane):
           part2 ___________________________| 
            y
         """
-        Core.Plane.__init__(self)
+        Primitives.Plane.__init__(self)
         self.name                   = 'Sensor '+str(self._id)
         self.length                 = 0.0118 # by definition, the column dimension
         self.heigth                 = 0.0089 # the row dimension
@@ -407,9 +407,9 @@ class Sensor(Core.Plane):
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
 
-class Lens(Core.Part):
+class Lens(Primitives.Part):
     def __init__(self):
-        Core.Part.__init__(self)
+        Primitives.Part.__init__(self)
         self.name                   = 'Lens '+str(self._id)
         # Plotting parameters
         self.color                      = [0.2,0.2,0.2]
@@ -522,7 +522,7 @@ class Lens(Core.Part):
         
     def clearData(self):
         """
-        As the data from the Core.Part class that has to be cleaned is 
+        As the data from the Primitives.Part class that has to be cleaned is 
         used only for ray tracing, the parent method is not called.
         
         The notable points, however, are recalculated.
@@ -575,9 +575,9 @@ class Lens(Core.Part):
 #        axis = Utils.normalize(np.cross(self.x,vectors))
 #        return Utils.rotateVector(vectors,(To-Ti),axis)
             
-class Camera(Core.Assembly):
+class Camera(Primitives.Assembly):
     def __init__(self):
-        Core.Assembly.__init__(self)
+        Primitives.Assembly.__init__(self)
         self.name                       = 'Camera '+str(self._id)
         self.lens                       = None
         self.sensor                     = None
@@ -621,7 +621,7 @@ class Camera(Core.Assembly):
         """
         self.lens           = Lens()
         self.sensor         = Sensor()
-        self.body           = Core.Volume(self.length, self.heigth, self.width)
+        self.body           = Primitives.Volume(self.length, self.heigth, self.width)
         
         self.body.color     = self.color
         self.body.opacity   = self.opacity
@@ -643,7 +643,7 @@ class Camera(Core.Assembly):
             # Creates vectors to initialize ray tracing for each point in the 
             # sensor 
             initialVectors = self.lens.rayVector(sensorCoords)
-            bundle         = Core.RayBundle()
+            bundle         = Primitives.RayBundle()
             bundle.insert(initialVectors, 
                           self.lens.PinholeEntrance, 
                           referenceWavelength)
@@ -651,7 +651,7 @@ class Camera(Core.Assembly):
 
         self.items[3].maximumRayTrace   = maximumRayTrace
         self.items[3].stepRayTrace      = np.mean(maximumRayTrace) / 2
-        self.items[3].trace(tracingRule = Core.RayBundle.TRACING_FOV,
+        self.items[3].trace(tracingRule = Primitives.RayBundle.TRACING_FOV,
                             restart     = restart) 
         return self.items[3]
         
@@ -769,8 +769,9 @@ class Camera(Core.Assembly):
         bundle    = self.shootRays(points_param, 
                                    referenceWavelength, 
                                    Utils.norm(VecNear))
-#        print Utils.norm(VecNear)
         Pnear     = bundle.rayPaths[-1]
+#        print Utils.norm(VecNear)
+        
 #        print bundle.rayLength
 #        print bundle.rayLastVectors
 #        print bundle.rayPaths
@@ -787,11 +788,41 @@ class Camera(Core.Assembly):
         
         P         = np.vstack([Pnear, Pfar])
         
-        v         = Core.Volume()
+        v         = Primitives.Volume()
         v.color   = np.array(Utils.metersToRGB(referenceWavelength))
         v.opacity = 0.25
         v.points  = P
         self.insert(v, 4)
+        
+        ptsy = np.zeros((4,3))
+        ptsz = np.zeros((4,3))
+        for n in range(4):
+            pupilPoints = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
+                                    self.lens.E + self.lens.z*self.lens.Edim/2,
+                                    self.lens.E - self.lens.y*self.lens.Edim/2,
+                                    self.lens.E - self.lens.z*self.lens.Edim/2,])
+            vectors = (self.lens.PinholeEntrance + 0.5 * (VecNear[n] + VecFar[n]) -
+                                                                    pupilPoints)
+            bundletest = Primitives.RayBundle()
+            bundletest.insert(Utils.normalize(vectors), pupilPoints, 532e-9)
+            self.insert(bundletest)
+            bundletest.maximumRayTrace = 1.5
+            bundletest.stepRayTrace = 1.5
+            bundletest.trace()
+            p = bundletest.rayPaths[-1]
+            v = bundletest.rayPaths[-2] - bundletest.rayPaths[-1]
+            ptsy[n] = Utils.linesIntersection(v[[0,2]], p[[0,2]])
+            ptsz[n] = Utils.linesIntersection(v[[1,3]], p[[1,3]])
+        plane = Primitives.Plane()
+        plane.points = ptsy
+#        print np.mean(ptsy[:,0])
+        plane.color = [1,0,0]
+        self.insert(plane)
+        plane = Primitives.Plane()
+        plane.points = ptsz
+        print np.mean(ptsy[:,0]) - np.mean(ptsz[:,0])
+        plane.color = [1,1,0]
+        self.insert(plane)
         return v
 
     
@@ -807,7 +838,7 @@ class Camera(Core.Assembly):
         phantomPrototype.lens.opacity       = 0.2
         phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
 
-        phantomAssembly                     = Core.Assembly()
+        phantomAssembly                     = Primitives.Assembly()
         sy                                  = self.sensor.dimension[0]
         sz                                  = self.sensor.dimension[1]
         # Matrix to go from sensor parametric coordinates to sensor
@@ -844,9 +875,9 @@ class Camera(Core.Assembly):
         
         return phantomAssembly
         
-class Laser(Core.Assembly):
+class Laser(Primitives.Assembly):
     def __init__(self):
-        Core.Assembly.__init__(self)
+        Primitives.Assembly.__init__(self)
         self.name                       = 'Laser '+str(self._id)
         self.body                       = None
         self.rays                       = None
@@ -884,8 +915,8 @@ class Laser(Core.Assembly):
         """
         TODO
         """
-        self.body           = Core.Volume(self.length, self.heigth, self.width)
-        self.rays           = Core.RayBundle()
+        self.body           = Primitives.Volume(self.length, self.heigth, self.width)
+        self.rays           = Primitives.RayBundle()
         self.insert(self.body)
         self.insert(self.rays)
         
@@ -937,10 +968,10 @@ class Laser(Core.Assembly):
         
         end   = np.size(self.rays.rayPaths,0)
         
-        self.volume = Core.Assembly()
+        self.volume = Primitives.Assembly()
         self.insert(self.volume)
         for n in range(start, end-1):
-            vol = Core.Volume()
+            vol = Primitives.Volume()
             vol.points   = np.vstack([self.rays.rayPaths[n],
                                       self.rays.rayPaths[n+1]])
             vol.color    = Utils.metersToRGB(self.wavelength)
@@ -973,7 +1004,7 @@ class Laser(Core.Assembly):
         
         vectors = Utils.normalize(vectors)
         
-        bundle = Core.RayBundle()
+        bundle = Primitives.RayBundle()
         bundle.insert(vectors, 
                       physicalPoints, 
                       self.wavelength)
@@ -991,11 +1022,11 @@ class Laser(Core.Assembly):
         I3 = np.vstack([I[ :-1,1:  ].ravel(), J[ :-1,1:  ].ravel()]).T
 #        print I0
         currentEnergy = 10
-        volumeCollection = Core.Assembly()
+        volumeCollection = Primitives.Assembly()
         
         while(np.max(currentEnergy) > self.safeEnergy):
 #            print "PREPARING TO CONTINUE"
-            bundle.maximumRayTrace = bundle.maximumRayTrace + 100
+            bundle.maximumRayTrace = bundle.maximumRayTrace + 1000
             bundle.stepRayTrace    = bundle.maximumRayTrace
             pts2 = bundle.rayPaths[-1]
             pts1 = np.reshape(pts1,(nres,nres,3))
@@ -1011,7 +1042,7 @@ class Laser(Core.Assembly):
             for i in range(nres-1):
                 for j in range(nres-1):
                     if currentEnergy[j,i] > self.safeEnergy:
-                        vol        = Core.Volume(fastInit = True)
+                        vol        = Primitives.Volume(fastInit = True)
                         vol.points = np.vstack([pts1[i,j],
                                                 pts1[i+1,j],
                                                 pts1[i+1,j+1],
@@ -1046,22 +1077,22 @@ if __name__=='__main__':
     l                               = Laser()
     
     
-    v                               = Core.Volume()
+    v                               = Primitives.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.indexOfRefraction             = 5.666
+    v.refractiveIndexConstant       = 5.666
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
-    v2                              = Core.Volume()
+    v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
 #    v2.surfaceProperty              = v.MIRROR
     v2.surfaceProperty              = v.MIRROR 
-    v2.indexOfRefraction            = 3.666
+    v2.refractiveIndexConstant      = 3.666
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
-    environment = Core.Assembly()
+    environment = Primitives.Assembly()
 #    environment.insert(c)
     environment.insert(v)
     environment.insert(v2)

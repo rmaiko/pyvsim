@@ -61,25 +61,63 @@ import Utils
 import System
 import Core
 import Toolbox
-pts = [[-1,-1,0],
-       [+1,-1,0],
-       [+1,+1,0],
-       [-1,+1,0]]
-values = [0,0,1,1]
-p = [[0,-1  ,0],
-     [0,-0.5,0],
-     [0,   0,0],
-     [0,  +1,0]]
-print Utils.quadInterpolation(np.array(p), 
-                              np.array(pts),
-                              np.array(values))
+import couchdb
 
-values = [[-1,-1,0],
-          [+1,-1,0],
-          [+1,+1,0],
-          [-1,+1,0]]
-print Utils.quadInterpolation(np.array(p), 
-                              np.array(pts),
-                              np.array(values))
-#v = np.tile(v,(2,1))
-#print Utils.rotateVector(v, 0.0, np.array([0,1,0]))
+LALA = None
+
+#couch = couchdb.Server("https://maiko.iriscouch.com/")
+#print couch
+#db    = couch["test_pyvsim"]
+#for id in db:
+#    print id
+    
+#import ConfigParser
+#parser = ConfigParser.SafeConfigParser()
+#parser.read("config.dat")
+#print parser.sections()
+#print parser.get("System", "databaseAddress")
+#LALA = parser.get("System", "databaseAddress")
+#print LALA
+#
+#Core.GLOBAL_TOL = parser.get("System", "databaseAddress")
+#print Core.GLOBAL_TOL
+
+if __name__ == '__main__':
+    import Curves
+    class Test(object):
+        def function(self, x):
+            pass
+        
+    myClass = Test()
+    myClass.function = Curves.constant(1)
+    import inspect
+    print inspect.isfunction(myClass.function)
+#    for elem in dir(myFun):
+#        print elem, getattr(myFun, elem)
+    print myClass.function(5)
+
+#db    = couch.create("test_pyvsim")
+#print db
+#db["foo"] = {1: 2}
+#print db["foo"]
+
+
+#env = Core.Assembly()
+#c = Toolbox.Camera()
+#v = Core.Volume()
+#env.insert(c)
+#env.insert(v)
+#
+#c.lens.translate(np.array([0.026474,0,0]))
+#c.lens.focusingDistance = 1
+#c.lens.aperture         = 2
+#
+#v.dimension = np.array([0.02, 1, 1])
+#v.translate(np.array([0.35, 0, 0]))
+#v.indexOfRefraction = 1.1 #5849
+#v.surfaceProperty = v.TRANSPARENT
+#v.rotate(np.pi*70/180, env.z)
+#
+#c.depthOfField()
+#
+#System.plot(env)

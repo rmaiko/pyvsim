@@ -22,7 +22,7 @@ This is a demo of field of view calculation in an airplane mockup.
 import numpy as np
 import Utils
 import System
-import Core
+import Primitives
 import Toolbox
 # Just importing something to time the procedures
 tic = Utils.Tictoc()
@@ -48,6 +48,7 @@ c.lens.translate(np.array([0.026474,0,0]))
 # This is to rotate the lens with respect to the camera axis, so we can have
 # Scheimpflug condition
 c.lens.rotate(-0.05, c.z)
+c.lens.aperture = 22
 # These positions are taken from CATIA
 windowCenter = np.array([1.711, -3.275, 0.75])
 wingTarget   = np.array([7, -0.921, -1.404])
@@ -66,7 +67,7 @@ c.alignTo(vx, vy)
 c.translate(windowCenter - c.origin)
 # Creates an assembly. Everything must be inside a single assembly to run
 # properly
-a = Core.Assembly()
+a = Primitives.Assembly()
 # Insert the airplane and the camera
 a.insert(part)
 a.insert(c)

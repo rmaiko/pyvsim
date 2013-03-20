@@ -23,16 +23,16 @@ if __name__=="__main__":
     
     Usage: python demo.py
     """
-    import Core
+    import Primitives
     import System
     import Utils
     import numpy as np
     
     # Creation of some simulation elements. 
-    part        = Core.Volume() # Hexahedrons, usually initialized as cubes
-    part2       = Core.Volume()
-    bundle      = Core.RayBundle() # A container of rays
-    assembly    = Core.Assembly()  # A container of parts
+    part        = Primitives.Volume() # Hexahedrons, usually initialized as cubes
+    part2       = Primitives.Volume()
+    bundle      = Primitives.RayBundle() # A container of rays
+    assembly    = Primitives.Assembly()  # A container of parts
     
     # All parts must be contained in a "main" assembly. Assemblies can contain
     # sub-assemblies, no problem though
@@ -57,7 +57,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 200
+    nrays = 2
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
@@ -80,9 +80,14 @@ if __name__=="__main__":
     # (this makes the index of refraction vary with wavelength)
     # 
     # The coefficients here are for BK7 crown glass, try playing around
-    part.sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
-                                          [0.23179234, 2.00179144e-14],
-                                          [1.01046945, 1.03560653e-10]])
+    import Curves
+    refractiveIndexLaw   = Curves.SellmeierEquation()
+    refractiveIndexLaw.refractiveIndexConstants = \
+                            np.array([[1.03961212, 6.00069867e-15],
+                                      [0.23179234, 2.00179144e-14],
+                                      [1.01046945, 1.03560653e-10]])
+    # Now, we import the sellmeier equation and substitute it into our part
+    part.refractiveIndexLaw = refractiveIndexLaw
     
     # Let's position the other cube at a more interesting position...
     part2.translate(np.array([1,0,0.5]))
