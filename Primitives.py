@@ -58,9 +58,6 @@ class Component(Core.PyvsimObject):
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
         self.parent                     = None
-        # Ray tracing properties
-        self.refractiveIndexLaw         = Curves.Constant(1)
-        self.surfaceProperty            = Component.OPAQUE
                
     @property
     def x(self):                return self._x
@@ -70,24 +67,9 @@ class Component(Core.PyvsimObject):
     def z(self):                return self._z
     @property
     def origin(self):           return self._origin 
-       
-    def refractiveIndex(self, wavelength = 532e-9):
-        """
-        Returns the index of refraction of the material given the wavelength
-        (or a list of them)
-        
-        Parameters
-        ----------
-        wavelength : scalar or numpy.array
-            The wavelength of the incoming light given in *meters*
-        
-        Returns
-        -------
-        refractiveIndex : same dimension as wavelength
-            The index of refraction
-        """       
-        return self.refractiveIndexLaw.eval(wavelength)
-                           
+    @property
+    def bounds(self):           return None
+                                 
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
         This is a method used specifically for ray tracing. The method returns 
@@ -365,6 +347,61 @@ class Component(Core.PyvsimObject):
         """
         raise NotImplementedError
 
+class Line(Component):
+    """
+    This class is used for representation of 1D elements, i.e. lines and curves
+    in the 3D space.
+    
+    *Warning* - do not change the self.bounds property value. This is an indication
+    that this class does not take part in ray tracing activities
+    """
+    def __init__(self):
+        Component.__init__(self)
+        self.name                       = 'Line '+str(self._id)
+        self.points                     = np.array([])
+        self.color                      = None
+        self.opacity                    = 0.5
+        self.visible                    = True
+                
+    def translateImplementation(self, vector):
+        """
+        This method is in charge of updating the position of the point cloud
+        (provided it exists) when the Line is translated.
+        
+        There is an exception handling because there is the possibility that 
+        the line is translated before the points are defined. This is extremely
+        unlikely, but should not stop the program execution.
+        """
+        try:
+            self.points = self.points + vector
+        except TypeError:
+            # There is no problem if a translation is executed before the points
+            # are defined
+            pass
+            
+    def rotateImplementation(self, angle, axis, pivotPoint):
+        """
+        This method is in charge of updating the position of the point cloud
+        (provided it exists) when the Line is rotated.
+        
+        There is an exception handling because there is the possibility that 
+        the line is translated before the points are defined. This is extremely
+        unlikely, but should not stop the program execution.
+        """
+        try:
+            self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
+        except TypeError:
+            # There is no problem if a rotation is executed before the points
+            # are defined
+            pass
+     
+    def clearData(self):
+        """
+        In the pure implementation of the line, there are no features to be 
+        deleted when a geometrical operation is executed
+        """
+        pass
+
 class Part(Component):
     """
     This implementation of the Component class is the representation of a surface
@@ -386,6 +423,9 @@ class Part(Component):
         self.color                      = None
         self.opacity                    = 0.5
         self.visible                    = True
+        # Ray tracing properties
+        self.refractiveIndexLaw         = Curves.Constant(1)
+        self.surfaceProperty            = Component.OPAQUE
         # Variables for raytracing
         self.surfaceProperty            = Component.OPAQUE
         self._bounds                    = None
@@ -393,6 +433,23 @@ class Part(Component):
         self._trianglePoints            = None
         self._triangleNormals           = None
         self._triVectorsDots            = None
+        
+    def refractiveIndex(self, wavelength = 532e-9):
+        """
+        Returns the index of refraction of the material given the wavelength
+        (or a list of them)
+        
+        Parameters
+        ----------
+        wavelength : scalar or numpy.array
+            The wavelength of the incoming light given in *meters*
+        
+        Returns
+        -------
+        refractiveIndex : same dimension as wavelength
+            The index of refraction
+        """       
+        return self.refractiveIndexLaw.eval(wavelength)
         
     @property
     def bounds(self):
@@ -759,75 +816,291 @@ class Part(Component):
         self._triangleVectors                   = None
         self._trianglePoints                    = None
         self._triangleNormals                   = None
-  
-class Line(Component):
-    """
-    This class is used for representation of 1D elements, i.e. lines and curves
-    in the 3D space.
     
-    *Warning* - do not change the self.bounds property value. This is an indication
-    that this class does not take part in ray tracing activities
+class Plane(Part):
     """
-    def __init__(self):
-        Component.__init__(self)
-        self.name                       = 'Line '+str(self._id)
-        self.points                     = np.array([])
-        self.color                      = None
-        self.opacity                    = 0.5
-        self.visible                    = True
+    This is a convenience class that inherits from Part and represents
+    a rectangle. There are also convenience methods to  make coordinate
+    transformation.
+    
+    As a default, the plane is defined as::
+    
+    y (first coordinate)
+    ^  
+    |--------------+
+    |              |h 
+    |              |e
+    |              |i
+    |              |g
+    |              |t
+    |              |h
+    +--------------+--> z (second coordinate)
+         length
+         
+    To navigate in the plane, one can use the following coordinate system::
+    [y',z'], where 0 <= y' <=1 and 0 <= z' <=1
+    
+    As a default, the X vector is the normal for the triangles.
+    
+    This class can represent *only* rectangles, so that most of its methods
+    are greatly simplified. If you need to represent a parallelogram, you
+    would have to implement your own class.
+    """
+    PARAMETRIC_COORDS = np.array([[+0,-0.5,-0.5],
+                                  [+0,+0.5,-0.5],
+                                  [+0,+0.5,+0.5],
+                                  [+0,-0.5,+0.5]])
+    def __init__(self, length = 1, heigth = 1, fastInit=False):
+        Part.__init__(self)
+        self.name           = 'Plane '+str(self._id)
+        self._length        = length
+        self._heigth        = heigth
+        self.connectivity   = np.array([[0,1,2], [0,2,3]])
+        self.normals        = None
+        self._dimension     = None
+        if not fastInit:
+            self._resize()
+    
+    @property
+    def length(self):
+        return self._length
+    @length.setter
+    def length(self, l):
+        self._length = l
+        self._resize()
         
     @property
-    def bounds(self):
-        """
-        This signals the ray tracing implementation that no attempt should be
-        made to intersect rays with lines
+    def heigth(self):
+        return self._heigth
+    @heigth.setter
+    def heigth(self, h):
+        self._heigth = h
+        self._resize()
         
-        Returns
-        -------
-        None
-            signals that no intersections were found
+    @property
+    def dimension(self):
+        return self._dimension
+    @dimension.setter
+    def dimension(self, d):
+        self._length        = d[0]
+        self._heigth        = d[1]
+        self._dimension     = d
+        self._resize()        
+    
+    def _resize(self):
         """
-        return None
+        Convenience function to position the points of the plane and set
+        up internal variables
+        """
+        self._dimension = np.array([self._heigth,  self._length])
+        self.points = (Plane.PARAMETRIC_COORDS[:,1:3] * 
+                       np.tile(self.dimension,(4,1)))
+        self.points = (np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + 
+                       np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z)
+          
+    def parametricToPhysical(self,coordinates):
+        """
+        Transforms a 2-component vector in the range -1..1 in sensor coordinates
+        Normalized [y,z] -> [x,y,z] (global reference frame)
         
-    def translateImplementation(self, vector):
+        Vectorization for this method is implemented.
         """
-        This method is in charge of updating the position of the point cloud
-        (provided it exists) when the Line is translated.
+        # Compensate for the fact that the sensor origin is at its center
+        coordinates = self.dimension*coordinates/2
+#        print "Coordinates"
+#        print coordinates
         
-        There is an exception handling because there is the possibility that 
-        the line is translated before the points are defined. This is extremely
-        unlikely, but should not stop the program execution.
+        if coordinates.ndim == 1:
+#            print "ndim == 1"
+            return self.origin + (coordinates[0] * self.y + 
+                                  coordinates[1] * self.z)
+        else:
+#            print "ndim > 1"
+#            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
+#            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
+            return (self.origin + 
+                    np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + 
+                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z)
+                    
+    def physicalToParametric(self,coords):
         """
-        try:
-            self.points = self.points + vector
-        except TypeError:
-            # There is no problem if a translation is executed before the points
-            # are defined
-            pass
+        Transforms a 3-component coordinates vector to a 2-component vector
+        which value falls in the range -1..1 in sensor coordinates
+        Normalized [y,z] -> [x,y,z] (global reference frame)
+        
+        Vectorization for this method is implemented.
+        """
+        vector = coords - self.origin
+        if coords.ndim == 1:
+            py = 2*(np.dot(self.y,vector) / self.dimension[0]) 
+            pz = 2*(np.dot(self.z,vector) / self.dimension[1])
+            return np.array([py,pz])        
+        else:
+            nvecs = np.size(vector,0)
+            py = (np.sum(np.tile(self.y,(nvecs,1).T*vector,1) / 
+                          self.dimension[0]))
+            pz = (np.sum(np.tile(self.z,(nvecs,1).T*vector,1) / 
+                          self.dimension[0]))
+            return 2*np.array([py,pz]).T
+    
+class Volume(Part):
+    """
+    This class is used to represent a general hexahedron. Even though some
+    methods will force it to become a cuboid (where all angles are right), such
+    as::
+    
+    * :meth:`~Core.Volume.width`
+    * :meth:`~Core.Volume.depth`
+    * :meth:`~Core.Volume.heigth`
+    * :meth:`~Core.Volume.dimension`
+    
+    These methods can be safely ignored a set of points can be directly given,
+    allowing quadrilaterally-faced hexas to be represented (check 
+    `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>` for more
+    information)
+    """
+    PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
+                                   [+0,-0.5,+0.5],
+                                   [+0,-0.5,-0.5],
+                                   [+0,+0.5,-0.5],
+                                   [+1,+0.5,+0.5],
+                                   [+1,-0.5,+0.5],
+                                   [+1,-0.5,-0.5],
+                                   [+1,+0.5,-0.5],])
+    def __init__(self, heigth = 1, depth = 1, width = 1, fastInit=False):
+        """
+        This is another convenience class to represent volumes (a hexahedron).
+        
+        The following conventions are used::
+        
+        x
+            Dimension of heigth
+        y
+            Dimension of depth
+        z
+            Dimension of width
             
-    def rotateImplementation(self, angle, axis, pivotPoint):
-        """
-        This method is in charge of updating the position of the point cloud
-        (provided it exists) when the Line is rotated.
+        The hexahedron is built the following way:
+                            X
+                            ^
+                     +------|----------+
+                     |      |          |
+                     |      |          | heigth
+                     |      |          |
+                   h /------|----------/
+                  t /       |         /
+                 p /        +--------/---------> Z
+                e /        /        /
+               d /--------/--------/
+                        width   
+                        /
+                       /
+                      v Y
+                      
+        The point numbering convention is::
         
-        There is an exception handling because there is the possibility that 
-        the line is translated before the points are defined. This is extremely
-        unlikely, but should not stop the program execution.
+           6--------5
+          /        /|    (X)
+         /        / |    ^
+        7--------4  |    |
+        |        |  |    +-> (Z)
+        |   2    |  1   /
+        |        | /   v
+        |        |/    (Y)
+        3--------0
         """
-        try:
-            self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
-        except TypeError:
-            # There is no problem if a rotation is executed before the points
-            # are defined
-            pass
-     
-    def clearData(self):
+        Part.__init__(self)
+        self.name           = 'Volume '+str(self._id)
+        self._width         = width
+        self._depth         = depth
+        self._heigth        = heigth
+        self._dimension     = [heigth, depth, width]
+        # normals pointing outside 
+        self.connectivity   = np.array([[1,4,0],[1,5,4], # normal +z
+                                        [7,2,3],[7,6,2], # normal -z
+                                        [0,7,3],[0,4,7], # normal +y
+                                        [6,5,1],[6,1,2], # normal -y
+                                        [4,6,7],[4,5,6], # normal +x
+                                        [0,3,2],[2,1,0]]) # normal -x
+        self.normals        = None
+        if not fastInit:
+            self._resize()
+
+    @property
+    def width(self):
+        return self._width
+    @width.setter
+    def width(self, w):
+        self._width = w
+        self._resize()
+        
+    @property
+    def depth(self):
+        return self._depth
+    @depth.setter
+    def depth(self, d):
+        self._length = d
+        self._resize()
+        
+    @property
+    def heigth(self):
+        return self._heigth
+    @heigth.setter
+    def heigth(self, h):
+        self._heigth = h
+        self._resize()
+        
+    @property
+    def dimension(self):
+        return self._dimension
+    @dimension.setter
+    def dimension(self, d):
+        self._heigth        = d[0]
+        self._depth         = d[1]
+        self._width         = d[2]
+        self._dimension     = d
+        self._resize()        
+          
+    def _resize(self):
+        self.points = Volume.PARAMETRIC_COORDS * np.tile(self.dimension,(8,1))
+        self.points =((np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze()+ 
+                      (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze()+ 
+                      (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze()) 
+        
+    def physicalToParametric(self, c):
         """
-        In the pure implementation of the line, there are no features to be 
-        deleted when a geometrical operation is executed
+        Transforms a vector or a list of vectors in parametric coordinates with
+        the following properties:
+        
+        [x,y,z] (global) -> [x',y',z'] (parametrical)
+        
+        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
+        """                
+        return Utils.hexaInterpolation(c, 
+                                       self.points, 
+                                       Volume.PARAMETRIC_COORDS[:,1:3])
+    
+    def parametricToPhysical(self, p):
         """
-        pass
-  
+        Transforms a vector or a list of vectors in parametric coordinates with
+        the following properties:
+        
+        [x,y,z] (global) -> [x',y',z'] (parametrical)
+        
+        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
+        """     
+        return Utils.hexaInterpolation(p, 
+                                       Volume.PARAMETRIC_COORDS[:,1:3], 
+                                       self.points)
+          
+    def pointInHexa(self,p):
+        """
+        This is intended as a lightweigth test for checking if a point (or
+        a set of them) lies inside an hexahedron. This uses the algorithm
+        implemented in :mod:`Utils`.
+        """
+        return Utils.pointInHexa(p,self.points)    
+    
 class Assembly(Component):
     """
     The assembly class is a non-terminal node in the Components tree. It carries
@@ -845,20 +1118,38 @@ class Assembly(Component):
         self.surfaceProperty            = Component.TRANSPARENT
         Component.__init__(self)
         self.name                       = 'Assembly '+str(self._id)
+        # Ray tracing properties
+        self.refractiveIndexLaw         = Curves.Constant(1)
+        self.surfaceProperty            = Component.TRANSPARENT
+        
+    def refractiveIndex(self, wavelength = 532e-9):
+        """
+        Returns the index of refraction of the material given the wavelength
+        (or a list of them)
+        
+        Parameters
+        ----------
+        wavelength : scalar or numpy.array
+            The wavelength of the incoming light given in *meters*
+        
+        Returns
+        -------
+        refractiveIndex : same dimension as wavelength
+            The index of refraction
+        """       
+        return self.refractiveIndexLaw.eval(wavelength)
           
     @property
     def bounds(self):
         if self._bounds is None:
             mini =  np.ones((len(self.items),3))*1000
             maxi = -np.ones((len(self.items),3))*1000
-            print len(self._items)
             if len(self._items) > 0:
                 for n in range(len(self._items)):
                     b = self._items[n].bounds
                     if b is not None:
                         [mini[n],maxi[n]] = b 
-
-            self._bounds = np.array([np.min(mini,0),np.max(maxi,0)])  
+                self._bounds = np.array([np.min(mini,0),np.max(maxi,0)])  
         return self._bounds
     
     @property
@@ -1160,14 +1451,8 @@ class RayBundle(Assembly):
         self.steps                      = None
         self.finalIntersections         = None
         
-        
     @property
-    def bounds(self):
-        """
-        This ensures that no attempt is made to find intersections between this
-        element and the light rays in a raytracing procedure
-        """
-        return None
+    def bounds(self):           return None
         
     def insert(self, initialVector, initialPosition = None, wavelength = 532e-9):
         """
@@ -1569,290 +1854,6 @@ class RayBundle(Assembly):
         self.rayLength                  = None
         self.steps                      = None
     
-class Plane(Part):
-    """
-    This is a convenience class that inherits from Part and represents
-    a rectangle. There are also convenience methods to  make coordinate
-    transformation.
-    
-    As a default, the plane is defined as::
-    
-    y (first coordinate)
-    ^  
-    |--------------+
-    |              |h 
-    |              |e
-    |              |i
-    |              |g
-    |              |t
-    |              |h
-    +--------------+--> z (second coordinate)
-         length
-         
-    To navigate in the plane, one can use the following coordinate system::
-    [y',z'], where 0 <= y' <=1 and 0 <= z' <=1
-    
-    As a default, the X vector is the normal for the triangles.
-    
-    This class can represent *only* rectangles, so that most of its methods
-    are greatly simplified. If you need to represent a parallelogram, you
-    would have to implement your own class.
-    """
-    PARAMETRIC_COORDS = np.array([[+0,-0.5,-0.5],
-                                  [+0,+0.5,-0.5],
-                                  [+0,+0.5,+0.5],
-                                  [+0,-0.5,+0.5]])
-    def __init__(self, length = 1, heigth = 1, fastInit=False):
-        Part.__init__(self)
-        self.name           = 'Plane '+str(self._id)
-        self._length        = length
-        self._heigth        = heigth
-        self.connectivity   = np.array([[0,1,2], [0,2,3]])
-        self.normals        = None
-        self._dimension     = None
-        if not fastInit:
-            self._resize()
-    
-    @property
-    def length(self):
-        return self._length
-    @length.setter
-    def length(self, l):
-        self._length = l
-        self._resize()
-        
-    @property
-    def heigth(self):
-        return self._heigth
-    @heigth.setter
-    def heigth(self, h):
-        self._heigth = h
-        self._resize()
-        
-    @property
-    def dimension(self):
-        return self._dimension
-    @dimension.setter
-    def dimension(self, d):
-        self._length        = d[0]
-        self._heigth        = d[1]
-        self._dimension     = d
-        self._resize()        
-    
-    def _resize(self):
-        """
-        Convenience function to position the points of the plane and set
-        up internal variables
-        """
-        self._dimension = np.array([self._heigth,  self._length])
-        self.points = (Plane.PARAMETRIC_COORDS[:,1:3] * 
-                       np.tile(self.dimension,(4,1)))
-        self.points = (np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + 
-                       np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z)
-          
-    def parametricToPhysical(self,coordinates):
-        """
-        Transforms a 2-component vector in the range -1..1 in sensor coordinates
-        Normalized [y,z] -> [x,y,z] (global reference frame)
-        
-        Vectorization for this method is implemented.
-        """
-        # Compensate for the fact that the sensor origin is at its center
-        coordinates = self.dimension*coordinates/2
-#        print "Coordinates"
-#        print coordinates
-        
-        if coordinates.ndim == 1:
-#            print "ndim == 1"
-            return self.origin + (coordinates[0] * self.y + 
-                                  coordinates[1] * self.z)
-        else:
-#            print "ndim > 1"
-#            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
-#            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
-            return (self.origin + 
-                    np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + 
-                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z)
-                    
-    def physicalToParametric(self,coords):
-        """
-        Transforms a 3-component coordinates vector to a 2-component vector
-        which value falls in the range -1..1 in sensor coordinates
-        Normalized [y,z] -> [x,y,z] (global reference frame)
-        
-        Vectorization for this method is implemented.
-        """
-        vector = coords - self.origin
-        if coords.ndim == 1:
-            py = 2*(np.dot(self.y,vector) / self.dimension[0]) 
-            pz = 2*(np.dot(self.z,vector) / self.dimension[1])
-            return np.array([py,pz])        
-        else:
-            nvecs = np.size(vector,0)
-            py = (np.sum(np.tile(self.y,(nvecs,1).T*vector,1) / 
-                          self.dimension[0]))
-            pz = (np.sum(np.tile(self.z,(nvecs,1).T*vector,1) / 
-                          self.dimension[0]))
-            return 2*np.array([py,pz]).T
-    
-class Volume(Part):
-    """
-    This class is used to represent a general hexahedron. Even though some
-    methods will force it to become a cuboid (where all angles are right), such
-    as::
-    
-    * :meth:`~Core.Volume.width`
-    * :meth:`~Core.Volume.depth`
-    * :meth:`~Core.Volume.heigth`
-    * :meth:`~Core.Volume.dimension`
-    
-    These methods can be safely ignored a set of points can be directly given,
-    allowing quadrilaterally-faced hexas to be represented (check 
-    `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>` for more
-    information)
-    """
-    PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
-                                   [+0,-0.5,+0.5],
-                                   [+0,-0.5,-0.5],
-                                   [+0,+0.5,-0.5],
-                                   [+1,+0.5,+0.5],
-                                   [+1,-0.5,+0.5],
-                                   [+1,-0.5,-0.5],
-                                   [+1,+0.5,-0.5],])
-    def __init__(self, heigth = 1, depth = 1, width = 1, fastInit=False):
-        """
-        This is another convenience class to represent volumes (a hexahedron).
-        
-        The following conventions are used::
-        
-        x
-            Dimension of heigth
-        y
-            Dimension of depth
-        z
-            Dimension of width
-            
-        The hexahedron is built the following way:
-                            X
-                            ^
-                     +------|----------+
-                     |      |          |
-                     |      |          | heigth
-                     |      |          |
-                   h /------|----------/
-                  t /       |         /
-                 p /        +--------/---------> Z
-                e /        /        /
-               d /--------/--------/
-                        width   
-                        /
-                       /
-                      v Y
-                      
-        The point numbering convention is::
-        
-           6--------5
-          /        /|    (X)
-         /        / |    ^
-        7--------4  |    |
-        |        |  |    +-> (Z)
-        |   2    |  1   /
-        |        | /   v
-        |        |/    (Y)
-        3--------0
-        """
-        Part.__init__(self)
-        self.name           = 'Volume '+str(self._id)
-        self._width         = width
-        self._depth         = depth
-        self._heigth        = heigth
-        self._dimension     = [heigth, depth, width]
-        # normals pointing outside 
-        self.connectivity   = np.array([[1,4,0],[1,5,4], # normal +z
-                                        [7,2,3],[7,6,2], # normal -z
-                                        [0,7,3],[0,4,7], # normal +y
-                                        [6,5,1],[6,1,2], # normal -y
-                                        [4,6,7],[4,5,6], # normal +x
-                                        [0,3,2],[2,1,0]]) # normal -x
-        self.normals        = None
-        if not fastInit:
-            self._resize()
-
-    @property
-    def width(self):
-        return self._width
-    @width.setter
-    def width(self, w):
-        self._width = w
-        self._resize()
-        
-    @property
-    def depth(self):
-        return self._depth
-    @depth.setter
-    def depth(self, d):
-        self._length = d
-        self._resize()
-        
-    @property
-    def heigth(self):
-        return self._heigth
-    @heigth.setter
-    def heigth(self, h):
-        self._heigth = h
-        self._resize()
-        
-    @property
-    def dimension(self):
-        return self._dimension
-    @dimension.setter
-    def dimension(self, d):
-        self._heigth        = d[0]
-        self._depth         = d[1]
-        self._width         = d[2]
-        self._dimension     = d
-        self._resize()        
-          
-    def _resize(self):
-        self.points = Volume.PARAMETRIC_COORDS * np.tile(self.dimension,(8,1))
-        self.points =((np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze()+ 
-                      (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze()+ 
-                      (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze()) 
-        
-    def physicalToParametric(self, c):
-        """
-        Transforms a vector or a list of vectors in parametric coordinates with
-        the following properties:
-        
-        [x,y,z] (global) -> [x',y',z'] (parametrical)
-        
-        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
-        """                
-        return Utils.hexaInterpolation(c, 
-                                       self.points, 
-                                       Volume.PARAMETRIC_COORDS[:,1:3])
-    
-    def parametricToPhysical(self, p):
-        """
-        Transforms a vector or a list of vectors in parametric coordinates with
-        the following properties:
-        
-        [x,y,z] (global) -> [x',y',z'] (parametrical)
-        
-        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
-        """     
-        return Utils.hexaInterpolation(p, 
-                                       Volume.PARAMETRIC_COORDS[:,1:3], 
-                                       self.points)
-          
-    def pointInHexa(self,p):
-        """
-        This is intended as a lightweigth test for checking if a point (or
-        a set of them) lies inside an hexahedron. This uses the algorithm
-        implemented in :mod:`Utils`.
-        """
-        return Utils.pointInHexa(p,self.points)
-  
 if __name__=="__main__":
     """
     Code for unit testing basic functionality of classes in the Core module
