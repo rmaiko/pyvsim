@@ -22,6 +22,7 @@ import Utils
 # Global constants
 GLOBAL_NDIM  = 3
 GLOBAL_TOL   = 1e-8
+np.pi           = 3.1415926535
 
 class Component(object):
     """
@@ -294,13 +295,19 @@ class Component(object):
         
         Parameters
         ----------
-        angle
-            Angle : scalar (in radians)
-        axis : numpy.array (1 x 3)
-            Vector around which the rotation occurs.
-        pivotPoint : numpy.array (1 x 3)
+        x_new, [y_new, z_new] : numpy.array(1,3)
+            New vectors defining the orientation of the part. The vectors need
+            NOT to be normalized, but MUST be orthogonal.
+            
+            Vectors y_new or z_new can be omitted (one at a time) and will be
+            implicitly calculated
+        pivotPoint : numpy.array(1,3)
             Point in space around which the rotation occurs. If not given, 
-            rotates around origin.
+            rotates around local origin.
+        tol : 1e-8
+            Many checks are executed in order to guarantee that the new x, y and
+            z vectors are orthogonal and normalized. This is the tolerance of
+            these checks.
         
         Raises
         ------
@@ -320,20 +327,24 @@ class Component(object):
         if y_new is None and z_new is not None:
             y_new = np.cross(z_new,x_new)
         
-        x_new = x_new / (np.dot(x_new,x_new))**0.5
-        y_new = y_new / (np.dot(y_new,y_new))**0.5
-        z_new = z_new / (np.dot(z_new,z_new))**0.5
+        Xnew = Utils.normalize(np.vstack([x_new,
+                                          y_new,
+                                          z_new]))
         
         # Verification that the base is orthonormal
-        assert (Utils.aeq(np.dot(x_new,y_new),0, tol) and 
-                Utils.aeq(np.dot(x_new,z_new),0, tol) and
-                Utils.aeq(np.dot(z_new,y_new),0, tol))
+        assert (Utils.aeq(np.dot(Xnew[0],Xnew[1]),0, tol) and 
+                Utils.aeq(np.dot(Xnew[0],Xnew[2]),0, tol) and
+                Utils.aeq(np.dot(Xnew[2],Xnew[1]),0, tol))
+        # Verify it is right-handed
+        assert (Utils.aeq(np.cross(Xnew[0],Xnew[1]), Xnew[2], tol) and 
+                Utils.aeq(np.cross(Xnew[0],Xnew[2]),-Xnew[1], tol) and
+                Utils.aeq(np.cross(Xnew[2],Xnew[1]),-Xnew[0], tol))
       
-        Xnew = np.vstack([x_new,y_new,z_new])
         Xold = np.array([self.x,
                          self.y,
                          self.z])
         M   = np.linalg.solve(Xold,Xnew)
+
         assert (np.linalg.det(M) - 1)**2 < GLOBAL_TOL # prop of rotation Matrix
         
         # Formulation from Wikipedia (See documentation above)
@@ -345,7 +356,12 @@ class Component(object):
         assert ((D-1)**2 < GLOBAL_TOL).any() 
 
         axis  = np.squeeze(V[:,(D-1)**2 < GLOBAL_TOL].T)
-        angle = np.arccos((np.trace(M)-1)/2)
+        cosAngle = (np.trace(M)-1)/2
+        # Sometimes small numeric errors are found, so must correct them,
+        # otherwise np.arrccos returns nan
+        if (abs(cosAngle) > 1): 
+            cosAngle = np.sign(cosAngle)
+        angle = np.arccos(cosAngle)
 
         # We can't know the right rotation, so we must check
         if Utils.aeq(Utils.rotateVector(Xold, angle, axis), Xnew):
@@ -359,8 +375,8 @@ class Component(object):
         This method must be implemented by each inheriting class. Its function 
         is to avoid classes having inconsistent data after a geometric transform.
         
-        For example: a camera has a mapping funcion calculated from raytracing,
-        then the user moves this camera, making the mapping invalid. 
+        For example: a camera has a mapnp.ping funcion calculated from raytracing,
+        then the user moves this camera, making the mapnp.ping invalid. 
         
         When a rotation or translation is called the clearData method is also
         called, and the class is in charge of cleaning all data that is now
@@ -373,7 +389,7 @@ class Part(Component):
     This implementation of the Component class is the representation of a surface
     using triangle elements. 
     
-    This is supposed to be the standard element in PIVSim, as raytracing with
+    This is supposed to be the standard element in np.piVSim, as raytracing with
     such surfaces is relatively easy and plotting is also made easy by using 
     libraries such as VTK, Matplotlib and OpenGL.
     
@@ -892,7 +908,7 @@ class Assembly(Component):
             otherwise it is added at the n-th position.
         overwrite : boolean = False
             [Optional] If the parameter n is given *and* the n-th position is
-            occupied, this flag specifies whether the element at this position
+            occunp.pied, this flag specifies whether the element at this position
             should be overwritten (True) of simply shifted (False).
         
         Returns
@@ -1256,7 +1272,7 @@ class RayBundle(Assembly):
         """
         This method is not implemented, and is present only to respect the 
         Assembly interface. As deleting a single ray requires many matrix 
-        reshapings, it is better to clear all the data and redo the ray
+        reshanp.pings, it is better to clear all the data and redo the ray
         tracing. 
         
         Raises
@@ -1864,7 +1880,7 @@ if __name__=="__main__":
     """
     print ""
     print "*********************************************************************"
-    print "*************       PIVSim Core module unit test      ***************"
+    print "*************       np.piVSim Core module unit test      ***************"
     print "*********************************************************************"
     #=====================================
     # Simplified geometry creation - cube
@@ -1977,7 +1993,7 @@ if __name__=="__main__":
     [t, coords, inds, norms, refs] = assembly.intersections(p0, p1, GLOBAL_TOL)
     tic.toc(cases*triangles*repetitions)
     assert Utils.aeq(t, t2)
-    print "Reference result from PIVSim v.0 - 71500 polygon intersection / sec"
+    print "Reference result from np.piVSim v.0 - 71500 polygon intersection / sec"
 
     #=============================
     # Testing the provided normals
@@ -2106,14 +2122,14 @@ if __name__=="__main__":
                              [0,+1,+1],
                              [0,-1,+1]])*0.5
     assert Utils.aeq(m.points, theorypoints)   
-       
+  
     m.alignTo(np.array([-1,0,0]),np.array([0,1,0]))
     theorypoints = np.array([[0,-1,+1],
                              [0,+1,+1],
                              [0,+1,-1],
                              [0,-1,-1]])*0.5
     assert Utils.aeq(m.points, theorypoints)   
-    
+
     m.alignTo(np.array([1,0,0]),None,np.array([0,0,1]))
     theorypoints = np.array([[0,-1,-1],
                              [0,+1,-1],
