@@ -45,7 +45,7 @@ class SellmeierEquation(Core.PyvsimObject):
                           0)).squeeze()
 
 class KasarovaEquation(Core.PyvsimObject):
-    def __init__(self):
+    def __init__(self, coeffs = None):
         Core.PyvsimObject.__init__(self, coeffs = None)
         self.name                     = 'Kasarova Equation '+str(self._id)
         self.refractiveIndexConstants = coeffs

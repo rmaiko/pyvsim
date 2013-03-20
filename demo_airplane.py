@@ -48,7 +48,7 @@ c.lens.translate(np.array([0.026474,0,0]))
 # This is to rotate the lens with respect to the camera axis, so we can have
 # Scheimpflug condition
 c.lens.rotate(-0.05, c.z)
-c.lens.aperture = 22
+c.lens.aperture = 2
 # These positions are taken from CATIA
 windowCenter = np.array([1.711, -3.275, 0.75])
 wingTarget   = np.array([7, -0.921, -1.404])
