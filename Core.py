@@ -60,10 +60,8 @@ class Component(object):
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
         self.parent                     = None
-        # Physical properties
-        self.sellmeierCoeffs            = None
-        self.indexOfRefraction          = 1
         # Ray tracing properties
+        self.refractiveIndexConstant    = 1
         self.surfaceProperty            = Component.OPAQUE
         
     @property
@@ -77,14 +75,10 @@ class Component(object):
     @property
     def origin(self):           return self._origin 
        
-    def getIndexOfRefraction(self, wavelength = 532e-9):
+    def refractiveIndex(self, wavelength = 532e-9):
         """
         Returns the index of refraction of the material given the wavelength
         (or a list of them)
-        
-        If Sellmeier coefficients are given, calculation will be performed
-        based on wavelength. 
-        `Reference: <http://en.wikipedia.org/wiki/Sellmeier_equation>`
         
         Parameters
         ----------
@@ -93,19 +87,10 @@ class Component(object):
         
         Returns
         -------
-        indexOfRefraction : same dimension as wavelength
+        refractiveIndex : same dimension as wavelength
             The index of refraction
         """       
-        if self.sellmeierCoeffs is None:
-            return self.indexOfRefraction
-            
-        w2 = wavelength ** 2
-        Nc = np.size(self.sellmeierCoeffs,0)
-                       
-        return np.sqrt(1 +
-                       np.sum((w2 * self.sellmeierCoeffs[:,0].reshape(Nc,1,1)) /
-                              (w2 - self.sellmeierCoeffs[:,1].reshape(Nc,1,1)),
-                              0)).squeeze()
+        return self.refractiveIndexConstant
                            
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
@@ -1529,13 +1514,11 @@ class RayBundle(Assembly):
         N2              = np.ones_like(surface)
         surfaceProperty = np.zeros((len(surface),len(Component.MIRROR)),'bool')
         #cosTheta1       = -NdotV
-        
-        # Get the indexes of refraction, result is filtered to reduce load
-        # on the numpy.vectorize method
+
         for n, surf in enumerate(surface):
             if surf is not None:
-                Nsurf[n]   = surf.getIndexOfRefraction(self.wavelength[n])
-                Nparent[n] = surf.parent.getIndexOfRefraction(self.wavelength[n])
+                Nsurf[n]   = surf.refractiveIndex(self.wavelength[n])
+                Nparent[n] = surf.parent.refractiveIndex(self.wavelength[n])
                 surfaceProperty[n] = surf.surfaceProperty
                                                                       
         # If entering surface, N1 is the external index of refraction, N2 is
@@ -1880,7 +1863,7 @@ if __name__=="__main__":
     """
     print ""
     print "*********************************************************************"
-    print "*************       np.piVSim Core module unit test      ***************"
+    print "*************       pyVSim Core module unit test      ***************"
     print "*********************************************************************"
     #=====================================
     # Simplified geometry creation - cube
@@ -1924,26 +1907,28 @@ if __name__=="__main__":
     # Test refraction coefficient
     #
     print "************     Index of refraction calculation   ******************"
-    part.sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
-                                          [0.23179234, 2.00179144e-14],
-                                          [1.01046945, 1.03560653e-10]])
-    assert Utils.aeq(part.getIndexOfRefraction(532e-9), 1.51947, 1e-3)
-    assert Utils.aeq(part.getIndexOfRefraction(486e-9), 1.52238, 1e-3)
-    assert Utils.aeq(part.getIndexOfRefraction(np.ones(10)*532e-9),
-                                               np.ones(10)*1.51947, 1e-3)
-    part.sellmeierCoeffs      = None
-    assert Utils.aeq(part.getIndexOfRefraction(532e-9), 1)
-    print "************              Intersection test        ******************"
-    #         hit            miss             hit                      miss
+    part.refractiveIndexConstant    = 1
+    assert Utils.aeq(part.refractiveIndex(532e-9), 1)
+    import Curves
+    sellmeierCoeffs      = np.array([[1.03961212, 6.00069867e-15],
+                                     [0.23179234, 2.00179144e-14],
+                                     [1.01046945, 1.03560653e-10]])
+    part.refractiveIndex = Curves.sellmeierEquation(sellmeierCoeffs)
     
-    p0 = [[0.5,0.5,-1],  [1.5,1.5,-1],  [0.999999,2 ,0.999999],  [-1,-1e-6,-1e-6]]
-    p1 = [[0.5,0.5, 2],  [1.5,1.5, 2],  [1       ,-1,1],         [ 2,    0,    0]]
-    t0 = [      0,             10,              0,                       10]
+    assert Utils.aeq(part.refractiveIndex(532e-9), 1.51947, 1e-3)
+    assert Utils.aeq(part.refractiveIndex(486e-9), 1.52238, 1e-3)
+    assert Utils.aeq(part.refractiveIndex(np.ones(10)*532e-9),
+                     np.ones(10)*1.51947, 1e-3)    
+    print "************              Intersection test        ******************"
+    #         hit            miss                hit                  miss
+    p0 = [[0.5,0.5,-1],  [1.5,1.5,-1],  [0.999999,2 ,0.999999],[-1,-1e-6,-1e-6]]
+    p1 = [[0.5,0.5, 2],  [1.5,1.5, 2],  [1       ,-1,1       ],[ 2,    0,    0]]
+    t0 = [           0,            10,                       0,              10]
     p0 = np.array(p0)
     p1 = np.array(p1)
     t0 = np.array(t0)
     # Parameter for the speed test
-    repetitions = 10
+    repetitions = 1000
     cases       = np.size(p0,0)
     triangles   = np.size(part.points,0)
     tic         = Utils.Tictoc()
@@ -1955,7 +1940,8 @@ if __name__=="__main__":
     
     # Assert that the assembly will give exactly the same answer as the part
     tic.tic()
-    [t2, coords2, inds2, norms2, refs2] = assembly.intersections(p0, p1, GLOBAL_TOL)
+    [t2, coords2, inds2, norms2, refs2] = assembly.intersections(p0, p1, 
+                                                                 GLOBAL_TOL)
     tic.toc(cases*triangles)
     assert Utils.aeq(t,t2)
     assert Utils.aeq(coords,coords2)
@@ -1975,7 +1961,8 @@ if __name__=="__main__":
     
     print "Intersections with line using the method from Core.Assembly"
     tic.tic()
-    [t2, coords2, inds2, norms2, refs2] = assembly.intersections(p0, p1, GLOBAL_TOL)
+    [t2, coords2, inds2, norms2, refs2] = assembly.intersections(p0, p1, 
+                                                                 GLOBAL_TOL)
     tic.toc(cases*triangles*repetitions)
     assert Utils.aeq(t,t2)
     assert Utils.aeq(coords,coords2)
@@ -1993,7 +1980,7 @@ if __name__=="__main__":
     [t, coords, inds, norms, refs] = assembly.intersections(p0, p1, GLOBAL_TOL)
     tic.toc(cases*triangles*repetitions)
     assert Utils.aeq(t, t2)
-    print "Reference result from np.piVSim v.0 - 71500 polygon intersection / sec"
+    print "Reference result from pyVSim v.0 - 71500 polygon intersection/s"
 
     #=============================
     # Testing the provided normals
