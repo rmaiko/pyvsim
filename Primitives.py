@@ -18,7 +18,7 @@ from __future__ import division
 import numpy as np
 import copy
 import Utils
-import Curves
+import Functions
 import Core
 
 # Global constants
@@ -424,7 +424,7 @@ class Part(Component):
         self.opacity                    = 0.5
         self.visible                    = True
         # Ray tracing properties
-        self.refractiveIndexLaw         = Curves.Constant(1)
+        self.refractiveIndexLaw         = Functions.Constant(1)
         self.surfaceProperty            = Component.OPAQUE
         # Variables for raytracing
         self.surfaceProperty            = Component.OPAQUE
@@ -1119,7 +1119,7 @@ class Assembly(Component):
         Component.__init__(self)
         self.name                       = 'Assembly '+str(self._id)
         # Ray tracing properties
-        self.refractiveIndexLaw         = Curves.Constant(1)
+        self.refractiveIndexLaw         = Functions.Constant(1)
         self.surfaceProperty            = Component.TRANSPARENT
         
     def refractiveIndex(self, wavelength = 532e-9):
@@ -1909,7 +1909,7 @@ if __name__=="__main__":
     sellmeierCoeffs      = np.array([[1.03961212, 0.00600069867],
                                      [0.23179234, 0.02001791440],
                                      [1.01046945, 103.560653000]])
-    part.refractiveIndexLaw = Curves.SellmeierEquation(sellmeierCoeffs)
+    part.refractiveIndexLaw = Functions.SellmeierEquation(sellmeierCoeffs)
     
     assert Utils.aeq(part.refractiveIndex(532e-9), 1.51947, 1e-3)
     assert Utils.aeq(part.refractiveIndex(486e-9), 1.52238, 1e-3)

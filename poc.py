@@ -89,8 +89,8 @@ if __name__ == '__main__':
     print x
     print sqrt( 1 + 1.03961212*pow(x,2)/(pow(x,2)-0.00600069867) + 0.231792344*pow(x,2)/(pow(x,2)-0.0200179144) + 1.01046945*pow(x,2)/(pow(x,2)-103.560653) )
      
-    import Curves
-    eq = Curves.SellmeierEquation()
+    import Functions
+    eq = Functions.SellmeierEquation()
     print eq.eval(532e-9)
 #db    = couch.create("test_pyvsim")
 #print db

@@ -19,6 +19,7 @@ import Primitives
 import System
 import Utils
 import numpy as np
+import Functions
 if __name__ == '__main__':
     vol = Primitives.Volume()
     vol.points = np.array([[0   ,0,0],
@@ -30,11 +31,10 @@ if __name__ == '__main__':
                            [0.5 ,0.866,0.1],
                            [1e-6,0,0.1]])
     vol.surfaceProperty = vol.TRANSPARENT
-    import Curves
     sellmeierCoeffs     = np.array([[1.03961212, 0.00600069867],
                                     [0.23179234, 0.02001791440],
                                     [70.01046945, 103.560653000]])
-    vol.refractiveIndexLaw = Curves.SellmeierEquation(sellmeierCoeffs)
+    vol.refractiveIndexLaw = Functions.SellmeierEquation(sellmeierCoeffs)
     
     r = Primitives.RayBundle()
     n = 100

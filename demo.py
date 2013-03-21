@@ -80,8 +80,8 @@ if __name__=="__main__":
     # (this makes the index of refraction vary with wavelength)
     # 
     # The coefficients here are for BK7 crown glass, try playing around
-    import Curves
-    refractiveIndexLaw   = Curves.SellmeierEquation()
+    import Functions
+    refractiveIndexLaw   = Functions.SellmeierEquation()
     refractiveIndexLaw.refractiveIndexConstants = \
                             np.array([[1.03961212, 0.00600069867],
                                       [0.23179234, 0.02001791440],
