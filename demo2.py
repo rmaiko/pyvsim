@@ -18,6 +18,10 @@ limitations under the License.
 import numpy as np
 from pyvsim import *
 if __name__ == '__main__':
+    """
+    This demo shows a simple render of a famous image, but with 
+    physically correct angles
+    """
     vol = Volume()
     vol.points = np.array([[0   ,0,0],
                            [1   ,0,0],
@@ -32,17 +36,21 @@ if __name__ == '__main__':
                                     [0.23179234, 0.02001791440],
                                     [70.01046945, 103.560653000]])
     vol.material = Glass(sellmeierCoeffs)
+    vol.material.name = "The dark side of the moon glass"
     
     r = RayBundle()
     n = 100
     v = Utils.normalize(np.array([0.5,0.17,0]))
     p = np.array([-0.5,0.1,0.05])
     v = np.tile(v,(n,1))
-    w = np.linspace(380e-9, 780e-9, n)
+    w = np.linspace(380e-9, 780e-9, n) #all the visible spectrum
     r.insert(v, p, w)
-    a = Primitives.Assembly()
+    
+    a = Assembly()
     a.insert(vol)
     a.insert(r)
+    
     r.maximumRayTrace = 2
     r.trace()
-    System.plot(a,displayAxes=False)
+    
+    plot(a,displayAxes=False)

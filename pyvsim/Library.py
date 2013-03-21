@@ -63,7 +63,7 @@ class Glass(Material):
 class Plastic(Material):
     def __init__(self, coeffs = None):
         Material.__init__(self)
-        self.name                     = "PMMA"
+        self.name                     = "PMMA a.k.a. acrylic"
         if coeffs is None:
             # Add coefficients of BK7 crown glass
             self.source  = ("Sultanova, N.; Kasarova, S. & Nikolov, I. " +

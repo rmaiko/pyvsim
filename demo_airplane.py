@@ -26,7 +26,7 @@ tic = Utils.Tictoc()
 
 # Reads the airplane model from the STL file
 tic.tic()
-part = Utils.readSTL("halfmodel.stl")
+part = readSTL("halfmodel.stl")
 tic.toc()
 
 # Start timing the field of view calculation
@@ -55,11 +55,8 @@ v = wingTarget - windowCenter
 vp = np.array([-v[1]*v[2], 
                -v[0]*v[2], 
                2*v[0]*v[1]])
-# We must normalize the vectors to use them
-vx = Utils.normalize(v)
-vy = Utils.normalize(vp)
 # Makes the camera align to the vectors we've created
-c.alignTo(vx, vy)  
+c.alignTo(v, vp)  
 # Moves the camera to the window
 c.translate(windowCenter - c.origin)
 # Creates an assembly. Everything must be inside a single assembly to run

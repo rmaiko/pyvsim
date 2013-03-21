@@ -55,7 +55,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 4
+    nrays = 50
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
@@ -79,6 +79,7 @@ if __name__=="__main__":
     # 
     # The coefficients here are for BK7 crown glass, try playing around
     material   = Glass()
+    print "Material name       : ", material.name
 #    material.refractiveIndexConstants = \
 #                            np.array([[1.03961212, 0.00600069867],
 #                                      [0.23179234, 0.02001791440],
@@ -116,7 +117,7 @@ if __name__=="__main__":
     plot(temp)
     
     save(assembly, "./test.dat", mode="json") # Human-readable, very slow
-    ambient = System.load("./test.dat")
+    ambient = load("./test.dat")
     # Loaded scenarios can be manipulated exactly the same way as scenarios
     # generated with scripts
     ambient.translate(np.array([0,-1.5,0])) # Translate everything
