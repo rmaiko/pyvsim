@@ -23,16 +23,14 @@ if __name__=="__main__":
     
     Usage: python demo.py
     """
-    import Primitives
-    import System
-    import Utils
+    from pyvsim import *
     import numpy as np
     
     # Creation of some simulation elements. 
-    part        = Primitives.Volume() # Hexahedrons, usually initialized as cubes
-    part2       = Primitives.Volume()
-    bundle      = Primitives.RayBundle() # A container of rays
-    assembly    = Primitives.Assembly()  # A container of parts
+    part        = Volume() # Hexahedrons, usually initialized as cubes
+    part2       = Volume()
+    bundle      = RayBundle() # A container of rays
+    assembly    = Assembly()  # A container of parts
     
     # All parts must be contained in a "main" assembly. Assemblies can contain
     # sub-assemblies, no problem though
@@ -57,7 +55,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 200
+    nrays = 4
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
@@ -80,14 +78,13 @@ if __name__=="__main__":
     # (this makes the index of refraction vary with wavelength)
     # 
     # The coefficients here are for BK7 crown glass, try playing around
-    import Functions
-    refractiveIndexLaw   = Functions.SellmeierEquation()
-    refractiveIndexLaw.refractiveIndexConstants = \
-                            np.array([[1.03961212, 0.00600069867],
-                                      [0.23179234, 0.02001791440],
-                                      [1.01046945, 103.560653000]])
+    material   = Glass()
+#    material.refractiveIndexConstants = \
+#                            np.array([[1.03961212, 0.00600069867],
+#                                      [0.23179234, 0.02001791440],
+#                                      [1.01046945, 103.560653000]])
     # Now, we import the sellmeier equation and substitute it into our part
-    part.refractiveIndexLaw = refractiveIndexLaw
+    part.material = material
     
     # Let's position the other cube at a more interesting position...
     part2.translate(np.array([1,0,0.5]))
@@ -108,21 +105,22 @@ if __name__=="__main__":
     print "Number of steps     : ", bundle.steps
        
     # Now we plot the scenario, there are two modes of doing that:
-    System.plot(assembly,mode="mpl")
-    System.plot(assembly,mode="vtk") # Comment if you don't have python VTK
-    System.plot(assembly) 
+    plot(assembly,mode="mpl")
+    plot(assembly,mode="vtk") # Comment if you don't have python VTK
     # VTK is default, if you don't have it, will
     # plot using matplotlib
     
     # Demonstrating how to save and load the simulation
-    System.save(assembly, "test_pickle.dat")       # Not human readable
-    System.save(assembly, "test.dat", mode="json") # Human-readable, very slow
+    save(assembly, "./test_pickle.dat")       # Not human readable
+    temp = load("./test_pickle.dat")
+    plot(temp)
     
-    ambient = System.load("test.dat")
+    save(assembly, "./test.dat", mode="json") # Human-readable, very slow
+    ambient = System.load("./test.dat")
     # Loaded scenarios can be manipulated exactly the same way as scenarios
     # generated with scripts
     ambient.translate(np.array([0,-1.5,0])) # Translate everything
     ambient.remove(2)                       # Remove second volume
     ambient.items[1].trace()                # Retrace
     # Plotting the changed scenario
-    System.plot(ambient)
+    plot(ambient)

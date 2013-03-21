@@ -24,3 +24,17 @@ class PyvsimObject(object):
         
     @property
     def id(self):               return self._id
+    
+class Databasable(object):
+    def __init__(self):
+        self.dbParameters = None
+    
+    def dbdict(self):
+        dbdict = {}
+        for key in self.dbParameters:
+            dbdict[key] = self.__dict__[key]
+        return dbdict
+    
+    def fromdb(self, dbdict):
+        for key in dbdict.keys():
+            self.__dict__[key] = dbdict[key]

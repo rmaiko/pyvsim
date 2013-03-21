@@ -600,7 +600,7 @@ def linesIntersection(v,p):
 
 def readSTL(filename):
     import vtk
-    import Primitives
+    import pyvsim.Primitives
     STLReader   = vtk.vtkSTLReader()
 
     STLReader.SetFileName(filename)
@@ -618,7 +618,7 @@ def readSTL(filename):
         polydata.GetCellPoints(n,temp)
         cts.append([temp.GetId(0),temp.GetId(1),temp.GetId(2)])
        
-    obj                 = Primitives.Part()
+    obj                 = pyvsim.Primitives.Part()
     obj.points          = np.array(pts)
     obj.connectivity    = np.array(cts)
     

@@ -17,8 +17,8 @@ limitations under the License.
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt 
-import Utils
-import Primitives
+import pyvsim.Utils as Utils
+import pyvsim.Primitives as Primitives
 from scipy.special import erf
 import warnings
 
@@ -68,7 +68,7 @@ class Sensor(Primitives.Plane):
           |                            |      
           |                            | 
           |                            |
-          part2 ___________________________| 
+          v ___________________________| 
            y
         """
         Primitives.Plane.__init__(self)
@@ -211,7 +211,7 @@ class Sensor(Primitives.Plane):
           |            |      C     |  |      C = particle center
           |            |            |  | 
           |            |____________|  |
-          part2 ___________________________| 
+          v ___________________________| 
            y
            
           When particle image is partially out of the image limits, the 
@@ -227,7 +227,7 @@ class Sensor(Primitives.Plane):
           |               |            |      C = particle center
           |               |            | 
           |               |            |
-          part2 ______________|___________C| 
+          v ______________|___________C| 
            y
         
         The program performs an integration of a 2D gaussian distribution 
@@ -565,7 +565,7 @@ class Lens(Primitives.Part):
         return vectors 
     
 #        npts = np.size(vectors,0)
-#        # Gets the angle between part2 and the optical axis
+#        # Gets the angle between v and the optical axis
 #        Ti = np.arccos(np.sum(self.x * \
 #                              np.reshape(vectors,(npts,1,GLOBAL_NDIM)),2)).squeeze()
 #                              

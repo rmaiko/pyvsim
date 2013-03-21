@@ -20,10 +20,7 @@ limitations under the License.
 This is a demo of field of view calculation in an airplane mockup.
 """
 import numpy as np
-import Utils
-import System
-import Primitives
-import Toolbox
+from pyvsim import *
 # Just importing something to time the procedures
 tic = Utils.Tictoc()
 
@@ -42,7 +39,7 @@ part.opacity = 1
 part.color = np.array([1,1,1])
 
 # Create a camera
-c = Toolbox.Camera()
+c = Camera()
 # This offset is because we're using a lens with Canon mount in a C-mount camera
 c.lens.translate(np.array([0.026474,0,0]))
 # This is to rotate the lens with respect to the camera axis, so we can have
@@ -67,7 +64,7 @@ c.alignTo(vx, vy)
 c.translate(windowCenter - c.origin)
 # Creates an assembly. Everything must be inside a single assembly to run
 # properly
-a = Primitives.Assembly()
+a = Assembly()
 # Insert the airplane and the camera
 a.insert(part)
 a.insert(c)

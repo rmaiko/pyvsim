@@ -608,9 +608,11 @@ def _instantiateFromObjectString(string):
     assert (p[2] == "IDNUMBER")
     p = re.split("[\.\']",p[1])
     assert (p[0] == "<class ")
-    assert (p[3] == ">")
-    module = __import__(p[1])
-    return getattr(module,str(p[2]))()
+    assert (p[4] == ">")
+    pkg = __import__(p[1])
+    mod = getattr(pkg,p[2])
+    obj = getattr(mod,p[3])()
+    return obj
 
 def _objectString(obj):
     """

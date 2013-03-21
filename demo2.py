@@ -15,13 +15,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import Primitives
-import System
-import Utils
 import numpy as np
-import Functions
+from pyvsim import *
 if __name__ == '__main__':
-    vol = Primitives.Volume()
+    vol = Volume()
     vol.points = np.array([[0   ,0,0],
                            [1   ,0,0],
                            [0.5 ,0.866,0],
@@ -34,9 +31,9 @@ if __name__ == '__main__':
     sellmeierCoeffs     = np.array([[1.03961212, 0.00600069867],
                                     [0.23179234, 0.02001791440],
                                     [70.01046945, 103.560653000]])
-    vol.refractiveIndexLaw = Functions.SellmeierEquation(sellmeierCoeffs)
+    vol.material = Glass(sellmeierCoeffs)
     
-    r = Primitives.RayBundle()
+    r = RayBundle()
     n = 100
     v = Utils.normalize(np.array([0.5,0.17,0]))
     p = np.array([-0.5,0.1,0.05])

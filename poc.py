@@ -83,15 +83,9 @@ LALA = None
 #print Core.GLOBAL_TOL
 
 if __name__ == '__main__':
-    
-    from math import *
-    x = 532e-9 * 1e6
-    print x
-    print sqrt( 1 + 1.03961212*pow(x,2)/(pow(x,2)-0.00600069867) + 0.231792344*pow(x,2)/(pow(x,2)-0.0200179144) + 1.01046945*pow(x,2)/(pow(x,2)-103.560653) )
-     
-    import Functions
-    eq = Functions.SellmeierEquation()
-    print eq.eval(532e-9)
+    import Library
+    eq = Library.Glass()
+    print eq.dbdict()
 #db    = couch.create("test_pyvsim")
 #print db
 #db["foo"] = {1: 2}
