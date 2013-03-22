@@ -55,7 +55,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 50
+    nrays = 2
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)

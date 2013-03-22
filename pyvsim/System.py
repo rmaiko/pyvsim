@@ -384,9 +384,6 @@ class PythonPlotter(Visitor):
                            obj.color[1],
                            obj.color[2],
                            obj.opacity])
-        # color mapping
-        #col.set_array(val)
-        #col.set_cmap(cm.hot)
         self.ax.add_collection(col)
     
     def polyActor(self,obj): 
@@ -459,6 +456,20 @@ def Loader(name):
         f.close()
     return rawdata
 
+class pyvsimJSONEncoder(json.JSONEncoder):
+    """
+    A JSON Encoder capable of dealing with a pyvsim simulation tree without
+    creating duplicates of objects.
+    """
+    def default(self, obj):
+        saneobject = obj 
+
+        if isinstance(obj, Core.PyvsimObject):
+            return obj.sanedict()
+            
+        return json.JSONEncoder.default(self, saneobject)
+
+
 class JSONSaver(Visitor):
     """
     This class follows the visitor pattern to traverse the assembly tree
@@ -472,6 +483,7 @@ class JSONSaver(Visitor):
     def __init__(self):
         Visitor.__init__(self)
         self.myobjects = {}
+        self.jsonEncoder = None
         
     def visit(self, obj):
         """
@@ -479,24 +491,11 @@ class JSONSaver(Visitor):
         this takes only a snapshot and doesn't store references, so if changes
         are made, the tree must be visited again.
         """
-        tempdict  = copy.deepcopy(obj.__dict__)
-        
-        for k in tempdict:
-            if type(tempdict[k]) == np.ndarray:
-                # Converts arrays of objects to an array of strings
-                if tempdict[k].dtype == np.dtype(object):
-                    for element in np.nditer(tempdict[k], 
-                                             flags=['refs_ok'],
-                                             op_flags=['readwrite']):
-                        element[...] = _objectString(element[()])
-                tempdict[k] = tempdict[k].tolist()
-                    
-            if isinstance(tempdict[k], Core.PyvsimObject):
-                if not isinstance(tempdict[k], Primitives.Component):
-                    self.visit(tempdict[k])
-                tempdict[k] = _objectString(tempdict[k])
-                
-        self.myobjects[_objectString(obj)] = tempdict
+        self.myobjects[obj.__repr__()] = obj
+        for key in obj.__dict__:
+            inspected = obj.__dict__[key]
+            if isinstance(inspected, Core.PyvsimObject):
+                self.myobjects[inspected.__repr__()] = inspected
                 
     def dump(self, name = None):
         """
@@ -507,11 +506,12 @@ class JSONSaver(Visitor):
         the file contains line breaks and indents.
         """
         if name is None:
-            pprint.pprint(self.myobjects, indent = 4)
+            self.jsonEncoder = pyvsimJSONEncoder(indent = 4)
+            pprint.pprint(self.jsonEncoder.encode(self.myobjects))
         else:
             f = open(name,'w')
             try:
-                f.write(json.dumps(self.myobjects, indent = 2))
+                json.dump(self.myobjects, f, cls = pyvsimJSONEncoder, indent = 2)
             finally:
                 f.close()
 
@@ -534,6 +534,7 @@ def JSONLoader(name):
         f.close()
        
     allobjects = json.loads(filecontent)
+
     # Reconstruct all objects first
     objectlist = []
     idlist     = []
@@ -557,16 +558,11 @@ def JSONLoader(name):
                                            flags=['refs_ok','multi_index'])
                     while not iterator.finished:
                         idno = _idFromObjectString(iterator[0][()])
-                        #print iterator[0][()], idno, objectlist[idlist.index(idno)]
                         if idno is not None:
                             references[iterator.multi_index] = \
                                                 objectlist[idlist.index(idno)]
                         iterator.iternext()
-#                    print "***** REFERENCES  ******"
-#                    print key
-#                    print references
                     obj.__dict__[key] = references
-               
             # Reconstruct references outside lists
             if (type(obj.__dict__[key]) == str or
                type(obj.__dict__[key]) == unicode):

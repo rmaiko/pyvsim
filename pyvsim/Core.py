@@ -14,6 +14,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
+import copy
+import numpy as np
+
 class PyvsimObject(object):
     instanceCounter          = 0
 
@@ -24,6 +27,34 @@ class PyvsimObject(object):
         
     @property
     def id(self):               return self._id
+    
+    def sanedict(self):
+        sanedict = copy.deepcopy(self.__dict__) 
+        for k in sanedict.keys():
+            saneobject = sanedict[k]
+            if isinstance(sanedict[k], PyvsimObject):
+                saneobject = sanedict[k].__repr__()
+                
+            if isinstance(sanedict[k], np.ndarray):
+                if sanedict[k].dtype == np.dtype(object):    
+                    for element in np.nditer(sanedict[k], 
+                                             flags=['refs_ok'],
+                                             op_flags=['readwrite']):
+                        element[...] = element[()].__repr__()          
+                saneobject = sanedict[k].tolist()    
+                
+            sanedict[k] = saneobject
+             
+        return sanedict
+        
+    def __repr__(self):
+        """
+        Takes an object derived from the Core.PyvsimObject class and generates
+        a string to identify it.
+        """
+        return ("PYVSIMOBJECT%%" + str(type(self)) +
+                "%%IDNUMBER%%" + str(self.id))
+
     
 class Databasable(object):
     def __init__(self):

@@ -82,14 +82,51 @@ LALA = None
 #Core.GLOBAL_TOL = parser.get("System", "databaseAddress")
 #print Core.GLOBAL_TOL
 
-if __name__ == '__main__':
-    import Library
-    eq = Library.Glass()
-    print eq.dbdict()
-#db    = couch.create("test_pyvsim")
-#print db
-#db["foo"] = {1: 2}
-#print db["foo"]
+#if __name__ == '__main__':
+#    couch = couchdb.Server("http://maiko.iriscouch.com")
+#    db    = couch["test_pyvsim"]
+#    print db
+#    db["foo"] = {1: 2}
+#    print db["foo"]
+
+class test(object):
+    def __init__(self):
+        self.reference = None
+        self.name      = None
+        
+       
+#a = np.empty(3, dtype="object")
+#a[1] = ""
+#a[2] = ""
+#a[0] = ""
+a = [test(),test(),test()]
+
+
+o1 = test()
+o1.name = "o1"
+o1.reference = a[1]
+a.insert(0,o1)
+
+o2 = test()
+o2.name = "o2"
+o2.reference = a[2]
+a.insert(1,o2)
+
+o3 = test()
+o3.name = "o3"
+o3.reference = a[0]
+a.insert(2,o3)
+
+
+print o1.__dict__
+print o1.reference.name
+
+print o2.__dict__
+print o2.reference.name
+
+print o3.__dict__
+print o3.reference.name
+
 
 
 #env = Core.Assembly()
