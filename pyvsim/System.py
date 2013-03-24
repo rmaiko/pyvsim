@@ -370,6 +370,7 @@ class PythonPlotter(Visitor):
         Attention: This will stop the program execution until the
         window is closed. This is a "feature" of matplotlib and VTK.
         """
+        _ = displayAxes
         plt.show()
  
     def lineActor(self,obj):
