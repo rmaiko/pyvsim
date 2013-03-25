@@ -28,6 +28,24 @@ class PyvsimObject(object):
     @property
     def id(self):               return self._id
     
+    def acceptVisitor(self, visitor):
+        """
+        This method is a provision for the `Visitor Pattern 
+        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`_ and is used
+        for traversing the tree.
+        
+        Some possible uses are the display or the saving routine.
+        
+        *If you are inheriting from this class* and your node is non-terminal,
+        please override this method
+        
+        Parameters
+        ----------
+        visitor 
+            an object inheriting from `:class:~System.Visitor`
+        """
+        visitor.visit(self)
+    
     def sanedict(self):
         sanedict = copy.deepcopy(self.__dict__) 
         for k in sanedict.keys():

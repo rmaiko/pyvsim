@@ -113,25 +113,7 @@ class Component(Core.PyvsimObject):
             `:class:~Core.Assembly`
         """
         return None
-    
-    def acceptVisitor(self, visitor):
-        """
-        This method is a provision for the `Visitor Pattern 
-        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`_ and is used
-        for traversing the tree.
         
-        Some possible uses are the display or the saving routine.
-        
-        *If you are inheriting from this class* and your node is non-terminal,
-        please override this method
-        
-        Parameters
-        ----------
-        visitor 
-            an object inheriting from `:class:~System.Visitor`
-        """
-        visitor.visit(self)
-    
     def translate(self, vector):
         """
         This method should be used when there is a change in the component
@@ -1436,6 +1418,7 @@ class RayBundle(Assembly):
     def __init__(self):
         Assembly.__init__(self)
         self.name                       = 'Bundle ' + str(self._id)
+        self.material                   = None
         # Ray tracing configuration
         self.maximumRayTrace            = 10
         self.stepRayTrace               = 10

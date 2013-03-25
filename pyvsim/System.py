@@ -104,14 +104,18 @@ def load(filename, mode = None):
     ------
     ValueError
         If decoding was not possible
-    """
-    if mode is not "json":
-        try:
-            return Loader(filename)
-        except cPickle.UnpicklingError:
-            print "Could not decode pickle, trying JSON"
+    """       
+    f = open(filename,'r')
+    try:
+        rawdata = cPickle.load(f)
+    except cPickle.UnpicklingError:
+        print "Could not decode pickle, trying JSON"
+        rawdata = json.load(f, cls = pyvsimJSONDecoder)
+    finally:
+        f.close()
         
-    return JSONLoader(filename)
+    return rawdata
+
 
         
         
@@ -444,31 +448,108 @@ class Saver(Visitor):
                 cPickle.dump(self.topickle, f)
             finally:
                 f.close()
-           
-def Loader(name):
-    """
-    Loads an assembly from a python pickle file. This is the preferred 
-    implementation, as it's faster and more reliable.
-    """
-    f = open(name,'r')
-    try:
-        rawdata = cPickle.load(f)
-    finally:
-        f.close()
-    return rawdata
+        
 
 class pyvsimJSONEncoder(json.JSONEncoder):
     """
     A JSON Encoder capable of dealing with a pyvsim simulation tree without
     creating duplicates of objects.
     """
-    def default(self, obj):
-        saneobject = obj 
+    FILEMODE   = None
+    SCREENMODE = 2 
+    def __init__(self,
+                 skipkeys          = False, 
+                 ensure_ascii      = True,
+                 check_circular    = False, 
+                 allow_nan         = True, 
+                 sort_keys         = True,
+                 indent            = None, 
+                 separators        = None, 
+                 encoding          = 'utf-8', 
+                 default           = None):
+        json.JSONEncoder.__init__(self, 
+                                  skipkeys          = False, 
+                                  ensure_ascii      = True,
+                                  check_circular    = False, 
+                                  allow_nan         = True, 
+                                  sort_keys         = sort_keys,
+                                  indent            = indent, 
+                                  separators        = None, 
+                                  encoding          = 'utf-8', 
+                                  default           = None)
+        self.serializedObjects  = {}
+        
+    def default(self, obj):         
+        if isinstance(obj, object):
+            temp = {}
+            temp["object_module"] = str(obj.__class__.__module__)
+            temp["object_type"]   = str(obj.__class__.__name__)
+            temp["object_id"]   = id(obj)
+            if isinstance(obj, np.ndarray):
+                temp["dtype"]       = str(obj.dtype)
+                temp["data"]        = obj.tolist()
+                return temp
+            if self.serializedObjects.has_key(id(obj)):
+                temp["object_dict"] = None
+            else:    
+                temp["object_dict"] = obj.__dict__
+                self.serializedObjects[id(obj)] = temp
+            return temp   
+        
+        return json.JSONEncoder.default(self, obj)
 
-        if isinstance(obj, Core.PyvsimObject):
-            return obj.sanedict()
+class pyvsimJSONDecoder(json.JSONDecoder):
+    def __init__(self, 
+                 encoding=None, 
+                 object_hook=None, 
+                 parse_float=None,
+                 parse_int=None, 
+                 parse_constant=None, 
+                 strict=True,
+                 object_pairs_hook=None):
+        json.JSONDecoder.__init__(self, object_hook=self.default, strict = False)
+        self.cornFlakes = {}
+        
+    def default(self, obj): 
+        
+        if (isinstance(obj, Core.PyvsimObject) or 
+            obj is None or 
+            isinstance(obj, np.ndarray)):
+            return obj
+                        
+        if obj.has_key("object_type"):
+            if not self.cornFlakes.has_key(obj["object_id"]):
+                if obj.has_key("dtype"):
+                    obj["data"] = self.treatArray(obj)
+                    myobject = obj["data"]
+                else:
+                    p = re.split("[\.\']",obj["object_module"])
+                    pkg         = __import__(p[0])
+                    mod         = getattr(pkg,p[1])
+                    myobject    = getattr(mod,obj["object_type"])()
+                self.cornFlakes[obj["object_id"]] = myobject
+                
+            try:
+                if obj["object_dict"] is not None:
+                    self.cornFlakes[obj["object_id"]].__dict__ = obj["object_dict"]
+            except KeyError:
+                pass
+                
+            return self.cornFlakes[obj["object_id"]]  
+       
+        return obj
+    
+    def treatArray(self, obj):
+        if obj["dtype"] == "object":
+            obj["data"] = np.array(obj["data"])
+            iterator    = np.nditer(obj["data"],
+                                    flags=['refs_ok','multi_index'])
             
-        return json.JSONEncoder.default(self, saneobject)
+            while not iterator.finished:
+                obj["data"][iterator.multi_index] = \
+                            self.default(obj["data"][iterator.multi_index])
+                iterator.iternext()
+        return np.array(obj["data"])
 
 
 class JSONSaver(Visitor):
@@ -483,8 +564,8 @@ class JSONSaver(Visitor):
            
     def __init__(self):
         Visitor.__init__(self)
-        self.myobjects = {}
         self.jsonEncoder = None
+        self.topickle    = None
         
     def visit(self, obj):
         """
@@ -492,11 +573,8 @@ class JSONSaver(Visitor):
         this takes only a snapshot and doesn't store references, so if changes
         are made, the tree must be visited again.
         """
-        self.myobjects[obj.__repr__()] = obj
-        for key in obj.__dict__:
-            inspected = obj.__dict__[key]
-            if isinstance(inspected, Core.PyvsimObject):
-                self.myobjects[inspected.__repr__()] = inspected
+        if obj.parent is None:
+            self.topickle = obj
                 
     def dump(self, name = None):
         """
@@ -507,116 +585,14 @@ class JSONSaver(Visitor):
         the file contains line breaks and indents.
         """
         if name is None:
-            self.jsonEncoder = pyvsimJSONEncoder(indent = 4)
+            self.jsonEncoder = pyvsimJSONEncoder(mode = 
+                                                 pyvsimJSONEncoder.SCREENMODE)
             pprint.pprint(self.jsonEncoder.encode(self.myobjects))
         else:
+#            self.jsonEncoder = pyvsimJSONEncoder(mode = 
+#                                                 pyvsimJSONEncoder.FILEMODE)
             f = open(name,'w')
             try:
-                json.dump(self.myobjects, f, cls = pyvsimJSONEncoder, indent = 2)
+                json.dump(self.topickle, f, cls = pyvsimJSONEncoder, indent = 2)
             finally:
                 f.close()
-
-def JSONLoader(name):
-    """
-    This function returns an assembly tree with the contents of the specified
-    file. Please note that absolutely no checks are performed to guarantee that
-    the file is really a JSON (not a pickle).
-   
-    This implementation is definetely not elegant, as it has to check for some
-    very specific data structures (viz. lists of lists of lists of strings) and
-    reconstructs only simulation objects, however this seems to be the only
-    simple way of doing JSON parsing of such objects, as json, contrary to
-    pickle has no support for user classes.
-    """
-    f = open(name, 'r')
-    try:
-        filecontent = f.read()
-    finally:
-        f.close()
-       
-    allobjects = json.loads(filecontent)
-
-    # Reconstruct all objects first
-    objectlist = []
-    idlist     = []
-    for key in allobjects.keys():
-        objectlist.append(_instantiateFromObjectString(key))
-        idlist.append(allobjects[key]["_id"])
-        objectlist[-1].__dict__ = allobjects[key]
-       
-    # Now reconstruct internal object references and numpy arrays
-    for obj in objectlist:
-        for key in obj.__dict__:
-            # Reconstruct all lists to numpy arrays
-            if type(obj.__dict__[key]) == list:
-                obj.__dict__[key] = np.array(obj.__dict__[key])
-                # Reconstruct references from objectStrings
-                if (obj.__dict__[key].dtype.char == "S" or
-                    obj.__dict__[key].dtype.char == "U" or
-                    obj.__dict__[key].dtype.char == "O"):
-                    references = np.empty_like(obj.__dict__[key], object)
-                    iterator   = np.nditer(obj.__dict__[key],
-                                           flags=['refs_ok','multi_index'])
-                    while not iterator.finished:
-                        idno = _idFromObjectString(iterator[0][()])
-                        if idno is not None:
-                            references[iterator.multi_index] = \
-                                                objectlist[idlist.index(idno)]
-                        iterator.iternext()
-                    obj.__dict__[key] = references
-            # Reconstruct references outside lists
-            if (type(obj.__dict__[key]) == str or
-               type(obj.__dict__[key]) == unicode):
-                idno = _idFromObjectString(obj.__dict__[key])
-                if idno is not None:
-                    obj.__dict__[key] = objectlist[idlist.index(idno)]
-                   
-    # Find parent
-    for obj in objectlist:
-        try:
-            if obj.parent is None:
-                return obj
-        except AttributeError:
-            pass
-
-def _idFromObjectString(string):
-    """
-    This method is used for validating a string describing an object and 
-    returning the internal identification number of this object (this is 
-    used in rebuilding the references in a JSON file).
-    """
-    if string is None:
-        return None
-    p = re.split("%%", string)
-    if p is not None:
-        if len(p) == 4 :
-            if (p[0] == "PYVSIMOBJECT") and (p[2] == "IDNUMBER"):
-                return int(p[3])
-    return None
-
-def _instantiateFromObjectString(string):
-    """
-    This method is capable of reading and validating a string describing 
-    an object. If everything is ok, will return an instance of this object
-    initialized without parameters.
-    """
-    p = re.split("%%", string)
-    assert (p[0] == "PYVSIMOBJECT") 
-    assert (p[2] == "IDNUMBER")
-    p = re.split("[\.\']",p[1])
-    assert (p[0] == "<class ")
-    assert (p[4] == ">")
-    pkg = __import__(p[1])
-    mod = getattr(pkg,p[2])
-    obj = getattr(mod,p[3])()
-    return obj
-
-def _objectString(obj):
-    """
-    Takes an object derived from the Core.PyvsimObject class and generates
-    a string to identify it.
-    """
-    if obj is not None:
-        return "PYVSIMOBJECT%%" + str(type(obj)) + "%%IDNUMBER%%" + str(obj.id)
-    else:
-        return None

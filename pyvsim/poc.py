@@ -63,8 +63,6 @@ import Core
 import Toolbox
 import couchdb
 
-LALA = None
-
 #couch = couchdb.Server("https://maiko.iriscouch.com/")
 #print couch
 #db    = couch["test_pyvsim"]
@@ -94,38 +92,36 @@ class test(object):
         self.reference = None
         self.name      = None
         
+class placeholder(object):
+    def subsme(self, obj):
+        self = obj
+        
        
-#a = np.empty(3, dtype="object")
+a = np.empty(3, dtype="object")
 #a[1] = ""
 #a[2] = ""
 #a[0] = ""
-a = [test(),test(),test()]
 
+pl = [placeholder(),placeholder(),placeholder()]
 
 o1 = test()
 o1.name = "o1"
-o1.reference = a[1]
-a.insert(0,o1)
+o1.reference = pl[2]
+pl[0].subsme(o1)
 
 o2 = test()
 o2.name = "o2"
-o2.reference = a[2]
-a.insert(1,o2)
+o2.reference = pl[1]
+pl[0].subsme(o2)
 
 o3 = test()
 o3.name = "o3"
-o3.reference = a[0]
-a.insert(2,o3)
+o3.reference = pl[0]
+pl[0].subsme(o3)
 
 
-print o1.__dict__
-print o1.reference.name
 
-print o2.__dict__
-print o2.reference.name
 
-print o3.__dict__
-print o3.reference.name
 
 
 

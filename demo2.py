@@ -39,7 +39,7 @@ if __name__ == '__main__':
     vol.material.name = "The dark side of the moon glass"
     
     r = RayBundle()
-    n = 100
+    n = 200
     v = Utils.normalize(np.array([0.5,0.17,0]))
     p = np.array([-0.5,0.1,0.05])
     v = np.tile(v,(n,1))
@@ -52,5 +52,15 @@ if __name__ == '__main__':
     
     r.maximumRayTrace = 2
     r.trace()
+
+    e = pyvsim.System.pyvsimJSONEncoder()
+    enc = e.encode(a)
+    print enc
+    d = pyvsim.System.pyvsimJSONDecoder()
+    print "DECODING"
+    dec = d.decode(enc)
     
-    plot(a,displayAxes=False)
+#    print dec
+#    print dec.__dict__
+    
+    plot(dec,displayAxes=False)
