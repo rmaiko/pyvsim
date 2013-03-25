@@ -17,11 +17,11 @@ limitations under the License.
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt 
-import pyvsim.Utils as Utils
-import pyvsim.Primitives as Primitives
+import Utils
+import Primitives
 from scipy.special import erf
 import warnings
-import pyvsim.Core as Core
+import Core
 
 MEMSIZE     = 1e6
 MEM_SAFETY  = 8

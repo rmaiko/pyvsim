@@ -1,0 +1,4 @@
+[Database]
+databaseAddress = https://maiko.iriscouch.com
+databaseUsername = visitor
+databasePassword = verysecret
