@@ -55,7 +55,7 @@ if __name__=="__main__":
     part.clearData()
     
     # Let's create some rays to do raytracing
-    nrays = 2
+    nrays = 200
     # The origin of the bundle is the natural place for rays to start,
     # if you specify otherwise, no problem
     bundle.translate(np.array([0.3,1.2,0.5]) - bundle.origin)
@@ -112,12 +112,16 @@ if __name__=="__main__":
     # plot using matplotlib
     
     # Demonstrating how to save and load the simulation
+    tic.tic()
     save(assembly, "./test_pickle.dat")       # Not human readable
     temp = load("./test_pickle.dat")
+    tic.toc()
     plot(temp)
     
+    tic.tic()
     save(assembly, "./test.dat", mode="json") # Human-readable, very slow
     ambient = load("./test.dat")
+    tic.toc()
     # Loaded scenarios can be manipulated exactly the same way as scenarios
     # generated with scripts
     ambient.translate(np.array([0,-1.5,0])) # Translate everything

@@ -76,14 +76,12 @@ def save(obj, filename=None, mode="pickle"):
         
     """
     if mode == "pickle":
-        saver = Saver()
+        saver = Saver(mode = Saver.PICKLE)
     elif mode == "json":
-        saver = JSONSaver()
+        saver = Saver(mode = Saver.JSON)
         
     obj.acceptVisitor(saver)
     saver.dump(filename)
-    # cPickle.UnpicklingError
-    # ValueError
 
 def load(filename, mode = None):
     """
@@ -108,8 +106,14 @@ def load(filename, mode = None):
     f = open(filename,'r')
     try:
         rawdata = cPickle.load(f)
+        return rawdata
     except cPickle.UnpicklingError:
         print "Could not decode pickle, trying JSON"
+    finally:
+        f.close()
+        
+    f = open(filename,'r')
+    try:
         rawdata = json.load(f, cls = pyvsimJSONDecoder)
     finally:
         f.close()
@@ -432,22 +436,40 @@ class Saver(Visitor):
     
     Use when performance and reliability are desired.
     """
-    def __init__(self):
+    JSON   = 1
+    PICKLE = 0
+    def __init__(self, mode = JSON):
         self.topickle = None
+        self.mode     = mode
         
     def visit(self, obj):
         if obj.parent is None:
             self.topickle = obj
             
     def dump(self, name = None):
-        if name is None:
-            cPickle.dump(self.topickle)
-        else:
-            f = open(name,'w')
-            try:
-                cPickle.dump(self.topickle, f)
-            finally:
-                f.close()
+        if self.mode == Saver.PICKLE:
+            if name is None:
+                cPickle.dumps(self.topickle)
+            else:
+                f = open(name,'w')
+                try:
+                    cPickle.dump(self.topickle, f)
+                finally:
+                    f.close()
+                    
+        elif self.mode == Saver.JSON:
+            if name == None:
+                json.dumps(self.topickle, 
+                           cls = pyvsimJSONEncoder,
+                           indent = 2)
+            else:
+                f = open(name,'w')
+                try:
+                    json.dump(self.topickle, f, 
+                          cls = pyvsimJSONEncoder, 
+                          indent = 2)
+                finally:
+                    f.close()
         
 
 class pyvsimJSONEncoder(json.JSONEncoder):
@@ -550,49 +572,3 @@ class pyvsimJSONDecoder(json.JSONDecoder):
                             self.default(obj["data"][iterator.multi_index])
                 iterator.iternext()
         return np.array(obj["data"])
-
-
-class JSONSaver(Visitor):
-    """
-    This class follows the visitor pattern to traverse the assembly tree
-    and serialize all objects to JSON. There is quite a lot of conversion
-    work being done, since there are many cross-references and numpy arrays
-    (that are not supported by python json implementation), so this method
-    is not fast and not very reliable. The advantage is that is generates
-    human-readable (or almost) outputs.
-    """
-           
-    def __init__(self):
-        Visitor.__init__(self)
-        self.jsonEncoder = None
-        self.topickle    = None
-        
-    def visit(self, obj):
-        """
-        This is the main method to access the assembly tree. Notice that
-        this takes only a snapshot and doesn't store references, so if changes
-        are made, the tree must be visited again.
-        """
-        if obj.parent is None:
-            self.topickle = obj
-                
-    def dump(self, name = None):
-        """
-        Use this to dump the snapshot taken with the "visit" method
-        to a file or to the screen.
-        
-        As the intention of this class is to generate human-readable output,
-        the file contains line breaks and indents.
-        """
-        if name is None:
-            self.jsonEncoder = pyvsimJSONEncoder(mode = 
-                                                 pyvsimJSONEncoder.SCREENMODE)
-            pprint.pprint(self.jsonEncoder.encode(self.myobjects))
-        else:
-#            self.jsonEncoder = pyvsimJSONEncoder(mode = 
-#                                                 pyvsimJSONEncoder.FILEMODE)
-            f = open(name,'w')
-            try:
-                json.dump(self.topickle, f, cls = pyvsimJSONEncoder, indent = 2)
-            finally:
-                f.close()

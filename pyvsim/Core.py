@@ -46,24 +46,24 @@ class PyvsimObject(object):
         """
         visitor.visit(self)
     
-    def sanedict(self):
-        sanedict = copy.deepcopy(self.__dict__) 
-        for k in sanedict.keys():
-            saneobject = sanedict[k]
-            if isinstance(sanedict[k], PyvsimObject):
-                saneobject = sanedict[k].__repr__()
-                
-            if isinstance(sanedict[k], np.ndarray):
-                if sanedict[k].dtype == np.dtype(object):    
-                    for element in np.nditer(sanedict[k], 
-                                             flags=['refs_ok'],
-                                             op_flags=['readwrite']):
-                        element[...] = element[()].__repr__()          
-                saneobject = sanedict[k].tolist()    
-                
-            sanedict[k] = saneobject
-             
-        return sanedict
+#    def sanedict(self):
+#        sanedict = copy.deepcopy(self.__dict__) 
+#        for k in sanedict.keys():
+#            saneobject = sanedict[k]
+#            if isinstance(sanedict[k], PyvsimObject):
+#                saneobject = sanedict[k].__repr__()
+#                
+#            if isinstance(sanedict[k], np.ndarray):
+#                if sanedict[k].dtype == np.dtype(object):    
+#                    for element in np.nditer(sanedict[k], 
+#                                             flags=['refs_ok'],
+#                                             op_flags=['readwrite']):
+#                        element[...] = element[()].__repr__()          
+#                saneobject = sanedict[k].tolist()    
+#                
+#            sanedict[k] = saneobject
+#             
+#        return sanedict
         
     def __repr__(self):
         """

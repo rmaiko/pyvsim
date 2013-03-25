@@ -120,11 +120,6 @@ o3.reference = pl[0]
 pl[0].subsme(o3)
 
 
-
-
-
-
-
 #env = Core.Assembly()
 #c = Toolbox.Camera()
 #v = Core.Volume()
