@@ -14,8 +14,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import copy
-import numpy as np
+import Utils
+import couchdb
+import System
+import json
 
 class PyvsimObject(object):
     instanceCounter          = 0
@@ -45,45 +47,83 @@ class PyvsimObject(object):
             an object inheriting from `:class:~System.Visitor`
         """
         visitor.visit(self)
-    
-#    def sanedict(self):
-#        sanedict = copy.deepcopy(self.__dict__) 
-#        for k in sanedict.keys():
-#            saneobject = sanedict[k]
-#            if isinstance(sanedict[k], PyvsimObject):
-#                saneobject = sanedict[k].__repr__()
-#                
-#            if isinstance(sanedict[k], np.ndarray):
-#                if sanedict[k].dtype == np.dtype(object):    
-#                    for element in np.nditer(sanedict[k], 
-#                                             flags=['refs_ok'],
-#                                             op_flags=['readwrite']):
-#                        element[...] = element[()].__repr__()          
-#                saneobject = sanedict[k].tolist()    
-#                
-#            sanedict[k] = saneobject
-#             
-#        return sanedict
         
     def __repr__(self):
         """
-        Takes an object derived from the Core.PyvsimObject class and generates
-        a string to identify it.
+        Generates a unique string to identify the object
         """
         return ("PYVSIMOBJECT%%" + str(type(self)) +
                 "%%IDNUMBER%%" + str(self.id))
 
     
 class Databasable(object):
+    DB_URL  = Utils.readConfig("Database","databaseAddress")
+    DB_USER = Utils.readConfig("Database","databaseUsername")
+    DB_PASS = Utils.readConfig("Database","databasePassword")
+    _COUCH = None
+
     def __init__(self):
         self.dbParameters = None
+        self.dbName       = None
+        self.name         = None
+        self._db          = None
+        
+    @property
+    def db(self):
+        if Databasable._COUCH is None or self._db is None:
+            self._initializeDB()
+        return self._db
+                         
+    def _initializeDB(self):
+        if Databasable._COUCH is None:
+            print "Connecting to ", Databasable.DB_URL
+            try:
+                Databasable._COUCH = couchdb.Server(Databasable.DB_URL)
+                Databasable._COUCH.resource.credentials = (Databasable.DB_USER,
+                                                           Databasable.DB_PASS,)
+            except couchdb.http.ServerError, e:
+                raise e
+            
+        while not Databasable._COUCH.__nonzero__():
+            print "Waiting"
+            pass
+        
+        if self._db is None:
+            self._db = Databasable._COUCH[self.dbName]
+        
+    def fetchFromDB(self, name):
+        self._fromdb(self.db[name])
+        self.name = name
+        
+    def listDB(self):
+        string = ""
+        for r in self.db.view("_all_docs"):
+            string = r.key + "\n"
+        return string
     
-    def dbdict(self):
+    def contributeToDB(self, overwrite = False):
+        try:
+            self.db[self.name] = self._dbdict()
+        except couchdb.http.ResourceConflict:
+            if overwrite:
+                print "Overwriting existing entry"
+                doc = self.db[self.name]
+                self.db.delete(doc)
+                self.db[self.name] = self._dbdict()
+            else:
+                print "Could not write to DB, probably doc already exists"
+                
+    def _dbdict(self):
         dbdict = {}
         for key in self.dbParameters:
             dbdict[key] = self.__dict__[key]
-        return dbdict
+        sanitized = json.dumps(dbdict, cls = System.pyvsimJSONEncoder)
+        return json.loads(sanitized)
     
-    def fromdb(self, dbdict):
-        for key in dbdict.keys():
-            self.__dict__[key] = dbdict[key]
+    def _fromdb(self, dbdict):
+        for key in self.dbParameters:
+            if isinstance(dbdict[key], dict):
+                self.__dict__[key] = json.loads(json.dumps(dbdict[key]),
+                                                cls = System.pyvsimJSONDecoder)
+            else:
+                self.__dict__[key] = dbdict[key]

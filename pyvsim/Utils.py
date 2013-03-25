@@ -19,6 +19,9 @@ import numpy as np
 import scipy.linalg
 import time
 import warnings
+import ConfigParser
+
+CONFIG_FILE = "./config.dat"
 
 HEXA_CONNECTIVITY = np.array([[0,1,4],
                              [1,5,4],
@@ -50,8 +53,10 @@ HEXA_CONN_PARTIAL = np.array([[1,4,0],
                             [7,5,6],
                             [2,7,6]])
 
-
-
+def readConfig(section, field):
+    parser = ConfigParser.SafeConfigParser()
+    parser.read(CONFIG_FILE)
+    return parser.get(section, field)
 
 def hexaInterpolation(p, hexapoints, values):
     """

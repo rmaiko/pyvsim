@@ -21,6 +21,7 @@ import pyvsim.Utils as Utils
 import pyvsim.Primitives as Primitives
 from scipy.special import erf
 import warnings
+import pyvsim.Core as Core
 
 MEMSIZE     = 1e6
 MEM_SAFETY  = 8
@@ -407,10 +408,16 @@ class Sensor(Primitives.Plane):
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
 
-class Lens(Primitives.Part):
+class Lens(Primitives.Part, Core.Databasable):
     def __init__(self):
         Primitives.Part.__init__(self)
+        Core.Databasable.__init__(self)
         self.name                   = 'Lens '+str(self._id)
+        self.dbName             = "Lenses"
+        self.dbParameters           = ["color", "opacity", "diameter", "length",
+                                       "flangeFocalDistance", "F", "H_scalar",
+                                       "H_line_scalar", "E_scalar", "X_scalar",
+                                       "_Edim", "_Xdim", "distortionParameters"]
         # Plotting parameters
         self.color                      = [0.2,0.2,0.2]
         self.opacity                    = 0.8

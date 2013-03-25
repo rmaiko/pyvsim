@@ -62,13 +62,19 @@ import System
 import Core
 import Toolbox
 import couchdb
+import Library
+import pprint
+import json
 
-#couch = couchdb.Server("https://maiko.iriscouch.com/")
-#print couch
-#db    = couch["test_pyvsim"]
-#for id in db:
-#    print id
-    
+mat = Library.Glass()
+mat.fetchFromDB("“Schott N-BK7 Borosilicate Crown Glass”")
+print mat.listDB()
+mat.contributeToDB()
+#print plastic._dbdict()
+#print plastic.listDB()
+#plastic.fetchFromDB("PMMA a.k.a. acrylic")
+#
+#print plastic.refractiveIndex(532e-9)
 #import ConfigParser
 #parser = ConfigParser.SafeConfigParser()
 #parser.read("config.dat")
@@ -87,37 +93,7 @@ import couchdb
 #    db["foo"] = {1: 2}
 #    print db["foo"]
 
-class test(object):
-    def __init__(self):
-        self.reference = None
-        self.name      = None
-        
-class placeholder(object):
-    def subsme(self, obj):
-        self = obj
-        
-       
-a = np.empty(3, dtype="object")
-#a[1] = ""
-#a[2] = ""
-#a[0] = ""
 
-pl = [placeholder(),placeholder(),placeholder()]
-
-o1 = test()
-o1.name = "o1"
-o1.reference = pl[2]
-pl[0].subsme(o1)
-
-o2 = test()
-o2.name = "o2"
-o2.reference = pl[1]
-pl[0].subsme(o2)
-
-o3 = test()
-o3.name = "o3"
-o3.reference = pl[0]
-pl[0].subsme(o3)
 
 
 #env = Core.Assembly()

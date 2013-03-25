@@ -23,16 +23,15 @@ class Material(Core.PyvsimObject, Core.Databasable):
         Core.Databasable.__init__(self)
         self.name           = 'Material property '+str(self._id)
         self.source         = "None"   
-        self.dbParameters   = ["name",
-                               "source",
-                               "refractiveIndexConstants"]
         
     def refractiveIndex(self, wavelength, position = None):
         raise NotImplementedError
 
-class IdealMaterial(Core.PyvsimObject):
+class IdealMaterial(Material):
     def __init__(self, value = 1):
-        Core.PyvsimObject.__init__(self)
+        Material.__init__(self)
+        self.dbParameters   = ["name",
+                               "value"]
         self.name                     = 'Ideal Material'
         self.source                   = "constant refractive index"
         self.value                    = value
@@ -43,6 +42,10 @@ class IdealMaterial(Core.PyvsimObject):
 class Glass(Material):
     def __init__(self, coeffs = None):
         Material.__init__(self)
+        self.dbName     = "glass"
+        self.dbParameters   = ["name",
+                               "source",
+                               "refractiveIndexConstants"]
         self.name    = 'Schott N-BK7 Borosilicate Crown Glass'    
         if coeffs is None:
             # Add coefficients of BK7 crown glass
@@ -63,6 +66,10 @@ class Glass(Material):
 class Plastic(Material):
     def __init__(self, coeffs = None):
         Material.__init__(self)
+        self.dbName     = "plastic"
+        self.dbParameters   = ["name",
+                               "source",
+                               "refractiveIndexConstants"] 
         self.name                     = "PMMA a.k.a. acrylic"
         if coeffs is None:
             # Add coefficients of BK7 crown glass

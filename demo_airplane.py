@@ -78,6 +78,5 @@ c.calculateMapping(part)
 c.depthOfField()
 # Stop timing
 tic.toc()
-
 # This is to display the scenario
 plot(a)

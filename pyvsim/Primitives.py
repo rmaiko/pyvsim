@@ -1104,6 +1104,15 @@ class Assembly(Component):
         self.material         = Library.IdealMaterial(1)
         self.surfaceProperty            = Component.TRANSPARENT
         
+    def __repr__(self):
+        if self._items is not None:
+            string = Component.__repr__(self) + " with: \n"
+            for item in self._items:
+                string = string +  " * " + item.__repr__() + "\n"
+            string = string + "end " + Component.__repr__(self) + " \n"
+            return string
+        else:
+            return Component.__repr__(self)
     def refractiveIndex(self, wavelength = 532e-9):
         """
         Returns the index of refraction of the material given the wavelength

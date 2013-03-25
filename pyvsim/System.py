@@ -18,10 +18,7 @@ import threading
 import numpy as np
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection, Line3DCollection
 import matplotlib.pyplot as plt
-import copy
-import Primitives
 import Core
-import pprint 
 import json
 import re
 import cPickle
@@ -501,7 +498,7 @@ class pyvsimJSONEncoder(json.JSONEncoder):
                                   default           = None)
         self.serializedObjects  = {}
         
-    def default(self, obj):         
+    def default(self, obj):       
         if isinstance(obj, object):
             temp = {}
             temp["object_module"] = str(obj.__class__.__module__)
