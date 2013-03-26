@@ -98,7 +98,7 @@ class Databasable(object):
     def listDB(self):
         string = ""
         for r in self.db.view("_all_docs"):
-            string = r.key + "\n"
+            string = string + r.key + "\n"
         return string
     
     def contributeToDB(self, overwrite = False):

@@ -68,9 +68,9 @@ import json
 
 
 mat = Library.Glass()
-mat.fetchFromDB("“Schott N-BK7 Borosilicate Crown Glass”")
+#mat.fetchFromDB("Schott N-BK7")
 print mat.listDB()
-mat.contributeToDB()
+
 #print plastic._dbdict()
 #print plastic.listDB()
 #plastic.fetchFromDB("PMMA a.k.a. acrylic")
