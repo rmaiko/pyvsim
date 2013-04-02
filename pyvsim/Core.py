@@ -92,19 +92,47 @@ class Databasable(object):
             self._db = Databasable._COUCH[self.dbName]
         
     def fetchFromDB(self, name):
+        """
+        
+        """
         self._fromdb(self.db[name])
         self.name = name
         
     def listDB(self):
-        string = ""
+        """
+        Returns a list listing the current database entries in the category of 
+        the object. E.g.: using this method in a Glass material will list only
+        the available glasses, etc.
+        
+        Returns
+        -------
+        dblist : list
+            List of strings containing all entries in a database category
+        """
+        dblist = []
         for r in self.db.view("_all_docs"):
-            string = string + r.key + "\n"
-        return string
+            dblist.append(r.key)
+        return dblist
     
     def contributeToDB(self, overwrite = False):
+        """
+        Contributes to the database with the current object parameters. By 
+        default no overwriting is allowed. Each entry is defined by the 
+        "name" field.
+        
+        Parameters
+        ----------
+        overwrite : boolean
+            If False, will not allow an entry in the database to be modified.
+            
+        Raises
+        ------
+        couchdb.http.ResourceConflict
+            When an entry with the same name already exists in the database
+        """
         try:
             self.db[self.name] = self._dbdict()
-        except couchdb.http.ResourceConflict:
+        except couchdb.http.ResourceConflict, err:
             if overwrite:
                 print "Overwriting existing entry"
                 doc = self.db[self.name]
@@ -112,8 +140,19 @@ class Databasable(object):
                 self.db[self.name] = self._dbdict()
             else:
                 print "Could not write to DB, probably doc already exists"
+                raise err
                 
     def _dbdict(self):
+        """
+        Created a dict only with the object entries that should be stored in 
+        the database. These entries are defined in self.dbParameters.
+        
+        Returns
+        -------
+        dbdict : dict
+            A JSON serializable dict created with System.pyvsimJSONEncoder with
+            entries defined in self.dbParameters
+        """
         dbdict = {}
         for key in self.dbParameters:
             dbdict[key] = self.__dict__[key]
@@ -121,6 +160,23 @@ class Databasable(object):
         return json.loads(sanitized)
     
     def _fromdb(self, dbdict):
+        """
+        Redefines the current object with data received from the database in 
+        the form of a dictionary.
+        
+        Parameters
+        ----------
+        dbdict : dict
+            A dict received from the database and decodable by 
+            pyvsimJSONDecoder. The dict must have all the fields defined in
+            self.dbParameters
+            
+        Raises
+        ------
+        KeyError
+            If the received dict doesn't have all the parameters defined in
+            self.dbParameters
+        """
         for key in self.dbParameters:
             if isinstance(dbdict[key], dict):
                 self.__dict__[key] = json.loads(json.dumps(dbdict[key]),
