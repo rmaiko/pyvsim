@@ -408,10 +408,10 @@ class Sensor(Primitives.Plane):
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
 
-class Lens(Primitives.Part, Core.Databasable):
+class Lens(Primitives.Part, Core.PyvsimDatabasable):
     def __init__(self):
         Primitives.Part.__init__(self)
-        Core.Databasable.__init__(self)
+        Core.PyvsimDatabasable.__init__(self)
         self.name                   = 'Lens '+str(self._id)
         self.dbName             = "Lenses"
         self.dbParameters           = ["color", "opacity", "diameter", "length",

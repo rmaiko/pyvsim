@@ -20,56 +20,40 @@ limitations under the License.
 Just a sandbox for trying code snippets that I'm not sure how they 
 work.
 """
-#class test(object):
-#    def __init__(self):
-#        self.points = [1,2,3]
-##        
-#class test2(test):
-#    def __init__(self):
-#        test.__init__(self)
-#        self._other = "other"
-#        self._points = 1
+class test(object):
+    def __init__(self):
+        self.points = [1,2,3]
+        
+    def vars(self):
+        md = self.__dict__
+        md["lala"] = "lele"
+        return md
+   
+import pprint     
+print dir(test)
+mt = test()
+print vars(mt)
 #        
-#    @property
-#    def points(self, test = 1):
-#        print "Activated getter"
-#        return self._points + test
-#    
-#    @points.setter
-#    def points(self,v):
-#        print "Activated setter"
-#        self._points = v
-#        
-#    @property
-#    def other(self):
-#        print "Other getter"
-#        return self._other
-#    
-#    @other.setter
-#    def other(self,v):
-#        print "Other setter"
-#        self._other = v
-##        
-##t1 = test()
-##print t1.points
-##
+#t1 = test()
+#print t1.points
+#
 #t2 = test2()
 #print t2.points(3)
 
-import numpy as np
-import Utils
-import System
-import Core
-import Toolbox
-import couchdb
-import Library
-import pprint
-import json
+#import numpy as np
+#import Utils
+#import System
+#import Core
+#import Toolbox
+#import couchdb
+#import Library
+#import pprint
+#import json
 
 
-mat = Library.Glass()
+#mat = Library.Glass()
 #mat.fetchFromDB("Schott N-BK7")
-print mat.listDB()
+#print mat.listDB()
 
 #print plastic._dbdict()
 #print plastic.listDB()

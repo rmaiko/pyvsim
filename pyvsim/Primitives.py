@@ -415,6 +415,15 @@ class Part(Component):
         self._trianglePoints            = None
         self._triangleNormals           = None
         self._triVectorsDots            = None
+        """
+        This avoids the saving of the specific ray tracing variables, which
+        can consume a lot of storage while being more or less easy to be
+        calculated when ray tracing is performed
+        """
+        self.transientFields.extend(["_bounds",
+                                     "_triangleVectors",
+                                     "_triangleNormals",
+                                     "_triVectorsDots"])
         
     def refractiveIndex(self, wavelength = 532e-9):
         """

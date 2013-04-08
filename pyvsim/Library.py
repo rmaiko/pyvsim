@@ -17,10 +17,10 @@ limitations under the License.
 import numpy as np
 import Core
 
-class Material(Core.PyvsimObject, Core.Databasable):
+class Material(Core.PyvsimDatabasable):
     def __init__(self):
         Core.PyvsimObject.__init__(self)
-        Core.Databasable.__init__(self)
+        Core.PyvsimDatabasable.__init__(self)
         self.name           = 'Material property '+str(self._id)
         self.source         = "None"   
         
@@ -66,11 +66,11 @@ class Glass(Material):
 class Plastic(Material):
     def __init__(self, coeffs = None):
         Material.__init__(self)
-        self.dbName     = "plastic"
+        self.dbName         = "plastic"
         self.dbParameters   = ["name",
                                "source",
                                "refractiveIndexConstants"] 
-        self.name                     = "PMMA a.k.a. acrylic"
+        self.name           = "PMMA a.k.a. acrylic"
         if coeffs is None:
             # Add coefficients of BK7 crown glass
             self.source  = ("Sultanova, N.; Kasarova, S. & Nikolov, I. " +

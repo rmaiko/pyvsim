@@ -26,9 +26,17 @@ class PyvsimObject(object):
         self._id                           = PyvsimObject.instanceCounter
         self.name                          = str(self._id)
         PyvsimObject.instanceCounter      += 1
+        self.transientFields               = []
         
     @property
     def id(self):               return self._id
+
+    def __getstate__(self):
+        mydict = self.__dict__
+        if self.transientFields is not None:
+            for key in self.transientFields:
+                mydict[key] = None
+        return mydict
     
     def acceptVisitor(self, visitor):
         """
@@ -56,40 +64,44 @@ class PyvsimObject(object):
                 "%%IDNUMBER%%" + str(self.id))
 
     
-class Databasable(object):
+class PyvsimDatabasable(PyvsimObject):
     DB_URL  = Utils.readConfig("Database","databaseAddress")
     DB_USER = Utils.readConfig("Database","databaseUsername")
     DB_PASS = Utils.readConfig("Database","databasePassword")
-    _COUCH = None
+    _COUCH  = None
 
     def __init__(self):
-        self.dbParameters = None
-        self.dbName       = None
-        self.name         = None
-        self._db          = None
+        self.dbParameters       = None
+        self.dbName             = None
+        self.name               = None
+        self._db                = None
+        self.transientFields.extend(["_db"])
         
     @property
     def db(self):
-        if Databasable._COUCH is None or self._db is None:
+        """
+        Returns the database object where libraries of parameters are stored.
+        """
+        if PyvsimDatabasable._COUCH is None or self._db is None:
             self._initializeDB()
         return self._db
                          
     def _initializeDB(self):
-        if Databasable._COUCH is None:
-            print "Connecting to ", Databasable.DB_URL
+        if PyvsimDatabasable._COUCH is None:
+            print "Connecting to ", PyvsimDatabasable.DB_URL
             try:
-                Databasable._COUCH = couchdb.Server(Databasable.DB_URL)
-                Databasable._COUCH.resource.credentials = (Databasable.DB_USER,
-                                                           Databasable.DB_PASS,)
+                PyvsimDatabasable._COUCH = couchdb.Server(PyvsimDatabasable.DB_URL)
+                PyvsimDatabasable._COUCH.resource.credentials = \
+                    (PyvsimDatabasable.DB_USER, PyvsimDatabasable.DB_PASS)
             except couchdb.http.ServerError, e:
                 raise e
             
-        while not Databasable._COUCH.__nonzero__():
+        while not PyvsimDatabasable._COUCH.__nonzero__():
             print "Waiting"
             pass
         
         if self._db is None:
-            self._db = Databasable._COUCH[self.dbName]
+            self._db = PyvsimDatabasable._COUCH[self.dbName]
         
     def fetchFromDB(self, name):
         """

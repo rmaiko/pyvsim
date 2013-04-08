@@ -510,8 +510,12 @@ class pyvsimJSONEncoder(json.JSONEncoder):
                 return temp
             if self.serializedObjects.has_key(id(obj)):
                 temp["object_dict"] = None
-            else:    
-                temp["object_dict"] = obj.__dict__
+            else: 
+                try:   
+                    temp["object_dict"] = obj.__getstate__()
+                except AttributeError:
+                    temp["object_dict"] = obj.__dict__
+
                 self.serializedObjects[id(obj)] = temp
             return temp   
         
