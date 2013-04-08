@@ -15,7 +15,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import Utils
-import couchdb
+import DBFacade
 import System
 import json
 
@@ -32,10 +32,19 @@ class PyvsimObject(object):
     def id(self):               return self._id
 
     def __getstate__(self):
+        """
+        This function provides the infrastructure for transient fields (those
+        which are not serialized) which works both for builtin python pickle
+        and pyvsimJSON.
+        
+        Returns
+        -------
+        mydict : dict
+            Persistence dictionary, with transient fields set to None
+        """
         mydict = self.__dict__
-        if self.transientFields is not None:
-            for key in self.transientFields:
-                mydict[key] = None
+        for key in self.transientFields:
+            mydict[key] = None
         return mydict
     
     def acceptVisitor(self, visitor):
@@ -65,10 +74,10 @@ class PyvsimObject(object):
 
     
 class PyvsimDatabasable(PyvsimObject):
+    DB_OBJ  = Utils.readConfig("Database","databaseType")
     DB_URL  = Utils.readConfig("Database","databaseAddress")
     DB_USER = Utils.readConfig("Database","databaseUsername")
     DB_PASS = Utils.readConfig("Database","databasePassword")
-    _COUCH  = None
 
     def __init__(self):
         self.dbParameters       = None
@@ -82,96 +91,22 @@ class PyvsimDatabasable(PyvsimObject):
         """
         Returns the database object where libraries of parameters are stored.
         """
-        if PyvsimDatabasable._COUCH is None or self._db is None:
+        if self._db is None:
             self._initializeDB()
         return self._db
                          
     def _initializeDB(self):
-        if PyvsimDatabasable._COUCH is None:
-            print "Connecting to ", PyvsimDatabasable.DB_URL
-            try:
-                PyvsimDatabasable._COUCH = couchdb.Server(PyvsimDatabasable.DB_URL)
-                PyvsimDatabasable._COUCH.resource.credentials = \
-                    (PyvsimDatabasable.DB_USER, PyvsimDatabasable.DB_PASS)
-            except couchdb.http.ServerError, e:
-                raise e
-            
-        while not PyvsimDatabasable._COUCH.__nonzero__():
-            print "Waiting"
-            pass
+        pkg         = __import__("pyvsim")
+        mod         = getattr(pkg,"DBFacade")
+        self._db    = getattr(mod,
+              PyvsimDatabasable.DB_OBJ)(dburl = PyvsimDatabasable.DB_URL, 
+                                        dbName = self.dbName, 
+                                        username = PyvsimDatabasable.DB_USER, 
+                                        password = PyvsimDatabasable.DB_PASS)
         
-        if self._db is None:
-            self._db = PyvsimDatabasable._COUCH[self.dbName]
+        
         
     def fetchFromDB(self, name):
-        """
-        
-        """
-        self._fromdb(self.db[name])
-        self.name = name
-        
-    def listDB(self):
-        """
-        Returns a list listing the current database entries in the category of 
-        the object. E.g.: using this method in a Glass material will list only
-        the available glasses, etc.
-        
-        Returns
-        -------
-        dblist : list
-            List of strings containing all entries in a database category
-        """
-        dblist = []
-        for r in self.db.view("_all_docs"):
-            dblist.append(r.key)
-        return dblist
-    
-    def contributeToDB(self, overwrite = False):
-        """
-        Contributes to the database with the current object parameters. By 
-        default no overwriting is allowed. Each entry is defined by the 
-        "name" field.
-        
-        Parameters
-        ----------
-        overwrite : boolean
-            If False, will not allow an entry in the database to be modified.
-            
-        Raises
-        ------
-        couchdb.http.ResourceConflict
-            When an entry with the same name already exists in the database
-        """
-        try:
-            self.db[self.name] = self._dbdict()
-        except couchdb.http.ResourceConflict, err:
-            if overwrite:
-                print "Overwriting existing entry"
-                doc = self.db[self.name]
-                self.db.delete(doc)
-                self.db[self.name] = self._dbdict()
-            else:
-                print "Could not write to DB, probably doc already exists"
-                raise err
-                
-    def _dbdict(self):
-        """
-        Created a dict only with the object entries that should be stored in 
-        the database. These entries are defined in self.dbParameters.
-        
-        Returns
-        -------
-        dbdict : dict
-            A JSON serializable dict created with System.pyvsimJSONEncoder with
-            entries defined in self.dbParameters
-        """
-        dbdict = {}
-        for key in self.dbParameters:
-            dbdict[key] = self.__dict__[key]
-        sanitized = json.dumps(dbdict, cls = System.pyvsimJSONEncoder)
-        return json.loads(sanitized)
-    
-    def _fromdb(self, dbdict):
         """
         Redefines the current object with data received from the database in 
         the form of a dictionary.
@@ -189,9 +124,56 @@ class PyvsimDatabasable(PyvsimObject):
             If the received dict doesn't have all the parameters defined in
             self.dbParameters
         """
+        dbdict = self.db.fromdb(name)
         for key in self.dbParameters:
-            if isinstance(dbdict[key], dict):
-                self.__dict__[key] = json.loads(json.dumps(dbdict[key]),
-                                                cls = System.pyvsimJSONDecoder)
-            else:
-                self.__dict__[key] = dbdict[key]
+            self.__dict__[key] = dbdict[key]
+        self.name = name
+        
+    def listDB(self):
+        """
+        Returns a list listing the current database entries in the category of 
+        the object. E.g.: using this method in a Glass material will list only
+        the available glasses, etc.
+        
+        Returns
+        -------
+        dblist : list
+            List of strings containing all entries in a database category
+        """
+        return self.db.listdb()
+    
+    def contributeToDB(self, overwrite = False):
+        """
+        Contributes to the database with the current object parameters. By 
+        default no overwriting is allowed. Each entry is defined by the 
+        "name" field.
+        
+        Parameters
+        ----------
+        overwrite : boolean
+            If False, will not allow an entry in the database to be modified.
+            
+        Raises
+        ------
+        ValueError
+            When an entry with the same name already exists in the database
+        """
+        dbdict = self._dbdict()
+        self.db.todb(self.name, dbdict, overwrite)
+       
+                
+    def _dbdict(self):
+        """
+        Created a dict only with the object entries that should be stored in 
+        the database. These entries are defined in self.dbParameters.
+        
+        Returns
+        -------
+        dbdict : dict
+            A JSON serializable dict created with System.pyvsimJSONEncoder with
+            entries defined in self.dbParameters
+        """
+        dbdict = {}
+        for key in self.dbParameters:
+            dbdict[key] = self.__dict__[key]
+        return dbdict

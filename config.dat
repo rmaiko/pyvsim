@@ -1,4 +1,5 @@
 [Database]
-databaseAddress = https://maiko.iriscouch.com
+databaseType     = Couchpyvsim
+databaseAddress  = https://maiko.iriscouch.com
 databaseUsername = visitor
 databasePassword = verysecret

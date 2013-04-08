@@ -421,6 +421,7 @@ class Part(Component):
         calculated when ray tracing is performed
         """
         self.transientFields.extend(["_bounds",
+                                     "_trianglePoints"
                                      "_triangleVectors",
                                      "_triangleNormals",
                                      "_triVectorsDots"])
