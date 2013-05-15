@@ -58,6 +58,7 @@ class Component(Core.PyvsimObject):
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
         self.parent                     = None
+        self._depth                     = None
                
     @property
     def x(self):                return self._x
@@ -69,6 +70,15 @@ class Component(Core.PyvsimObject):
     def origin(self):           return self._origin 
     @property
     def bounds(self):           return None
+    @property
+    def depth(self):
+        """
+        Return the depth of the component within a tree
+        """
+        if self.parent is None:
+            self._depth = 0
+        else:
+            self._depth = 1 + self.parent.depth
                                  
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
@@ -328,6 +338,338 @@ class Component(Core.PyvsimObject):
         not valid anymore.
         """
         raise NotImplementedError
+
+class Assembly(Component):
+    """
+    The assembly class is a non-terminal node in the Components tree. It carries
+    almost no properties of its own, but makes sure that all geometrical 
+    transformations are propagated to its subcomponents.
+    
+    The subcomponents are stored in a numpy array. This is definetely not
+    always needed (except when fancy slicing is desired), but this keeps
+    the consistency all along the code, making all lists instances of
+    numpy.ndarray.
+    """
+    def __init__(self):
+        self._items                     = np.array([])
+        self._bounds                    = None
+        self.surfaceProperty            = Component.TRANSPARENT
+        Component.__init__(self)
+        self.name                       = 'Assembly '+str(self._id)
+        # Ray tracing properties
+        self.material         = Library.IdealMaterial(1)
+        self.surfaceProperty            = Component.TRANSPARENT
+        
+    def __repr__(self):
+        if self._items is not None:
+            string = Component.__repr__(self) + " with: \n"
+            for item in self._items:
+                string = string +  " * " + item.__repr__() + "\n"
+            string = string + "end " + Component.__repr__(self) + " \n"
+            return string
+        else:
+            return Component.__repr__(self)
+        
+    def refractiveIndex(self, wavelength = 532e-9):
+        """
+        Returns the index of refraction of the material given the wavelength
+        (or a list of them)
+        
+        Parameters
+        ----------
+        wavelength : scalar or numpy.array
+            The wavelength of the incoming light given in *meters*
+        
+        Returns
+        -------
+        refractiveIndex : same dimension as wavelength
+            The index of refraction
+        """       
+        return self.material.refractiveIndex(wavelength)
+          
+    @property
+    def bounds(self):
+        if self._bounds is None:
+            mini =  np.ones((len(self.items),3))*1000
+            maxi = -np.ones((len(self.items),3))*1000
+            if len(self._items) > 0:
+                for n in range(len(self._items)):
+                    b = self._items[n].bounds
+                    if b is not None:
+                        [mini[n],maxi[n]] = b 
+                self._bounds = np.array([np.min(mini,0),np.max(maxi,0)])  
+        return self._bounds
+    
+    @property
+    def items(self):
+        return self._items
+    
+    @items.setter
+    def items(self,value):
+        self._items = value
+        for part in self._items:
+            part.parent = self
+            
+    @items.deleter
+    def items(self):
+        del self._items
+        
+    def insert(self, component, n = None, overwrite = False):
+        """
+        Adds element at the component list. 
+        
+        Parameters
+        ----------
+        component : Component
+            The Component to be added
+        n : int = None
+            [Optional] The position of the component to be added. If no 
+            parameter is given, the element is added at the end of the list, 
+            otherwise it is added at the n-th position.
+        overwrite : boolean = False
+            [Optional] If the parameter n is given *and* the n-th position is
+            occunp.pied, this flag specifies whether the element at this position
+            should be overwritten (True) of simply shifted (False).
+        
+        Returns
+        -------
+        n
+            The list length.
+        """
+        if n is None:
+            self._items = np.append(self._items, component)
+        else:
+            if not overwrite or len(self._items) < n+1:
+                self._items = np.insert(self._items, n, component)
+            else:
+                self._items[n] = component
+            
+        component.parent = self
+        self._bounds = None
+        return len(self._items)
+        
+    def remove(self, n):
+        """
+        Remove the element at the n-th position of the component list. This
+        also de-registers this assembly as its parent.
+        
+        Parameters
+        ----------
+        n
+            The position of the element
+            
+        Returns
+        -------
+        element
+            A reference to the element, if one is to re-use that.
+        """
+        element = self._items[n]
+        self._items[n].parent = None
+        self._items = np.delete(self._items, n)
+        return element
+        
+    def acceptVisitor(self, visitor):
+        """
+        This method is a provision for the `Visitor Pattern 
+        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`  and is be used
+        for traversing the tree.
+        
+        As an assembly has sub-elements, we must iterate through them
+        """
+        visitor.visit(self)
+        for part in self._items:
+            part.acceptVisitor(visitor)
+      
+    def _boundingBoxTest(self, bounds, p0, p1):
+        """ 
+        Determines if lines defined by the segments p0-p1 intersects the box 
+        bounding the polygon
+        
+        The algorithm implemented was taken from:
+        author = {Amy Williams and Steve Barrus and R. Keith and Morley Peter 
+        Shirley},
+        title = {An efficient and robust ray-box intersection algorithm},
+        journal = {Journal of Graphics Tools},
+        year = {2003},
+        volume = {10},
+        pages = {54}
+        
+        It was written in a way to accept a list of lines.
+        
+        In the code, there is the following trick::
+        
+            V[V == 0] = GLOBAL_TOL
+        
+        Which seems to work to avoid the creation of NaNs in the calculation.
+        
+        Parameters
+        ----------
+        bounds : numpy.array([[xmin,ymin,zmin],[xmax,ymax,zmax]])
+            the dimensions of the bounding box
+        p0 : numpy.array (N x 3)
+            segment initial point - accepts simultaneous calculation of N 
+            points
+        p1 : numpy.array (N x 3)
+            segment final point   - accepts simultaneous calculation of N 
+            points
+        
+        Returns
+        -------
+        +----------------------+----+
+        | if intersection      |  1 |
+        +----------------------+----+
+        |if not intersection   |  0 | 
+        +----------------------+----+
+        if N lives were given, will return a N-long numpy.array
+        """
+        [xmin,xmax] =  bounds
+
+        V = p1 - p0
+
+        V[V == 0] = GLOBAL_TOL
+
+        T1 = (xmin - p0) / V
+        T2 = (xmax - p0) / V
+
+        Tmin = T1 * (V >= 0) + T2 * (V < 0)
+        Tmax = T2 * (V >= 0) + T1 * (V < 0)
+
+        eliminated1 = (Tmin[:,0] > Tmax[:,1]) + (Tmin[:,1] > Tmax[:,0])
+
+        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,1] <= Tmin[:,0]) + 
+                     Tmin[:,1] * (Tmin[:,1] > Tmin[:,0]))
+                    
+        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,1] >= Tmax[:,0]) + 
+                     Tmax[:,1] * (Tmax[:,1] < Tmax[:,0]))
+                    
+                
+        eliminated2 = (Tmin[:,0] > Tmax[:,2]) + (Tmin[:,2] > Tmax[:,0])
+
+        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,2] <= Tmin[:,0]) + 
+                     Tmin[:,2] * (Tmin[:,2] > Tmin[:,0]))
+                    
+        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,2] >= Tmax[:,0]) + 
+                     Tmax[:,2] * (Tmax[:,2] < Tmax[:,0]))
+                    
+        eliminated3 = (Tmin[:,0] > 1) + (Tmax[:,0] < 0)
+
+        return 1 - (eliminated1 + eliminated2 + eliminated3)
+          
+    def intersections(self, p0, p1, tol = GLOBAL_TOL):
+        """
+        This method searches for intersections between a given set of line
+        segments and the Parts included in this Assembly. Please check the
+        documentation at `:class:~Core.Part` for a better description of its
+        internals.
+        
+        Parameters
+        ----------
+        p0, p1 - numpy.array (N x 3)
+            Coordinates defining N segments by 2 points (each p0, p1 pair), 
+            which will be tested for intersection with the polygons defined in 
+            the structure.
+        tol - double
+            Tolerance used in the criteria for intersection (see documentation
+            of each implementation)
+            
+        Returns
+        -------
+        None
+            If no intersections are found. Otherwise returns a list with::
+        lineParameter
+            This is used to indicate how far the intersection point is from the
+            segment starting point, if 0, the intersection is at p0 and if 1, 
+            the intersection is at p1
+            
+            *Iff* the parameter is > 1 (999), no intersection was found   
+        intersectionCoordinates
+            This is where the intersections are found   
+        triangleIndexes
+            This is the index of the triangle where the intersection was found.
+            If no intersection found, will return 0, *but attention*, the only
+            way to guarantee that no intersection was found is when the 
+            lineParameter is zero.
+        normals
+            The normal vector at the intersection point (if the surface is
+            defined with normals at vertices, interpolation is performed).   
+        part
+            A list with references to this object. This is, in this case, 
+            redundant, but that makes the function signature uniform with the
+            `:class:~Core.Assembly`
+        """
+        nlins               = np.size(p0,0)
+        ndim                = np.size(p0,1)
+        
+        lineParameter       = np.zeros(nlins) + 999
+        coordinates         = copy.deepcopy(p1)
+        triangleNumber      = np.zeros(nlins)
+        normalVector        = np.zeros((nlins,ndim))
+        intersectedSurface  = np.array([None] * nlins)
+        
+        for part in self._items:    
+            if part.bounds is not None:        
+                boxTest = self._boundingBoxTest(part.bounds, p0, p1)
+                if np.sum(boxTest) > 0:
+                    p0_refined = p0[boxTest == 1]
+                    p1_refined = p1[boxTest == 1]
+                    
+                    [lineT, 
+                     coords,                
+                     triInd, 
+                     N, 
+                     partList]  = part.intersections(p0_refined, 
+                                                     p1_refined, 
+                                                     tol)
+                    
+                    # Create a mask of elements which must be substituted
+                    lineParameter_temp                  = np.zeros(nlins) + 999
+                    lineParameter_temp[boxTest == 1]    = lineT
+                    # This mask is used for the arrays that contain the answer
+                    maskLong         = lineParameter > lineParameter_temp
+                    # This mask is for the result of part.intersections
+                    maskShort        = lineParameter[boxTest == 1] > lineT
+                    lineParameter[maskLong]         = lineT[maskShort]
+                    coordinates[maskLong]           = coords[maskShort]
+                    triangleNumber[maskLong]        = triInd[maskShort]
+                    normalVector[maskLong]          = N[maskShort]
+                    intersectedSurface[maskLong]    = partList[maskShort]
+                else:
+                    pass # if nothing was found, nothing was found
+              
+        return [lineParameter, 
+                coordinates, 
+                triangleNumber, 
+                normalVector, 
+                intersectedSurface]
+      
+    def translateImplementation(self, vector):
+        """
+        This method iterates the translation to all the items found in the list,
+        making the `:meth:~Core.Component.translate` method be executed through
+        the whole components tree.
+        """
+        for part in self._items:
+            part.translate(vector)
+               
+    def rotateImplementation(self, angle, axis, pivotPoint):
+        """
+        This method iterates the rotation to all the items found in the list,
+        making the `:meth:~Core.Component.rotate` method be executed through
+        the whole components tree.
+        """
+        for part in self._items:
+            part.rotate(angle, axis, pivotPoint)
+    
+    def clearData(self):
+        """
+        This method iterates the clearData to all the items found in the list,
+        making the `:meth:~Core.Component.clearData` method be executed through
+        the whole components tree.
+        """
+        self._bounds = None
+        for part in self._items:
+            part.clearData()
+
 
 class Line(Component):
     """
@@ -1093,335 +1435,6 @@ class Volume(Part):
         """
         return Utils.pointInHexa(p,self.points)    
     
-class Assembly(Component):
-    """
-    The assembly class is a non-terminal node in the Components tree. It carries
-    almost no properties of its own, but makes sure that all geometrical 
-    transformations are propagated to its subcomponents.
-    
-    The subcomponents are stored in a numpy array. This is definetely not
-    always needed (except when fancy slicing is desired), but this keeps
-    the consistency all along the code, making all lists instances of
-    numpy.ndarray.
-    """
-    def __init__(self):
-        self._items                     = np.array([])
-        self._bounds                    = None
-        self.surfaceProperty            = Component.TRANSPARENT
-        Component.__init__(self)
-        self.name                       = 'Assembly '+str(self._id)
-        # Ray tracing properties
-        self.material         = Library.IdealMaterial(1)
-        self.surfaceProperty            = Component.TRANSPARENT
-        
-    def __repr__(self):
-        if self._items is not None:
-            string = Component.__repr__(self) + " with: \n"
-            for item in self._items:
-                string = string +  " * " + item.__repr__() + "\n"
-            string = string + "end " + Component.__repr__(self) + " \n"
-            return string
-        else:
-            return Component.__repr__(self)
-    def refractiveIndex(self, wavelength = 532e-9):
-        """
-        Returns the index of refraction of the material given the wavelength
-        (or a list of them)
-        
-        Parameters
-        ----------
-        wavelength : scalar or numpy.array
-            The wavelength of the incoming light given in *meters*
-        
-        Returns
-        -------
-        refractiveIndex : same dimension as wavelength
-            The index of refraction
-        """       
-        return self.material.refractiveIndex(wavelength)
-          
-    @property
-    def bounds(self):
-        if self._bounds is None:
-            mini =  np.ones((len(self.items),3))*1000
-            maxi = -np.ones((len(self.items),3))*1000
-            if len(self._items) > 0:
-                for n in range(len(self._items)):
-                    b = self._items[n].bounds
-                    if b is not None:
-                        [mini[n],maxi[n]] = b 
-                self._bounds = np.array([np.min(mini,0),np.max(maxi,0)])  
-        return self._bounds
-    
-    @property
-    def items(self):
-        return self._items
-    
-    @items.setter
-    def items(self,value):
-        self._items = value
-        for part in self._items:
-            part.parent = self
-            
-    @items.deleter
-    def items(self):
-        del self._items
-        
-    def insert(self, component, n = None, overwrite = False):
-        """
-        Adds element at the component list. 
-        
-        Parameters
-        ----------
-        component : Component
-            The Component to be added
-        n : int = None
-            [Optional] The position of the component to be added. If no 
-            parameter is given, the element is added at the end of the list, 
-            otherwise it is added at the n-th position.
-        overwrite : boolean = False
-            [Optional] If the parameter n is given *and* the n-th position is
-            occunp.pied, this flag specifies whether the element at this position
-            should be overwritten (True) of simply shifted (False).
-        
-        Returns
-        -------
-        n
-            The list length.
-        """
-        if n is None:
-            self._items = np.append(self._items, component)
-        else:
-            if not overwrite or len(self._items) < n+1:
-                self._items = np.insert(self._items, n, component)
-            else:
-                self._items[n] = component
-            
-        component.parent = self
-        self._bounds = None
-        return len(self._items)
-        
-    def remove(self, n):
-        """
-        Remove the element at the n-th position of the component list. This
-        also de-registers this assembly as its parent.
-        
-        Parameters
-        ----------
-        n
-            The position of the element
-            
-        Returns
-        -------
-        element
-            A reference to the element, if one is to re-use that.
-        """
-        element = self._items[n]
-        self._items[n].parent = None
-        self._items = np.delete(self._items, n)
-        return element
-        
-    def acceptVisitor(self, visitor):
-        """
-        This method is a provision for the `Visitor Pattern 
-        <http://http://en.wikipedia.org/wiki/Visitor_pattern>`  and is be used
-        for traversing the tree.
-        
-        As an assembly has sub-elements, we must iterate through them
-        """
-        visitor.visit(self)
-        for part in self._items:
-            part.acceptVisitor(visitor)
-      
-    def _boundingBoxTest(self, bounds, p0, p1):
-        """ 
-        Determines if lines defined by the segments p0-p1 intersects the box 
-        bounding the polygon
-        
-        The algorithm implemented was taken from:
-        author = {Amy Williams and Steve Barrus and R. Keith and Morley Peter 
-        Shirley},
-        title = {An efficient and robust ray-box intersection algorithm},
-        journal = {Journal of Graphics Tools},
-        year = {2003},
-        volume = {10},
-        pages = {54}
-        
-        It was written in a way to accept a list of lines.
-        
-        In the code, there is the following trick::
-        
-            V[V == 0] = GLOBAL_TOL
-        
-        Which seems to work to avoid the creation of NaNs in the calculation.
-        
-        Parameters
-        ----------
-        bounds : numpy.array([[xmin,ymin,zmin],[xmax,ymax,zmax]])
-            the dimensions of the bounding box
-        p0 : numpy.array (N x 3)
-            segment initial point - accepts simultaneous calculation of N 
-            points
-        p1 : numpy.array (N x 3)
-            segment final point   - accepts simultaneous calculation of N 
-            points
-        
-        Returns
-        -------
-        +----------------------+----+
-        | if intersection      |  1 |
-        +----------------------+----+
-        |if not intersection   |  0 | 
-        +----------------------+----+
-        if N lives were given, will return a N-long numpy.array
-        """
-        [xmin,xmax] =  bounds
-
-        V = p1 - p0
-
-        V[V == 0] = GLOBAL_TOL
-
-        T1 = (xmin - p0) / V
-        T2 = (xmax - p0) / V
-
-        Tmin = T1 * (V >= 0) + T2 * (V < 0)
-        Tmax = T2 * (V >= 0) + T1 * (V < 0)
-
-        eliminated1 = (Tmin[:,0] > Tmax[:,1]) + (Tmin[:,1] > Tmax[:,0])
-
-        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,1] <= Tmin[:,0]) + 
-                     Tmin[:,1] * (Tmin[:,1] > Tmin[:,0]))
-                    
-        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,1] >= Tmax[:,0]) + 
-                     Tmax[:,1] * (Tmax[:,1] < Tmax[:,0]))
-                    
-                
-        eliminated2 = (Tmin[:,0] > Tmax[:,2]) + (Tmin[:,2] > Tmax[:,0])
-
-        Tmin[:,0] = (Tmin[:,0] * (Tmin[:,2] <= Tmin[:,0]) + 
-                     Tmin[:,2] * (Tmin[:,2] > Tmin[:,0]))
-                    
-        Tmax[:,0] = (Tmax[:,0] * (Tmax[:,2] >= Tmax[:,0]) + 
-                     Tmax[:,2] * (Tmax[:,2] < Tmax[:,0]))
-                    
-        eliminated3 = (Tmin[:,0] > 1) + (Tmax[:,0] < 0)
-
-        return 1 - (eliminated1 + eliminated2 + eliminated3)
-          
-    def intersections(self, p0, p1, tol = GLOBAL_TOL):
-        """
-        This method searches for intersections between a given set of line
-        segments and the Parts included in this Assembly. Please check the
-        documentation at `:class:~Core.Part` for a better description of its
-        internals.
-        
-        Parameters
-        ----------
-        p0, p1 - numpy.array (N x 3)
-            Coordinates defining N segments by 2 points (each p0, p1 pair), 
-            which will be tested for intersection with the polygons defined in 
-            the structure.
-        tol - double
-            Tolerance used in the criteria for intersection (see documentation
-            of each implementation)
-            
-        Returns
-        -------
-        None
-            If no intersections are found. Otherwise returns a list with::
-        lineParameter
-            This is used to indicate how far the intersection point is from the
-            segment starting point, if 0, the intersection is at p0 and if 1, 
-            the intersection is at p1
-            
-            *Iff* the parameter is > 1 (999), no intersection was found   
-        intersectionCoordinates
-            This is where the intersections are found   
-        triangleIndexes
-            This is the index of the triangle where the intersection was found.
-            If no intersection found, will return 0, *but attention*, the only
-            way to guarantee that no intersection was found is when the 
-            lineParameter is zero.
-        normals
-            The normal vector at the intersection point (if the surface is
-            defined with normals at vertices, interpolation is performed).   
-        part
-            A list with references to this object. This is, in this case, 
-            redundant, but that makes the function signature uniform with the
-            `:class:~Core.Assembly`
-        """
-        nlins               = np.size(p0,0)
-        ndim                = np.size(p0,1)
-        
-        lineParameter       = np.zeros(nlins) + 999
-        coordinates         = copy.deepcopy(p1)
-        triangleNumber      = np.zeros(nlins)
-        normalVector        = np.zeros((nlins,ndim))
-        intersectedSurface  = np.array([None] * nlins)
-        
-        for part in self._items:    
-            if part.bounds is not None:        
-                boxTest = self._boundingBoxTest(part.bounds, p0, p1)
-                if np.sum(boxTest) > 0:
-                    p0_refined = p0[boxTest == 1]
-                    p1_refined = p1[boxTest == 1]
-                    
-                    [lineT, 
-                     coords,                
-                     triInd, 
-                     N, 
-                     partList]  = part.intersections(p0_refined, 
-                                                     p1_refined, 
-                                                     tol)
-                    
-                    # Create a mask of elements which must be substituted
-                    lineParameter_temp                  = np.zeros(nlins) + 999
-                    lineParameter_temp[boxTest == 1]    = lineT
-                    # This mask is used for the arrays that contain the answer
-                    maskLong         = lineParameter > lineParameter_temp
-                    # This mask is for the result of part.intersections
-                    maskShort        = lineParameter[boxTest == 1] > lineT
-                    lineParameter[maskLong]         = lineT[maskShort]
-                    coordinates[maskLong]           = coords[maskShort]
-                    triangleNumber[maskLong]        = triInd[maskShort]
-                    normalVector[maskLong]          = N[maskShort]
-                    intersectedSurface[maskLong]    = partList[maskShort]
-                else:
-                    pass # if nothing was found, nothing was found
-              
-        return [lineParameter, 
-                coordinates, 
-                triangleNumber, 
-                normalVector, 
-                intersectedSurface]
-      
-    def translateImplementation(self, vector):
-        """
-        This method iterates the translation to all the items found in the list,
-        making the `:meth:~Core.Component.translate` method be executed through
-        the whole components tree.
-        """
-        for part in self._items:
-            part.translate(vector)
-               
-    def rotateImplementation(self, angle, axis, pivotPoint):
-        """
-        This method iterates the rotation to all the items found in the list,
-        making the `:meth:~Core.Component.rotate` method be executed through
-        the whole components tree.
-        """
-        for part in self._items:
-            part.rotate(angle, axis, pivotPoint)
-    
-    def clearData(self):
-        """
-        This method iterates the clearData to all the items found in the list,
-        making the `:meth:~Core.Component.clearData` method be executed through
-        the whole components tree.
-        """
-        self._bounds = None
-        for part in self._items:
-            part.clearData()
 
 class RayBundle(Assembly):
     """
