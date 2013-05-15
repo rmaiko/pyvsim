@@ -15,9 +15,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 import Utils
-import DBFacade
-import System
-import json
 
 class PyvsimObject(object):
     instanceCounter          = 0
@@ -96,11 +93,15 @@ class PyvsimDatabasable(PyvsimObject):
         return self._db
                          
     def _initializeDB(self):
-        pkg         = __import__("pyvsim")
-        mod         = getattr(pkg,"DBFacade")
-        self._db    = getattr(mod,
-              PyvsimDatabasable.DB_OBJ)(dburl = PyvsimDatabasable.DB_URL, 
-                                        dbName = self.dbName, 
+        """
+        Gets the corresponding database facade (according to the config file),
+        then initializes.
+        """
+        pkg         = __import__("DBFacade")
+        #mod         = getattr(pkg,"DBFacade")
+        self._db    = getattr(pkg,
+              PyvsimDatabasable.DB_OBJ)(dburl    = PyvsimDatabasable.DB_URL, 
+                                        dbName   = self.dbName, 
                                         username = PyvsimDatabasable.DB_USER, 
                                         password = PyvsimDatabasable.DB_PASS)
         

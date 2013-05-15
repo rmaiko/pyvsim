@@ -49,11 +49,54 @@ import couchdb
 import Library
 import pprint
 import json
-
+import threading
 
 mat = Library.Glass()
 mat.fetchFromDB("Schott N-BK7")
 print mat.listDB()
+
+import threading
+import thread, time
+#
+#class timeoutWrapper():
+#    def __init__(self, function, timeout = 10, forgiving = True):
+#        self.function   = function
+#        self.maxtime    = timeout
+#        self.forgiving  = forgiving
+#            
+#    def timeout(self):
+#        thread.interrupt_main()
+#        
+#    def run(self, *args, **kwargs):
+#        try:
+#            timer = threading.Timer(self.maxtime, self.timeout)
+#            timer.start()
+#            answer = self.function(*args, **kwargs)
+#            timer.cancel()
+#            return answer
+#        except KeyboardInterrupt:
+#            if self.forgiving:
+#                print "Function timed out ", self.function
+#            else:
+#                raise
+#            
+#
+#def myfun(t):
+#    print 'it keeps going and going',
+#    k = 1
+#    while k < 500:
+#        print '.',
+#        time.sleep(t)
+#        k = k + 1     
+#    return k
+#
+#print Utils.timeout(myfun, timeout = 1, forgiving = False).run(0.01)
+#        
+#print timeoutWrapper(myfun, 3).run(0.1)
+#  
+#print "lalala"            
+        
+    
 
 #print plastic._dbdict()
 #print plastic.listDB()

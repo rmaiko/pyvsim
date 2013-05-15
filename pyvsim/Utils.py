@@ -20,6 +20,8 @@ import scipy.linalg
 import time
 import warnings
 import ConfigParser
+import threading
+import thread
 
 CONFIG_FILE = "./config.dat"
 
@@ -189,21 +191,6 @@ def metersToRGB(wl):
     f =((wl >= 380) * (wl < 420) * (0.3 + 0.7 * (wl - 380) / (420 - 380)) + 
         (wl >= 420) * (wl < 700) * 1 + 
         (wl >= 700) * (wl < 780) * (1 - 0.7 * (wl - 700) / (780 - 700)))
-    
-#    r =((wl >= 380) * (wl < 440) * (1 - (wl - 380) / (440 - 380)) + 
-#        (wl >= 440) * (wl < 510) * 0 + 
-#        (wl >= 510) * (wl < 580) * ((wl - 510) / (580 - 510)) + 
-#        (wl >= 580) * (wl < 780) * 1)
-#    
-#    g =((wl >= 380) * (wl < 440) * 0 + 
-#        (wl >= 440) * (wl < 490) * ((wl - 440) / (490 - 440)) + 
-#        (wl >= 490) * (wl < 580) * 1 + 
-#        (wl >= 580) * (wl < 645) * (1 - (wl - 580) / (645 - 580)) + 
-#        (wl >= 645) * (wl < 780) * 0)
-#        
-#    b =((wl >= 380) * (wl < 490) * 1 + 
-#        (wl >= 490) * (wl < 510) * (1 - (wl - 490) / (510 - 490)) + 
-#        (wl >= 510) * (wl < 780) * 0)
         
     r =((wl < 475)  * (1 - (wl - 380) / (440 - 380)) + 
         (wl >= 475) * ((wl - 510) / (580 - 510)))
@@ -214,7 +201,6 @@ def metersToRGB(wl):
     b =(1 - (wl - 490) / (510 - 490))
     
     return (((np.clip([r,g,b],0,1))*f)**gamma)
-#    return ((np.array([r,g,b])*f)**gamma)
 
 def aeq(a,b,tol=1e-8):
     """
@@ -893,6 +879,32 @@ def quadInterpolation(p,pquad,values):
     c4 = np.reshape(Sr*Sd/den,(npts,1,1))
     
     return (c1*values[0] + c2*values[1] + c3*values[2] + c4*values[3]).squeeze()
+           
+class TimeoutError(Exception):
+    pass
+           
+class timeout():
+    def __init__(self, function, timeout = 10, forgiving = True):
+        self.function   = function
+        self.maxtime    = timeout
+        self.forgiving  = forgiving
+            
+    def timeout(self):
+        thread.interrupt_main()
+        
+    def run(self, *args, **kwargs):
+        timer = threading.Timer(self.maxtime, self.timeout)
+        try:
+            timer.start()
+            answer = self.function(*args, **kwargs)
+        except KeyboardInterrupt:
+            answer = None
+            if self.forgiving:
+                print "Function timed out ", self.function
+            else:
+                raise TimeoutError
+        timer.cancel()
+        return answer
            
 class Tictoc:
     """
