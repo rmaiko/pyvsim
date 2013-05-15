@@ -324,7 +324,6 @@ class Component(Core.PyvsimObject):
             self.rotate(angle,axis,pivotPoint)
         else:
             self.rotate(-angle,axis,pivotPoint)
-
     
     def clearData(self):
         """
@@ -392,6 +391,20 @@ class Assembly(Component):
           
     @property
     def bounds(self):
+        """
+        Returns the boundaries of the assembly by finding the minimum bounding
+        box aligned to the axis that contains it.
+        
+        The algorithm works by finding the maximum and minimum values of
+        x, y and z by traversing the subcomponents.
+        
+        Returns
+        -------
+        bounds : numpy.array(2,3)
+            An array containing the following elements: 
+            [[xmin, ymin, zmin],
+             [xmax, ymax, zmax]]
+        """ 
         if self._bounds is None:
             mini =  np.ones((len(self.items),3))*1000
             maxi = -np.ones((len(self.items),3))*1000
