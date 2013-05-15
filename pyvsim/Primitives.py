@@ -79,6 +79,7 @@ class Component(Core.PyvsimObject):
             self._depth = 0
         else:
             self._depth = 1 + self.parent.depth
+        return self._depth
                                  
     def intersections(self, p0, p1, tol = GLOBAL_TOL):
         """
@@ -361,14 +362,16 @@ class Assembly(Component):
         self.surfaceProperty            = Component.TRANSPARENT
         
     def __repr__(self):
+        """
+        Returns a pretty-printable tree representation of the assembly
+        generated recursively
+        """
+        string = Component.__repr__(self) + "\n|"
         if self._items is not None:
-            string = Component.__repr__(self) + " with: \n"
             for item in self._items:
-                string = string +  " * " + item.__repr__() + "\n"
-            string = string + "end " + Component.__repr__(self) + " \n"
-            return string
-        else:
-            return Component.__repr__(self)
+                string = string +  (item.depth*3) * " "  + "+->"
+                string = string +  item.__repr__() + "\n|"
+        return string
         
     def refractiveIndex(self, wavelength = 532e-9):
         """

@@ -92,6 +92,8 @@ if __name__=="__main__":
     part2.indexOfRefraction = 1.666
     part2.rotate(np.pi/6, part2.x)
     
+    
+    
     # Not let's trace
     print "Tracing ray bundle"
     print "Pre allocated steps : ", bundle.preAllocatedSteps
@@ -104,6 +106,9 @@ if __name__=="__main__":
     bundle.trace()
     tic.toc()
     print "Number of steps     : ", bundle.steps
+    
+    # Example of  how structure can be represented as a tree
+    print assembly
        
     # Now we plot the scenario, there are two modes of doing that:
     plot(assembly,mode="mpl")
