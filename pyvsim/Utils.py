@@ -634,11 +634,17 @@ def DLT(uvlist, xyzlist):
         
     Returns
     -------
-    M : numpy.array
-        A (3,4) matrix with the transformation to be used with homogeneous
+    M : numpy.array (3x4)
+        A matrix with the transformation to be used with homogeneous
         coordinates. The matrix M is normalized by the norm of the elements
         M(2,0:3), because then the depth of points is automatically given as
         the third (the homogeneous) coordinate.
+    dMdX : numpy.array
+        A matrix containing the factors to calculate the partial derivatives
+        of the UV coordinates with respect to the XYZ coordinates. By 
+        multiplying dMdX * M * XYZ1, one gets the derivatives in the following
+        order [du/dx du/dy du/dz dv/dx dv/dy dv/dz] multiplied by w^2 (which,
+        for the normalized matrix M, is the depth of the points)
     condition_number : double
         The condition number stated in page 108 of Hartley and Zisseman, which
         is the ratio of the first and the second-last singular value (because

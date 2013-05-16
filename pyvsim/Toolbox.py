@@ -600,6 +600,7 @@ class Camera(Primitives.Assembly):
         # Mapping properties
         self.mappingResolution          = [2, 2]
         self.mapping                    = None
+        self.dmapping                   = None
         self.sensorSamplingCenters      = None
         self.physicalSamplingCenters    = None
         # Create and position subcomponents:
@@ -628,7 +629,9 @@ class Camera(Primitives.Assembly):
         """
         self.lens           = Lens()
         self.sensor         = Sensor()
-        self.body           = Primitives.Volume(self.length, self.heigth, self.width)
+        self.body           = Primitives.Volume(self.length, 
+                                                self.heigth, 
+                                                self.width)
         
         self.body.color     = self.color
         self.body.opacity   = self.opacity
@@ -708,8 +711,10 @@ class Camera(Primitives.Assembly):
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
         self.mapping = np.empty((np.size(UV,0)-1,
                                  np.size(UV,1)-1,
-                                 3,
-                                 GLOBAL_NDIM+1))
+                                 3, 4)) #each mapping matrix is 3x4
+        self.mapping = np.empty((np.size(UV,0)-1,
+                                 np.size(UV,1)-1,
+                                 6, 3)) #each derivative matrix is 6x3
 
         cond = 0
         for i in range(np.size(self.sensorSamplingCenters,0)):
@@ -731,7 +736,10 @@ class Camera(Primitives.Assembly):
                                     lastInts[i+1,j+1],
                                     lastInts[i  ,j+1]])
                 try:
-                    (self.mapping[i,j,:,:], temp1,_) = Utils.DLT(uvlist,xyzlist)
+                    (self.mapping[i,j,:,:],
+                     self.dmapping[i,j,:,:],
+                     temp1,
+                     _) = Utils.DLT(uvlist,xyzlist)
                 except np.linalg.linalg.LinAlgError:
                     self.mapping = None
                     warnings.warn("Could not find a valid mapping", Warning)
