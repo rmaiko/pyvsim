@@ -179,9 +179,9 @@ def mie_abcd(m, x):
                     [nun.x1, nun.x2, ... nun.xn]]   v
     bx, bz, yx have the final matrix size (FMS)
     """
-    bx = sp.special.jv(nu,x_block    ).T * np.tile(sqx,(nmax,1))
-    bz = sp.special.jv(nu,m * x_block).T * np.tile(sqz,(nmax,1))
-    yx = sp.special.yv(nu,x_block    ).T * np.tile(sqx,(nmax,1))
+    bx = scipy.special.jv(nu,x_block    ).T * np.tile(sqx,(nmax,1))
+    bz = scipy.special.jv(nu,m * x_block).T * np.tile(sqz,(nmax,1))
+    yx = scipy.special.yv(nu,x_block    ).T * np.tile(sqx,(nmax,1))
 
     # From now on, all calculations are made with the final matrix sizes
     hx = bx+1j*yx
@@ -276,67 +276,43 @@ tic = Utils.Tictoc()
 #tic.toc()
 #scs = scs[0]
 
-diam = np.arange(0.1,3.1,0.1)*1e-6
 
-perc = np.array([0.0058,
-                 0.0293,
-                 0.0569,
-                 0.0797,
-                 0.0946,
-                 0.1015,
-                 0.1015,
-                 0.0961,
-                 0.0871,
-                 0.0762,
-                 0.0644,
-                 0.0528,
-                 0.0421,
-                 0.0325,
-                 0.0245,
-                 0.0179,
-                 0.0127,
-                 0.0087,
-                 0.0059,
-                 0.0038,
-                 0.0024,
-                 0.0015,
-                 0.0009,
-                 0.0005,
-                 0.0003,
-                 0.0002,
-                 0,
-                 0,
-                 0,
-                 0])
+
 import matplotlib.pyplot as plt
-tic.reset()
+
+tic.tic()
+diam = np.arange(0.0,3.1,0.01)
+pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
+perc = np.diff(pdf)
+diam = diam[1:]*1e-6
 scs1 = distributedSCS(1.45386, 
                       diam, 
                       perc, 
                       532e-9,
                       theta)[0]
-scs2 = distributedSCS(1.45386, 
-                      np.array([diam[10]]), 
-                      np.array([perc[10]]), 
-                      532e-9,
-                      theta)[0]   
-scs3 = distributedSCS(1.45386, 
-                      diam[:10], 
-                      perc[:10], 
-                      532e-9,
-                      theta)[0]     
-scsone = mieScatteringCrossSections(refractiveIndex   = 1.45386,
-                                 particleDiameters = np.array([1])*1e-6,
-                                 wavelength        = 532e-9, 
-                                 theta             = theta)[0]                                                     
+                      
+#diam = np.arange(0.0,3.1,.05)
+#pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
+#perc = np.diff(pdf)
+#diam = diam[1:]*1e-6                
+#scs2 = distributedSCS(1.45386, 
+#                      diam, 
+#                      perc, 
+#                      532e-9,
+#                      theta)[0]       
+                                                   
 tic.toc()
 
-#for s in scs1:
-#    print s
+for s in scs1:
+    print s
+#for s in perc:
+#    print s    
+    
 plt.figure(facecolor = [1,1,1])
 plt.hold(True)
 plt.plot(theta*180/np.pi,scs1,      label = "Whole distribution")
-for n in [7,8,9,10,11,12,13]:
+#plt.plot(theta*180/np.pi,scs2,      label = "Whole distribution (coarse)")
+for n in range(95,108,2):#range(0,len(diam),int(len(diam)/5.)):
     print n, diam[n]
     scs2 = distributedSCS(1.45386, 
                       np.array([diam[n]]), 
@@ -348,7 +324,7 @@ for n in [7,8,9,10,11,12,13]:
 
 plt.xlabel("Scattering angle")
 plt.ylabel("Scattering cross section (m^2)/(sr)")
-plt.legend()
+plt.legend(loc=3)
 
 #l1 = plt.plot(theta*180/np.pi, scs[:,0]*1e-3*1e4, 'k', label="d = 1.7e-6m * 1e-3")
 #l2 = plt.plot(theta*180/np.pi, scs[:,1]*1e4,      'r', label="d = 170e-9m")

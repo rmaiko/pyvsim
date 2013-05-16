@@ -101,15 +101,18 @@ class Component(Core.PyvsimObject):
         Returns
         -------
         None
-            If no intersections are found. Otherwise returns a list with::
+            If no intersections are found. 
+            
+        Otherwise returns a list with::
+            
         lineParameter
             This is used to indicate how far the intersection point is from the
             segment starting point, if 0, the intersection is at p0 and if 1, 
             the intersection is at p1
             
-            *Iff* the parameter is > 1 (999), no intersection was found   
+            *Iff* the parameter is > 1 (999), no intersection was found     
         intersectionCoordinates
-            This is where the intersections are found   
+            This is where the intersections are found
         triangleIndexes
             This is the index of the triangle where the intersection was found.
             If no intersection found, will return 0, *but attention*, the only
@@ -117,7 +120,7 @@ class Component(Core.PyvsimObject):
             lineParameter is zero.
         normals
             The normal vector at the intersection point (if the surface is
-            defined with normals at vertices, interpolation is performed).   
+            defined with normals at vertices, interpolation is performed).  
         part
             A list with references to this object. This is, in this case, 
             redundant, but that makes the function signature uniform with the
@@ -1569,7 +1572,7 @@ class RayBundle(Assembly):
         """
         This method is not implemented, and is present only to respect the 
         Assembly interface. As deleting a single ray requires many matrix 
-        reshanp.pings, it is better to clear all the data and redo the ray
+        reshapings, it is better to clear all the data and redo the ray
         tracing. 
         
         Raises

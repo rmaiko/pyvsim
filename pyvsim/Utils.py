@@ -681,6 +681,7 @@ def DLT(uvlist, xyzlist):
 
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
+    
 #    print "Check"
     for n in range(np.size(uvlist,0)):
         uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
@@ -688,9 +689,29 @@ def DLT(uvlist, xyzlist):
         ans = np.dot(M,xyz.T)
         if np.max(np.abs(uv - ans / ans[2])) > 1e-3:
             warnings.warn("Discrepancy of more than 1e-3 found in DLT", Warning)
-#    print "End check"
-#    return (M, D[0]/D[-2], D[-1])
-    return (M / np.linalg.norm(M[2,:3]), D[0]/D[-2], D[-1])
+
+    # This normalization is applied so that the third element of the resulting
+    # UV-vector is the distance from the XYZ-point to the center of projection
+    M = M / np.linalg.norm(M[2,:3])
+    # This matrix provides the derivatives of the UV-coordinates with respect
+    # to the XYZ coordinates
+    #                        / dU/dx \
+    #                        | dU/dy |
+    #                        | dU/dz |
+    # dMdX * M * XYZ = w^2 * | dV/dx | 
+    #                        | dV/dy |
+    #                        \ dV/dz / 
+    #
+    # Where [u,v,w]^T = M * [x,y,z,1]^T
+    # 
+    dMdX = np.array([[-M[2,0],       0,    M[0,0]],
+                     [-M[2,1],       0,    M[0,1]],
+                     [-M[2,2],       0,    M[0,2]],
+                     [      0, -M[2,0],    M[1,0]],
+                     [      0, -M[2,1],    M[1,1]],
+                     [      0, -M[2,2],    M[1,2]]])
+    
+    return (M, dMdX, D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
     """
