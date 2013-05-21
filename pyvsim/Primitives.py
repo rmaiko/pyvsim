@@ -870,12 +870,8 @@ class Part(Component):
             Format: [Normals(raw), Normals(normalized)
         """
         if len(self.points) > 0:
-            xmin = [min(self.points[:,0]), 
-                    min(self.points[:,1]), 
-                    min(self.points[:,2])]
-            xmax = [max(self.points[:,0]), 
-                    max(self.points[:,1]), 
-                    max(self.points[:,2])]
+            xmin = np.min(self.points,0)
+            xmax = np.max(self.points,0)
             self._bounds = np.array([xmin,xmax])
             
             Ptriangles      = self.points[self.connectivity]
