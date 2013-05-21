@@ -19,7 +19,6 @@ distribution of particles. This is not yet integrated in pyvsim
 """
 from __future__ import division
 import numpy as np
-import scipy as sp
 import scipy.special
 
 def Tau(pi, costheta):
@@ -352,7 +351,7 @@ tic = Utils.Tictoc()
 import matplotlib.pyplot as plt
 
 tic.tic()
-theta = np.linspace(70*np.pi/180,100*np.pi/180,1001)
+theta = np.linspace(0*np.pi/180,100*np.pi/180,1001)
 diam = np.arange(0.0,3.1,0.01)
 pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
 perc = np.diff(pdf)
@@ -364,8 +363,8 @@ scs1 = distributedSCS(1.45386,
                       theta)[0]
                                                    
 tic.toc()
-
-kernel = np.ones(10*len(theta)/180)
+apertureAngle = 0
+kernel = np.ones(apertureAngle*len(theta)/180)
 kernel = kernel / len(kernel)
 print "Kernel is %d elements long" % len(kernel)
 
@@ -376,36 +375,28 @@ print "Kernel is %d elements long" % len(kernel)
     
 plt.figure(facecolor = [1,1,1])
 plt.hold(True)
-#plt.plot(theta*180/np.pi,scs1,      label = "Whole distribution")
-#plt.plot(theta*180/np.pi,scs2,      label = "Whole distribution (coarse)")
-for n in range(97,116,2):#range(0,len(diam),int(len(diam)/5.)):
+plt.plot(theta*180/np.pi, scs1, label = "Whole distribution")
+
+for n in range(0,len(diam),int(len(diam)/5.)):
     print n, diam[n]
     scs2 = distributedSCS(1.45386, 
                       np.array([diam[n]]), 
                       1, #np.array([perc[n]]), 
                       532e-9,
                       theta)[0]   
-    # filtered
-#    plt.plot(theta*180/np.pi,np.convolve(scs2,kernel,mode="same"), 
-#             label = "D=%s micron contribution" % (diam[n]*1e6))
+    if apertureAngle > 0:
+        # filtered
+        plt.plot(theta*180/np.pi,np.convolve(scs2,kernel,mode="same"), 
+                 label = "D=%s micron contribution" % (diam[n]*1e6))
+    else:
+        # unfiltered
+        plt.plot(theta*180/np.pi,scs2, 
+                 label = "D=%s micron contribution" % (diam[n]*1e6))
 
-    # unfiltered
-    plt.plot(theta*180/np.pi,scs2, 
-             label = "D=%s micron contribution" % (diam[n]*1e6))
-
-#    plt.axis([80,90,1e-19,1e-15])
 plt.xlabel("Scattering angle")
 plt.ylabel("Scattering cross section (m^2)/(sr)")
 plt.legend(loc=3)
 
-#l1 = plt.plot(theta*180/np.pi, scs[:,0]*1e-3*1e4, 'k', label="d = 1.7e-6m * 1e-3")
-#l2 = plt.plot(theta*180/np.pi, scs[:,1]*1e4,      'r', label="d = 170e-9m")
-#l3 = plt.plot(theta*180/np.pi, scs[:,2]*1e6*1e4,  'b', label="d = 17e-9m * 1e6")
-#plt.legend()
-#plt.xlabel("Scattering angle (deg)")
-#plt.ylabel("Diff. Scattering Cross Sec (cm^2sr^{-1})")
-#plt.title("compare with: 'Light Scattering Theory' by David W Hahn, \n m = 1.4, lambda = 532nm")    
 plt.yscale('log')
-#plt.ylim(1e-14,1e-10)
 plt.grid(True, which="both", axis="both")
 plt.show()
