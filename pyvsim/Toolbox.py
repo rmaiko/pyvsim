@@ -712,7 +712,7 @@ class Camera(Primitives.Assembly):
         self.mapping = np.empty((np.size(UV,0)-1,
                                  np.size(UV,1)-1,
                                  3, 4)) #each mapping matrix is 3x4
-        self.mapping = np.empty((np.size(UV,0)-1,
+        self.dmapping = np.empty((np.size(UV,0)-1,
                                  np.size(UV,1)-1,
                                  6, 3)) #each derivative matrix is 6x3
 
@@ -888,6 +888,41 @@ class Camera(Primitives.Assembly):
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
+    
+class Seeding(Primitives.Volume):
+    def __init__(self):
+        Primitives.Volume.__init__(self)
+        self.name           = 'Seeding ' + str(self._id)
+        self._particles      = None
+        self._diameters      = None
+        self.color           = [0.9,0.9,0.9]
+        self.opacity         = 0.300        
+        self.surfaceProperty = self.TRANSPARENT
+        
+    @property
+    def particles(self): return self._particles
+    @particles.setter
+    def particles(self, particles):
+        self._particles = particles
+        [xmin, ymin, zmin] = np.min(particles,0)
+        [xmax, ymax, zmax] = np.max(particles,0)
+        self.points = np.array([[xmin,ymax,zmax],
+                                [xmin,ymin,zmax],
+                                [xmin,ymin,zmin],
+                                [xmin,ymax,zmin],
+                                [xmax,ymax,zmax],
+                                [xmax,ymin,zmax],
+                                [xmax,ymin,zmin],
+                                [xmax,ymax,zmin]])
+        
+    @property
+    def diameters(self): return self._diameters
+    @diameters.setter
+    def diameters(self, diams):
+        if np.size(diams) != np.size(self._particles,0):
+            raise ValueError("The diameter array must be the same size than"+
+                             " the particle position array.")
+         
         
 class Laser(Primitives.Assembly):
     def __init__(self):
@@ -985,7 +1020,7 @@ class Laser(Primitives.Assembly):
         self.volume = Primitives.Assembly()
         self.insert(self.volume)
         for n in range(start, end-1):
-            vol = Primitives.Volume()
+            vol          = Primitives.Volume()
             vol.points   = np.vstack([self.rays.rayPaths[n],
                                       self.rays.rayPaths[n+1]])
             vol.color    = Utils.metersToRGB(self.wavelength)
@@ -1082,13 +1117,14 @@ class Laser(Primitives.Assembly):
 if __name__=='__main__':
     import System
     import copy
-#    c                               = Camera()
-#    c.lens.focusingDistance         = 0.7
-#    c.lens.aperture                 = 4
-#    c.mappingResolution             = [2, 2]
-#    c.lens.translate(np.array([0.026474,0,0]))
-#    c.lens.rotate(-0.1, c.z)
-    l                               = Laser()
+    c                               = Camera()
+    c.lens.focusingDistance         = 0.7
+    c.lens.aperture                 = 4
+    c.mappingResolution             = [2, 2]
+    c.lens.translate(np.array([0.026474,0,0]))
+    c.lens.rotate(-0.1, c.z)
+#    l                               = Laser()
+#    l.usefulLength                  = np.array([0.1, 2])
     
     
     v                               = Primitives.Volume()
@@ -1107,11 +1143,11 @@ if __name__=='__main__':
     v2.rotate(-np.pi/4,v2.z)
 
     environment = Primitives.Assembly()
-#    environment.insert(c)
+    environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
-    environment.insert(l)
-    l.traceReflections()
+#    environment.insert(l)
+#    l.trace()
     
 #    Some geometrical transformations to make the problem more interesting
 #    c.rotate(np.pi/4,c.x)    
@@ -1120,14 +1156,14 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/2.1, c.z)
     
 
-#    if (v2.surfaceProperty == v.TRANSPARENT).all():
-#        c.calculateMapping(v2, 532e-9)
-#    else:
-#        c.calculateMapping(v, 532e-9)
-#        
-#    print c.mapping
-#        
-#    c.depthOfField()
+    if (v2.surfaceProperty == v.TRANSPARENT).all():
+        c.calculateMapping(v2, 532e-9)
+    else:
+        c.calculateMapping(v, 532e-9)
+        
+    print c.mapping
+        
+    c.depthOfField()
         
 #    phantoms = c.virtualCameras(False)
 #    

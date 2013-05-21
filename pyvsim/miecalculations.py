@@ -352,7 +352,7 @@ import matplotlib.pyplot as plt
 
 tic.tic()
 theta = np.linspace(0*np.pi/180,100*np.pi/180,1001)
-diam = np.arange(0.0,3.1,0.01)
+diam = np.arange(0.0,3.1,0.0062)
 pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
 perc = np.diff(pdf)
 diam = diam[1:]*1e-6

@@ -1447,6 +1447,17 @@ class Volume(Part):
         This is intended as a lightweigth test for checking if a point (or
         a set of them) lies inside an hexahedron. This uses the algorithm
         implemented in :mod:`Utils`.
+        
+        Parameters
+        ----------
+        p : numpy.array (N,3)
+            A collection of points
+            
+        Returns
+        -------
+        result : numpy.array (N) 
+            An array with "1" corresponding to points in the hexa or "0" 
+            otherwise
         """
         return Utils.pointInHexa(p,self.points)    
     
