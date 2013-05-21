@@ -741,11 +741,10 @@ class Camera(Primitives.Assembly):
                      temp1,
                      _) = Utils.DLT(uvlist,xyzlist)
                 except np.linalg.linalg.LinAlgError:
-                    self.mapping = None
+                    self.mapping  = None
+                    self.dmapping = None
                     warnings.warn("Could not find a valid mapping", Warning)
                     return
-
-                
                 cond = cond + temp1
         cond = cond / (np.size(self.sensorSamplingCenters)/3)
         return cond

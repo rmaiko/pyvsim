@@ -82,9 +82,9 @@ def Pi(nmax, costheta):
     
     P_n^{(1)} is a Legendre polynomial
     
-    Or, in the recursive form, as shown in Maetzler (Maetzler, C. Matlab functions 
-    for Mie scattering and absorption Institute of Applied Physics, University 
-    of Bern, 2002):
+    Or, in the recursive form, as shown in Maetzler (Maetzler, C. Matlab 
+    functions for Mie scattering and absorption Institute of Applied Physics, 
+    University of Bern, 2002):
     
     \Pi_n = \over {2n-1} {n-1} cos(\theta) P_{n-1} - \over n {n-1} \Pi_{n-2}
     
@@ -125,18 +125,38 @@ def mie_abcd(m, x):
     """
     Computes a matrix of Mie coefficients, a_n, b_n, c_n, d_n, 
     of orders n=1 to nmax, complex refractive index m=m'+im", 
-    and size parameter x=k0*a, where k0= wave number 
-    in the ambient medium, a=sphere radius; 
+    and size parameter x=k0*r, where k0= wave number 
+    in the ambient medium, r=sphere radius; 
     p. 100, 477 in Bohren and Huffman (1983) BEWI:TDD122
     C. Matzler, June 2002
     
     There is a limitation for the maximum allowable x for this
     function. I have not yet verified from where it comes from
     (limit: x = 180, which yields a maximum particle size of 
-    about 30 microns)
+    about 30 microns in air)
     
     Adapted from Matlab code (Dec 2012)
     Vectorized (Apr 2013)
+    
+    Parameters
+    ----------
+    m : real or complex
+        The particle refractive index.
+    x : numpy.array (M)
+        The Mie parameter, defined as x = k0 * r = 2 * pi * r / lambda (where
+        r is the particle radius and lambda is the light wavelength)
+        
+    Returns
+    -------
+    (an, bn) : numpy.array (nmax, M)
+        The Mie a and b parameters calculated for nmax factors, used to 
+        calculate an approximation of the scattered light far field.
+        
+    Raises
+    ------
+    ValueError
+        If the particle diameter which is being calculated forces the creation
+        of too big matrices (happens when x is higher than approximately 180)
     """
     #
     # Parameter calculation
@@ -206,8 +226,30 @@ def mieScatteringCrossSections(refractiveIndex,
                                wavelength, 
                                theta):
     """
-    XXX Auxiliary function in the calculation of Mie scattering, this could not be
-    XXX yet optimized, so care should be taken
+    This function calculates the Mie scattering cross section of a spherical
+    particle. Its optimal use is by minimizing function calls and giving
+    a particle size range instead.
+    
+    Parameters
+    ----------
+    refrativeIndex : real / complex
+        The refractive index of the particles. The real part of the index
+        is the classical (as used in Snell's law) and the complex is related
+        to light absorption
+    particleDiameters : numpy.array (N)
+        A list of particle diameters to be calculated
+    wavelength : real, meters
+        The wavelength of the light source
+    theta : numpy.array (M), radians
+        A list of scattering angles to be calculated
+        
+    Returns
+    -------
+    (sigma1, sigma2) : tuple of numpy.array (M,N)
+        The differential scattering cross sections for the given particle 
+        diameters (column number) and scattering angles (row number). Sigma1
+        stands for light that is polarized perpendicular to the propagation 
+        plane, and sigma2 for light polarized parallel to the propagation plane
     
     Polarization parameter:
     1 = accounts for light polarized perpendicular to propagation plane
@@ -257,6 +299,46 @@ def distributedSCS(refractiveIndex,
                    percentage, 
                    wavelength,
                    theta = np.linspace(0,np.pi,501)):
+    """
+    This function calculates the mean differential scattering cross section of 
+    a particle size distribution (described by a cumulative probability
+    function). 
+    Note that this result shows the behavior of the distribution, which is not
+    the behavior of any of the particles.
+    
+    Parameters
+    ----------
+    refrativeIndex : real / complex
+        The refractive index of the particles. The real part of the index
+        is the classical (as used in Snell's law) and the complex is related
+        to light absorption
+    particleDiameters : numpy.array (N)
+        A list of particle diameters to be calculated
+    percentage : numpy.array (N)
+        The value of the cumulative distribution function (CDF) of the particle
+        diameter distribution sampled at the points given in the
+        particleDiameter array
+    wavelength : real, meters
+        The wavelength of the light source
+    theta : numpy.array (M), radians
+        A list of scattering angles to be calculated. If not given, defaults
+        to a 501-element array from 0 to 180deg
+         
+    Returns
+    -------
+    (sigma1, sigma2) : tuple of numpy.array (M)
+        The differential scattering cross sections for the given distribution. 
+        Sigma1 stands for light that is polarized perpendicular to the 
+        propagation plane, and sigma2 for light polarized parallel to the 
+        propagation plane
+        
+    Raises
+    ------
+    ValueError
+        If the particle diameter which is being calculated forces the creation
+        of too big matrices (happens when the Mie parameter (2*pi*radius / 
+        lightWavelength) is higher than approximately 180)        
+    """
     scs = mieScatteringCrossSections(refractiveIndex   = refractiveIndex,
                                      particleDiameters = diameters,
                                      wavelength        = wavelength, 
@@ -266,21 +348,11 @@ def distributedSCS(refractiveIndex,
   
 
 import Utils
-theta = np.linspace(0,np.pi,501)
 tic = Utils.Tictoc()
-#tic.reset()
-#scs = mieScatteringCrossSections(refractiveIndex   = 1.4,
-#                                 particleDiameters = np.array([1700, 170, 17])*1e-9,
-#                                 wavelength        = 532e-9, 
-#                                 theta             = theta)
-#tic.toc()
-#scs = scs[0]
-
-
-
 import matplotlib.pyplot as plt
 
 tic.tic()
+theta = np.linspace(70*np.pi/180,100*np.pi/180,1001)
 diam = np.arange(0.0,3.1,0.01)
 pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
 perc = np.diff(pdf)
@@ -290,38 +362,38 @@ scs1 = distributedSCS(1.45386,
                       perc, 
                       532e-9,
                       theta)[0]
-                      
-#diam = np.arange(0.0,3.1,.05)
-#pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
-#perc = np.diff(pdf)
-#diam = diam[1:]*1e-6                
-#scs2 = distributedSCS(1.45386, 
-#                      diam, 
-#                      perc, 
-#                      532e-9,
-#                      theta)[0]       
                                                    
 tic.toc()
 
-for s in scs1:
-    print s
-#for s in perc:
-#    print s    
+kernel = np.ones(10*len(theta)/180)
+kernel = kernel / len(kernel)
+print "Kernel is %d elements long" % len(kernel)
+
+#for s in scs1:
+#    print s
+#for n,s in enumerate(perc):
+#    print diam[n], s    
     
 plt.figure(facecolor = [1,1,1])
 plt.hold(True)
-plt.plot(theta*180/np.pi,scs1,      label = "Whole distribution")
+#plt.plot(theta*180/np.pi,scs1,      label = "Whole distribution")
 #plt.plot(theta*180/np.pi,scs2,      label = "Whole distribution (coarse)")
-for n in range(95,108,2):#range(0,len(diam),int(len(diam)/5.)):
+for n in range(97,116,2):#range(0,len(diam),int(len(diam)/5.)):
     print n, diam[n]
     scs2 = distributedSCS(1.45386, 
                       np.array([diam[n]]), 
-                      np.array([perc[n]]), 
+                      1, #np.array([perc[n]]), 
                       532e-9,
                       theta)[0]   
+    # filtered
+#    plt.plot(theta*180/np.pi,np.convolve(scs2,kernel,mode="same"), 
+#             label = "D=%s micron contribution" % (diam[n]*1e6))
+
+    # unfiltered
     plt.plot(theta*180/np.pi,scs2, 
              label = "D=%s micron contribution" % (diam[n]*1e6))
 
+#    plt.axis([80,90,1e-19,1e-15])
 plt.xlabel("Scattering angle")
 plt.ylabel("Scattering cross section (m^2)/(sr)")
 plt.legend(loc=3)
