@@ -112,6 +112,7 @@ class Sensor(Primitives.Plane):
         imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
         imgplot.set_cmap(colormap)
         imgplot.set_interpolation('none')
+        plt.colorbar()
         plt.show()    
     
     def createDeadPixels(self,probability):
@@ -240,13 +241,12 @@ class Sensor(Primitives.Plane):
         #                          lambda
         photonEnergy = 6.62607e-34*299792458/wavelength
         totalPhotons = energy / photonEnergy
-        sX = (diameter/self.pixelSize[0])*(0.44/1.22)
-        sY = (diameter/self.pixelSize[1])*(0.44/1.22)
-
+        sX           = (diameter/self.pixelSize[0])*(0.44/1.22)
+        sY           = (diameter/self.pixelSize[1])*(0.44/1.22)
         #
         # Filtering useless results
         #
-        npts         =   np.size(coords,0)
+        npts         =  np.size(coords,0)
         killist      = (range(1,npts+1)* 
                         (coords[:,0] <= 1.01) * (coords[:,0] >= -1.01) * 
                         (coords[:,1] <= 1.01) * (coords[:,1] >= -1.01) * 
@@ -318,15 +318,17 @@ class Sensor(Primitives.Plane):
    
         # Magic Airy integral, in fact this is a 2D integral on the sensitive
         # area of the pixel (defined by the fill ratio)
-        gX0 = erf(X - 0.5 * frX)
-        gX1 = erf(X + 0.5 * frX)
-        gY0 = erf(Y - 0.5 * frY)
-        gY1 = erf(Y + 0.5 * frY)    
+        gX0 = erf((X - 0.5 * frX)*2/sX)
+        gX1 = erf((X + 0.5 * frX)*2/sX)
+        gY0 = erf((Y - 0.5 * frY)*2/sY)
+        gY1 = erf((Y + 0.5 * frY)*2/sY)    
 
-        level = (0.5*((gX1-gX0)*(gY1-gY0) / (sX * sY))* 
+        level = (0.5*((gX1-gX0)*(gY1-gY0))* 
                  totalPhotons*self.quantumEfficiency)
 
         for (n, (ax,ay)) in enumerate(anchor):
+            print level[n].shape
+            print self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]].shape
             self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]] += level[n]
 
     def recordParticles(self,coords,energy,wavelength,diameter):
@@ -364,6 +366,8 @@ class Sensor(Primitives.Plane):
         meanDiameter = np.mean(diameter)
         meanDiameter = meanDiameter     / np.mean(self.pixelSize)
         stepMax      = np.round(MEMSIZE / (MEM_SAFETY * meanDiameter**2))
+        if stepMax == 0:
+            stepMax = 1
         nparts       = np.size(coords,0)
         
         if stepMax < nparts and np.std(diameter) > STD_PARAM*np.mean(diameter):
@@ -1187,8 +1191,8 @@ if __name__=='__main__':
         environment.insert(phantoms)
 
     #System.plot(environment)
-    c.sensor.recordParticles(coords = np.array([[0,0]]), 
-                             energy = 1e-3, 
+    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0]]), 
+                             energy = 1e-10, 
                              wavelength = 532e-9, 
                              diameter = 0.001)
     c.sensor.displaySensor()
