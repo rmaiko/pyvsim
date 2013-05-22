@@ -327,8 +327,6 @@ class Sensor(Primitives.Plane):
                  totalPhotons*self.quantumEfficiency)
 
         for (n, (ax,ay)) in enumerate(anchor):
-            print level[n].shape
-            print self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]].shape
             self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]] += level[n]
 
     def recordParticles(self,coords,energy,wavelength,diameter):
@@ -648,6 +646,52 @@ class Camera(Primitives.Assembly):
         # Flange focal distance adjustment
         self.sensor.translate(self.x*self.sensorPosition)
         
+    def mapPoints(self, pts):
+        """
+        This method determines the position that a set of points x,y,z map on
+        the camera sensor
+        
+        Parameters
+        ----------
+        pts : numpy.array (N,3)
+            A collection of points in the space
+            
+        Returns
+        -------
+        uvw : numpy.array (N,3)
+            The points (in non-normalized homogeneous coordinates) mapped to the
+            sensor
+        vector : numpy.array (N,3)
+            The line of sight vectors (the direction of the light ray that
+            goes from the point to the camera center of projection)
+        """
+        npts    = np.size(pts,0)
+        # Calculate vectors from samplingCenters to given points
+        d       = self.physicalSamplingCenters - np.reshape(pts,(npts,1,1,3))
+        # Calculate squared norms of vectors
+        d       = np.einsum('ijkl,ijkl->ijk',d,d)
+        # Flatten arrays to find minima
+        d       = np.reshape(d,(npts,-1))
+        indexes = np.argmin(d,1)
+        # Calculate indexes
+        j       = np.mod(indexes,self.mappingResolution[1])
+        i       = ((indexes - j) / (self.mappingResolution[0]))
+        i       = i.astype('int')
+        # Calculate DLT
+        result  = np.einsum('ijk,ik->ij',self.mapping[i,j], 
+                            np.hstack([pts,np.ones((npts,1))]))
+        print i,j
+        print self.dmapping[i,j].shape 
+        print result.shape                           
+        dresult = np.einsum('ijk,ik->ij',self.dmapping[i,j],result)
+        dudx    = dresult[:,:3]
+        dvdx    = dresult[:,3:]
+        print dudx
+        vector  = np.cross(dudx,dvdx)
+        vecnorm = np.sqrt(np.sum(vector*vector,1))
+        vector  = vector / np.tile(vecnorm,(3,1)).T
+        return (result, vector)
+        
     def shootRays(self, sensorParamCoords, 
                   referenceWavelength = 532e-9,
                   maximumRayTrace = 10,
@@ -713,6 +757,7 @@ class Camera(Primitives.Assembly):
                                          UV[1:,1:]  + UV[1:,:-1])/4
         self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
+                   
         self.mapping = np.empty((np.size(UV,0)-1,
                                  np.size(UV,1)-1,
                                  3, 4)) #each mapping matrix is 3x4
@@ -1123,7 +1168,7 @@ if __name__=='__main__':
     import copy
     import Library
     c                               = Camera()
-    c.lens.focusingDistance         = 0.525
+    c.lens.focusingDistance         = 1
     c.lens.aperture                 = 2.8
     c.mappingResolution             = [2, 2]
     c.lens.translate(np.array([0.026474,0,0]))
@@ -1144,8 +1189,8 @@ if __name__=='__main__':
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
 #    v2.surfaceProperty              = v.MIRROR
     v2.surfaceProperty              = v.TRANSPARENT 
-    v2.material                     = Library.IdealMaterial()
-    v2.material.value               = 3.666
+#    v2.material                     = Library.IdealMaterial()
+#    v2.material.value               = 3.666
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -1189,13 +1234,18 @@ if __name__=='__main__':
     
     if phantoms is not None:       
         environment.insert(phantoms)
+        
+    (pos,vec) = c.mapPoints(np.array([[0.5,00,0],
+                                      [0.5,00,0.01]]))
+    print "Position\n", pos
+    print "Vector\n", vec
 
-    #System.plot(environment)
-    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0]]), 
-                             energy = 1e-10, 
-                             wavelength = 532e-9, 
-                             diameter = 0.001)
-    c.sensor.displaySensor()
+    System.plot(environment)
+#    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
+#                             energy = 1e-10, 
+#                             wavelength = 532e-9, 
+#                             diameter = 0.0001)
+#    c.sensor.displaySensor()
 
 #    System.save(environment, "test.dat")
 #    
