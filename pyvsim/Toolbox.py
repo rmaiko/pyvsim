@@ -99,14 +99,14 @@ class Sensor(Primitives.Plane):
         
     def parametricToPixel(self,coordinates):
         """
-        coords = [y,z] (in parametric 0..1 space)
+        coords = [y,z] (in parametric -1..1 space)
         
         returns:
         [row column] - fractional position in sensor pixels
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
         """
-        return coordinates*self.resolution
+        return 0.5*(coordinates+1)*self.resolution
     
     def displaySensor(self,colormap='jet'):
         imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
@@ -248,8 +248,8 @@ class Sensor(Primitives.Plane):
         #
         npts         =   np.size(coords,0)
         killist      = (range(1,npts+1)* 
-                        (coords[:,0] <= 1.01) * (coords[:,0] >= -0.01) * 
-                        (coords[:,1] <= 1.01) * (coords[:,1] >= -0.01) * 
+                        (coords[:,0] <= 1.01) * (coords[:,0] >= -1.01) * 
+                        (coords[:,1] <= 1.01) * (coords[:,1] >= -1.01) * 
                         ((totalPhotons / (sX * sY)) > 1))
 
         killist      = np.nonzero(killist)[0]
@@ -1117,12 +1117,13 @@ class Laser(Primitives.Assembly):
 if __name__=='__main__':
     import System
     import copy
+    import Library
     c                               = Camera()
-    c.lens.focusingDistance         = 0.7
-    c.lens.aperture                 = 4
+    c.lens.focusingDistance         = 0.525
+    c.lens.aperture                 = 2.8
     c.mappingResolution             = [2, 2]
     c.lens.translate(np.array([0.026474,0,0]))
-    c.lens.rotate(-0.1, c.z)
+#    c.lens.rotate(-0.1, c.z)
 #    l                               = Laser()
 #    l.usefulLength                  = np.array([0.1, 2])
     
@@ -1130,15 +1131,17 @@ if __name__=='__main__':
     v                               = Primitives.Volume()
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.refractiveIndexConstant       = 5.666
+    v.material                     = Library.IdealMaterial()
+    v.material.value               = 1
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
 #    v2.surfaceProperty              = v.MIRROR
-    v2.surfaceProperty              = v.MIRROR 
-    v2.refractiveIndexConstant      = 3.666
+    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.material                     = Library.IdealMaterial()
+    v2.material.value               = 3.666
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -1156,21 +1159,39 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/2.1, c.z)
     
 
-    if (v2.surfaceProperty == v.TRANSPARENT).all():
-        c.calculateMapping(v2, 532e-9)
-    else:
+    if (v2.surfaceProperty == v2.MIRROR).all():
         c.calculateMapping(v, 532e-9)
+    else:
+        c.calculateMapping(v2, 532e-9)
         
     print c.mapping
+    point = np.array([[0.5, 0.0, 0, 1]]).T
+    psensor = np.dot(c.mapping, point).squeeze().tolist()
+    print "Sensor position \n u %.3f \n v %.3f \n w %.3f" % \
+          tuple(psensor)
+    dudx = np.dot(c.dmapping[0,0], 
+                  np.dot(c.mapping[0,0], point)).squeeze()
+    print "Derivatives: \n du/dx %f \n du/dy %f \n du/dz %f \
+          \n dv/dx %f \n dv/dy %f \n dv/dz %f" % tuple(dudx.tolist())
+    vec = np.cross(dudx[:3],dudx[3:]) / np.linalg.norm(np.cross(dudx[:3],dudx[3:]))
+    if np.linalg.det(c.mapping[0,0,:,:-1]) > 0:
+        vec = -vec
+    print "Line of sight nx %.3f ny %.3f nz %.3f" % tuple(vec)
+    #print np.dot(np.linalg.inv(c.mapping[0,0,:,:-1]), np.array([[0,0,5.04]]).T)
         
     c.depthOfField()
         
-#    phantoms = c.virtualCameras(False)
-#    
-#    if phantoms is not None:       
-#        environment.insert(phantoms)
+    phantoms = c.virtualCameras(False)
+    
+    if phantoms is not None:       
+        environment.insert(phantoms)
 
-    System.plot(environment)
+    #System.plot(environment)
+    c.sensor.recordParticles(coords = np.array([[0,0]]), 
+                             energy = 1e-3, 
+                             wavelength = 532e-9, 
+                             diameter = 0.001)
+    c.sensor.displaySensor()
 
 #    System.save(environment, "test.dat")
 #    
