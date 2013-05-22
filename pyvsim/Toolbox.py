@@ -671,22 +671,26 @@ class Camera(Primitives.Assembly):
         # Calculate squared norms of vectors
         d       = np.einsum('ijkl,ijkl->ijk',d,d)
         # Flatten arrays to find minima
+#        print self.physicalSamplingCenters
+#        print d
         d       = np.reshape(d,(npts,-1))
+#        print d
         indexes = np.argmin(d,1)
         # Calculate indexes
-        j       = np.mod(indexes,self.mappingResolution[1])
-        i       = ((indexes - j) / (self.mappingResolution[0]))
+#        print indexes
+        j       = np.mod(indexes,(self.mappingResolution[1]-1))
+        i       = ((indexes - j) / (self.mappingResolution[0]-1))
         i       = i.astype('int')
         # Calculate DLT
         result  = np.einsum('ijk,ik->ij',self.mapping[i,j], 
                             np.hstack([pts,np.ones((npts,1))]))
-        print i,j
-        print self.dmapping[i,j].shape 
-        print result.shape                           
+#        print i,j
+#        print self.dmapping[i,j].shape 
+#        print result.shape                           
         dresult = np.einsum('ijk,ik->ij',self.dmapping[i,j],result)
         dudx    = dresult[:,:3]
         dvdx    = dresult[:,3:]
-        print dudx
+#        print dudx
         vector  = np.cross(dudx,dvdx)
         vecnorm = np.sqrt(np.sum(vector*vector,1))
         vector  = vector / np.tile(vecnorm,(3,1)).T
@@ -1170,7 +1174,7 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 1
     c.lens.aperture                 = 2.8
-    c.mappingResolution             = [2, 2]
+    c.mappingResolution             = [10, 10]
     c.lens.translate(np.array([0.026474,0,0]))
 #    c.lens.rotate(-0.1, c.z)
 #    l                               = Laser()
@@ -1213,20 +1217,20 @@ if __name__=='__main__':
     else:
         c.calculateMapping(v2, 532e-9)
         
-    print c.mapping
-    point = np.array([[0.5, 0.0, 0, 1]]).T
-    psensor = np.dot(c.mapping, point).squeeze().tolist()
-    print "Sensor position \n u %.3f \n v %.3f \n w %.3f" % \
-          tuple(psensor)
-    dudx = np.dot(c.dmapping[0,0], 
-                  np.dot(c.mapping[0,0], point)).squeeze()
-    print "Derivatives: \n du/dx %f \n du/dy %f \n du/dz %f \
-          \n dv/dx %f \n dv/dy %f \n dv/dz %f" % tuple(dudx.tolist())
-    vec = np.cross(dudx[:3],dudx[3:]) / np.linalg.norm(np.cross(dudx[:3],dudx[3:]))
-    if np.linalg.det(c.mapping[0,0,:,:-1]) > 0:
-        vec = -vec
-    print "Line of sight nx %.3f ny %.3f nz %.3f" % tuple(vec)
-    #print np.dot(np.linalg.inv(c.mapping[0,0,:,:-1]), np.array([[0,0,5.04]]).T)
+#    print c.mapping
+#    point = np.array([[0.5, 0.0, 0, 1]]).T
+#    psensor = np.dot(c.mapping, point).squeeze().tolist()
+#    print "Sensor position \n u %.3f \n v %.3f \n w %.3f" % \
+#          tuple(psensor)
+#    dudx = np.dot(c.dmapping[0,0], 
+#                  np.dot(c.mapping[0,0], point)).squeeze()
+#    print "Derivatives: \n du/dx %f \n du/dy %f \n du/dz %f \
+#          \n dv/dx %f \n dv/dy %f \n dv/dz %f" % tuple(dudx.tolist())
+#    vec = np.cross(dudx[:3],dudx[3:]) / np.linalg.norm(np.cross(dudx[:3],dudx[3:]))
+#    if np.linalg.det(c.mapping[0,0,:,:-1]) > 0:
+#        vec = -vec
+#    print "Line of sight nx %.3f ny %.3f nz %.3f" % tuple(vec)
+#    #print np.dot(np.linalg.inv(c.mapping[0,0,:,:-1]), np.array([[0,0,5.04]]).T)
         
     c.depthOfField()
         
@@ -1235,8 +1239,8 @@ if __name__=='__main__':
     if phantoms is not None:       
         environment.insert(phantoms)
         
-    (pos,vec) = c.mapPoints(np.array([[0.5,00,0],
-                                      [0.5,00,0.01]]))
+    (pos,vec) = c.mapPoints(np.array([[0.57,1e-6,0],
+                                      [0.57,1e-6,0.01]]))
     print "Position\n", pos
     print "Vector\n", vec
 

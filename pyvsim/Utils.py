@@ -495,7 +495,7 @@ def KQ(A):
     This decomposition is proposed in the book "Multiple View Geometry in
     computer vision" by Hartley and Zisserman. It is basically a RQ 
     decomposition (which takes a matrix M and finds a right, upper diagonal
-    matrix R and a orthogonal matrix Q so that M = RQ).
+    camera matrix K and a orthogonal matrix Q so that M = RQ).
     
     This specific function has the following extra steps: 
     
@@ -679,7 +679,7 @@ def DLT(uvlist, xyzlist):
     [_,D,V] = np.linalg.svd(matrix)
     V = V[-1]
 
-    # Remember the fact that the points are in front of the camera
+#    # Remember the fact that the points are in front of the camera
     if V[-1]<0:
         V = -V
 
@@ -687,7 +687,7 @@ def DLT(uvlist, xyzlist):
 
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
-    
+        
 #    print "Check"
     for n in range(np.size(uvlist,0)):
         uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
