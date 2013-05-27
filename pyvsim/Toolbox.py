@@ -602,6 +602,7 @@ class Camera(Primitives.Assembly):
         # Mapping properties
         self.mappingResolution          = [2, 2]
         self.mapping                    = None
+        self.detmapping                 = None
         self.dmapping                   = None
         self.sensorSamplingCenters      = None
         self.physicalSamplingCenters    = None
@@ -692,8 +693,9 @@ class Camera(Primitives.Assembly):
         dvdx    = dresult[:,3:]
 #        print dudx
         vector  = np.cross(dudx,dvdx)
-        vecnorm = np.sqrt(np.sum(vector*vector,1))
-        vector  = vector / np.tile(vecnorm,(3,1)).T
+                    # cheap norm                   # invert if mirror                              
+        vecnorm = np.sqrt(np.sum(vector*vector,1))*np.sign(self.detmapping[i,j])
+        vector  = -vector / np.tile(vecnorm,(3,1)).T
         return (result, vector)
         
     def shootRays(self, sensorParamCoords, 
@@ -762,12 +764,14 @@ class Camera(Primitives.Assembly):
         self.physicalSamplingCenters  = (XYZ[:-1,:-1] + XYZ[:-1,1:] +
                                          XYZ[1:,1:]   + XYZ[1:,:-1])/4
                    
-        self.mapping = np.empty((np.size(UV,0)-1,
-                                 np.size(UV,1)-1,
-                                 3, 4)) #each mapping matrix is 3x4
-        self.dmapping = np.empty((np.size(UV,0)-1,
-                                 np.size(UV,1)-1,
-                                 6, 3)) #each derivative matrix is 6x3
+        self.mapping    = np.empty((np.size(UV,0)-1,
+                                    np.size(UV,1)-1,
+                                    3, 4)) #each mapping matrix is 3x4
+        self.detmapping = np.empty((np.size(UV,0)-1,
+                                    np.size(UV,1)-1)) #determinants are scalar
+        self.dmapping   = np.empty((np.size(UV,0)-1,
+                                   np.size(UV,1)-1,
+                                   6, 3)) #each derivative matrix is 6x3
 
         cond = 0
         for i in range(np.size(self.sensorSamplingCenters,0)):
@@ -791,11 +795,13 @@ class Camera(Primitives.Assembly):
                 try:
                     (self.mapping[i,j,:,:],
                      self.dmapping[i,j,:,:],
+                     self.detmapping[i,j],
                      temp1,
                      _) = Utils.DLT(uvlist,xyzlist)
                 except np.linalg.linalg.LinAlgError:
-                    self.mapping  = None
-                    self.dmapping = None
+                    self.mapping    = None
+                    self.detmapping = None
+                    self.dmapping   = None
                     warnings.warn("Could not find a valid mapping", Warning)
                     return
                 cond = cond + temp1
@@ -1193,8 +1199,8 @@ if __name__=='__main__':
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
 #    v2.surfaceProperty              = v.MIRROR
     v2.surfaceProperty              = v.TRANSPARENT 
-#    v2.material                     = Library.IdealMaterial()
-#    v2.material.value               = 3.666
+    v2.material                     = Library.IdealMaterial()
+    v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
@@ -1211,27 +1217,18 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
     
-
+    pts = np.random.randn(500,3)*0.01   
     if (v2.surfaceProperty == v2.MIRROR).all():
         c.calculateMapping(v, 532e-9)
+        pts[:,1] = 0*pts[:,1]
+        pts = pts + np.array([0.5,0.55,0]) 
+        ax = (0,2)        
     else:
         c.calculateMapping(v2, 532e-9)
-        
-#    print c.mapping
-#    point = np.array([[0.5, 0.0, 0, 1]]).T
-#    psensor = np.dot(c.mapping, point).squeeze().tolist()
-#    print "Sensor position \n u %.3f \n v %.3f \n w %.3f" % \
-#          tuple(psensor)
-#    dudx = np.dot(c.dmapping[0,0], 
-#                  np.dot(c.mapping[0,0], point)).squeeze()
-#    print "Derivatives: \n du/dx %f \n du/dy %f \n du/dz %f \
-#          \n dv/dx %f \n dv/dy %f \n dv/dz %f" % tuple(dudx.tolist())
-#    vec = np.cross(dudx[:3],dudx[3:]) / np.linalg.norm(np.cross(dudx[:3],dudx[3:]))
-#    if np.linalg.det(c.mapping[0,0,:,:-1]) > 0:
-#        vec = -vec
-#    print "Line of sight nx %.3f ny %.3f nz %.3f" % tuple(vec)
-#    #print np.dot(np.linalg.inv(c.mapping[0,0,:,:-1]), np.array([[0,0,5.04]]).T)
-        
+        pts[:,0] = 0*pts[:,0] 
+        pts = pts + np.array([0.57,0,0])  
+        ax = (1,2)      
+            
     c.depthOfField()
         
     phantoms = c.virtualCameras(False)
@@ -1239,10 +1236,21 @@ if __name__=='__main__':
     if phantoms is not None:       
         environment.insert(phantoms)
         
-    (pos,vec) = c.mapPoints(np.array([[0.57,1e-6,0],
-                                      [0.57,1e-6,0.01]]))
+    
+
+   
+        
+    (pos,vec) = c.mapPoints(pts)
     print "Position\n", pos
     print "Vector\n", vec
+    
+    plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
+               vec[:,ax[0]],vec[:,ax[1]])
+#    plt.quiver(pts[:,ax[0]],pts[:,ax[1]],
+#               vec[:,ax[0]],vec[:,ax[1]])
+    plt.axis('equal')
+    plt.grid(True)
+    plt.show()
 
     System.plot(environment)
 #    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
