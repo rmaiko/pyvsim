@@ -495,7 +495,8 @@ def KQ(A):
     This decomposition is proposed in the book "Multiple View Geometry in
     computer vision" by Hartley and Zisserman. It is basically a RQ 
     decomposition (which takes a matrix M and finds a right, upper diagonal
-    camera matrix K and a orthogonal matrix Q so that M = RQ).
+    camera matrix K and a orthogonal matrix Q so that M = a*K*Q (a is a 
+    normalizing factor (R[-1,-1])).
     
     This specific function has the following extra steps: 
     
@@ -507,6 +508,8 @@ def KQ(A):
     The use of these steps is that when the matrix M is a DLT matrix, K is a 
     camera matrix, and Q is the orientation of the camera (its rows are the
     front, down and left vectors, respectively).
+    
+    Attention : a check is performed to verify that the 
     
     Parameters
     ----------
@@ -645,6 +648,13 @@ def DLT(uvlist, xyzlist):
         multiplying dMdX * M * XYZ1, one gets the derivatives in the following
         order [du/dx du/dy du/dz dv/dx dv/dy dv/dz] multiplied by w^2 (which,
         for the normalized matrix M, is the depth of the points)
+    detM : scalar
+        The determinant of the matrix formed by the first three columns of M,
+        if det(M[:,:3]) < 0, it indicates that the mapping is done from a
+        right-handed coordinate system to a left-handed one (or vice versa). 
+        This case happens when doing a mapping with a odd number of mirrors
+        between camera and mapped region, and some derived quantities must be
+        inverted in this case, e.g. the line-of-sight vector.
     condition_number : double
         The condition number stated in page 108 of Hartley and Zisseman, which
         is the ratio of the first and the second-last singular value (because
@@ -677,17 +687,17 @@ def DLT(uvlist, xyzlist):
         matrix[3*n+2,:] = np.hstack([ v*xyz1,-u*xyz1,    0*xyz1])
         
     [_,D,V] = np.linalg.svd(matrix)
-    V = V[-1]
+    V = V[-1] #takes last vector
 
 #    # Remember the fact that the points are in front of the camera
-    if V[-1]<0:
+    if V[-1] < 0:
         V = -V
-
+        
 #    print "Minimum singular value", D[-1]
 
     M = np.dot(np.linalg.inv(Tuv), 
                np.dot(np.vstack([V[0:4],V[4:8],V[8:12]]), Txyz))
-        
+ 
 #    print "Check"
     for n in range(np.size(uvlist,0)):
         uv  = np.array([uvlist[n,0],   uvlist[n,1], 1])
@@ -697,8 +707,9 @@ def DLT(uvlist, xyzlist):
             warnings.warn("Discrepancy of more than 1e-3 found in DLT", Warning)
 
     # This normalization is applied so that the third element of the resulting
-    # UV-vector is the distance from the XYZ-point to the center of projection
+    # UV-vector is the distance from the XYZ-point to the center of projection 
     M = M / np.linalg.norm(M[2,:3])
+
     # This matrix provides the derivatives of the UV-coordinates with respect
     # to the XYZ coordinates
     #                        / dU/dx \
@@ -716,8 +727,8 @@ def DLT(uvlist, xyzlist):
                      [      0, -M[2,0],    M[1,0]],
                      [      0, -M[2,1],    M[1,1]],
                      [      0, -M[2,2],    M[1,2]]])
-    
-    return (M, dMdX, D[0]/D[-2], D[-1])
+    print M, "\n", np.linalg.det(M[:,:3]), "\n"
+    return (M, dMdX, np.linalg.det(M[:,:3]), D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
     """
