@@ -593,9 +593,7 @@ class Camera(Primitives.Assembly):
         # Plotting properties
         self.color                      = [0.172,0.639,0.937]
         self.opacity                    = 0.650
-        self.width                      = 0.084
-        self.heigth                     = 0.066
-        self.length                     = 0.175
+        self.dimension                  = np.array([0.175,0.066,0.084])
         # Geometrical properties
         self.sensorPosition             = -0.017526
         # Mapping properties
@@ -631,13 +629,11 @@ class Camera(Primitives.Assembly):
         """
         self.lens           = Lens()
         self.sensor         = Sensor()
-        self.body           = Primitives.Volume(self.length, 
-                                                self.heigth, 
-                                                self.width)
+        self.body           = Primitives.Volume(self.dimension)
         
         self.body.color     = self.color
         self.body.opacity   = self.opacity
-        self.body.translate(-self.x*self.length)
+        self.body.translate(-self.x*self.dimension[0])
         
         self.insert(self.lens)
         self.insert(self.sensor)
@@ -1240,11 +1236,7 @@ if __name__=='__main__':
     
     if phantoms is not None:       
         environment.insert(phantoms)
-        
-    
-
-   
-        
+  
     (pos,vec) = c.mapPoints(pts)
     print "Position\n", pos
     print "Vector\n", vec

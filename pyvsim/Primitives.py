@@ -1291,14 +1291,14 @@ class Volume(Part):
     information)
     """
     PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
-                                   [+0,-0.5,+0.5],
-                                   [+0,-0.5,-0.5],
-                                   [+0,+0.5,-0.5],
-                                   [+1,+0.5,+0.5],
-                                   [+1,-0.5,+0.5],
-                                   [+1,-0.5,-0.5],
-                                   [+1,+0.5,-0.5],])
-    def __init__(self, heigth = 1, depth = 1, width = 1, fastInit=False):
+                                  [+0,-0.5,+0.5],
+                                  [+0,-0.5,-0.5],
+                                  [+0,+0.5,-0.5],
+                                  [+1,+0.5,+0.5],
+                                  [+1,-0.5,+0.5],
+                                  [+1,-0.5,-0.5],
+                                  [+1,+0.5,-0.5],])
+    def __init__(self, dimension = np.array([1,1,1]), fastInit=False):
         """
         This is another convenience class to represent volumes (a hexahedron).
         
@@ -1342,10 +1342,7 @@ class Volume(Part):
         """
         Part.__init__(self)
         self.name           = 'Volume '+str(self._id)
-        self._width         = width
-        self._depth         = depth
-        self._heigth        = heigth
-        self._dimension     = [heigth, depth, width]
+        self._dimension     = dimension
         # normals pointing outside 
         self.connectivity   = np.array([[1,4,0],[1,5,4], # normal +z
                                         [7,2,3],[7,6,2], # normal -z
@@ -1356,39 +1353,12 @@ class Volume(Part):
         self.normals        = None
         if not fastInit:
             self._resize()
-
-    @property
-    def width(self):
-        return self._width
-    @width.setter
-    def width(self, w):
-        self._width = w
-        self._resize()
-        
-    @property
-    def depth(self):
-        return self._depth
-    @depth.setter
-    def depth(self, d):
-        self._length = d
-        self._resize()
-        
-    @property
-    def heigth(self):
-        return self._heigth
-    @heigth.setter
-    def heigth(self, h):
-        self._heigth = h
-        self._resize()
-        
+       
     @property
     def dimension(self):
         return self._dimension
     @dimension.setter
     def dimension(self, d):
-        self._heigth        = d[0]
-        self._depth         = d[1]
-        self._width         = d[2]
         self._dimension     = d
         self._resize()        
           
