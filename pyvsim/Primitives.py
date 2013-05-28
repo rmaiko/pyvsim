@@ -1199,40 +1199,20 @@ class Plane(Part):
                                   [+0,+0.5,-0.5],
                                   [+0,+0.5,+0.5],
                                   [+0,-0.5,+0.5]])
-    def __init__(self, length = 1, heigth = 1, fastInit=False):
+    def __init__(self, dimension = np.array([0,1,1]), fastInit=False):
         Part.__init__(self)
         self.name           = 'Plane '+str(self._id)
-        self._length        = length
-        self._heigth        = heigth
         self.connectivity   = np.array([[0,1,2], [0,2,3]])
         self.normals        = None
-        self._dimension     = None
+        self._dimension     = dimension
         if not fastInit:
             self._resize()
-    
-    @property
-    def length(self):
-        return self._length
-    @length.setter
-    def length(self, l):
-        self._length = l
-        self._resize()
-        
-    @property
-    def heigth(self):
-        return self._heigth
-    @heigth.setter
-    def heigth(self, h):
-        self._heigth = h
-        self._resize()
-        
+  
     @property
     def dimension(self):
         return self._dimension
     @dimension.setter
     def dimension(self, d):
-        self._length        = d[0]
-        self._heigth        = d[1]
         self._dimension     = d
         self._resize()        
     
@@ -1241,35 +1221,37 @@ class Plane(Part):
         Convenience function to position the points of the plane and set
         up internal variables
         """
-        self._dimension = np.array([self._heigth,  self._length])
-        self.points = (Plane.PARAMETRIC_COORDS[:,1:3] * 
-                       np.tile(self.dimension,(4,1)))
-        self.points = (np.tile(self.points[:,0],(GLOBAL_NDIM,1)).T * self.y + 
-                       np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.z)
+        self.points = np.einsum('ij,j->ij',
+                                Plane.PARAMETRIC_COORDS, self.dimension)
+        self.points = (np.tile(self.points[:,1],(GLOBAL_NDIM,1)).T * self.y + 
+                       np.tile(self.points[:,2],(GLOBAL_NDIM,1)).T * self.z)
           
     def parametricToPhysical(self,coordinates):
         """
         Transforms a 2-component vector in the range -1..1 in sensor coordinates
-        Normalized [y,z] -> [x,y,z] (global reference frame)
+        Normalized [u,v] -> [x,y,z] (global reference frame)
         
         Vectorization for this method is implemented.
         """
-        # Compensate for the fact that the sensor origin is at its center
-        coordinates = self.dimension*coordinates/2
+        # This is unfortunate, because:
+        # u = Zcamera
+        # v = Ycamera
+        # but the dimension vector is [x,y,z]
+        coordinates = self.dimension[::-1][:2]*coordinates/2
 #        print "Coordinates"
 #        print coordinates
         
         if coordinates.ndim == 1:
 #            print "ndim == 1"
-            return self.origin + (coordinates[0] * self.y + 
-                                  coordinates[1] * self.z)
+            return self.origin + (coordinates[0] * self.z + 
+                                  coordinates[1] * self.y)
         else:
 #            print "ndim > 1"
 #            print np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T
 #            print np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T
             return (self.origin + 
-                    np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.y + 
-                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.z)
+                    np.tile(coordinates[:,0],(GLOBAL_NDIM,1)).T * self.z + 
+                    np.tile(coordinates[:,1],(GLOBAL_NDIM,1)).T * self.y)
                     
     def physicalToParametric(self,coords):
         """
@@ -2098,6 +2080,8 @@ if __name__=="__main__":
     assert Utils.aeq(coords[0], np.zeros(3))
     assert Utils.aeq(coords[1], m.parametricToPhysical(np.array([1,1])))
     assert Utils.aeq(coords[2], m.parametricToPhysical(np.array([-1,-1])))
+    print m.points
+    print theorypoints
     assert Utils.aeq(m.points, theorypoints)
     
     print "testing translation"

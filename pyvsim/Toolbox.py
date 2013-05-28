@@ -74,10 +74,8 @@ class Sensor(Primitives.Plane):
         """
         Primitives.Plane.__init__(self)
         self.name                   = 'Sensor '+str(self._id)
-        self.length                 = 0.0118 # by definition, the column dimension
-        self.heigth                 = 0.0089 # the row dimension
-        # self.length = 0.036
-        # self.heigth = 0.024
+        # self.heigth = 0.024                   x      y        z
+        self.dimension              = np.array([0,  0.0089,  0.0118])
         
         #                                      # ROW         # COLUMN
         #                                      #0.0089         0.0118
@@ -722,11 +720,14 @@ class Camera(Primitives.Assembly):
     def calculateMapping(self, target, referenceWavelength = 532e-9):
         # First determine the points in the sensor to be reference for the
         # mapping
-        [V,U]  = np.meshgrid(np.linspace(-1,1,self.mappingResolution[1]), 
-                             np.linspace(-1,1,self.mappingResolution[0]))    
+        [U,V]  = np.meshgrid(np.linspace(-1,1,self.mappingResolution[1]), 
+                             np.linspace(-1,1,self.mappingResolution[0])) 
+#        print V
+#        print U   
         parametricCoords = np.vstack([U.ravel(), V.ravel()]).T
         UV               = np.reshape(parametricCoords, 
                                       (np.size(U,0),np.size(U,1),2))
+#        print UV
         
         bundle = self.shootRays(parametricCoords, 
                                 referenceWavelength,
@@ -755,8 +756,8 @@ class Camera(Primitives.Assembly):
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))
         lastInts  = np.reshape(lastInts, 
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))  
-        #print firstInts
-        #print lastInts      
+#        print firstInts
+#        print lastInts      
         
         XYZ   = (firstInts + lastInts) / 2
         self.sensorSamplingCenters    = (UV[:-1,:-1]  + UV[:-1,1:]  +
@@ -912,13 +913,16 @@ class Camera(Primitives.Assembly):
         phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
 
         phantomAssembly                     = Primitives.Assembly()
-        sy                                  = self.sensor.dimension[0]
-        sz                                  = self.sensor.dimension[1]
+        sy                                  = self.sensor.dimension[1]
+        sz                                  = self.sensor.dimension[2]
         # Matrix to go from sensor parametric coordinates to sensor
         # local coordinates
-        MT                                  = np.array([[ 0  ,   0, 1],
-                                                        [sy/2,   0, 0],
-                                                        [ 0  ,sz/2, 0]])
+        #   [Sx]    [  0  ,  0   ,  1][u] 
+        #   [Sy] =  [  0  , sy/2 ,  0][v] u = Zcamera
+        #   [Sz]    [sz/2 ,  0   ,  0][1] v = Ycamera
+        MT                                  = np.array([[ 0  ,   0,  1],
+                                                        [ 0  ,sy/2,  0],
+                                                        [sz/2,   0,  0]])
 
         if centeronly:
             rangei = [np.round(np.size(self.mapping,0)/2)]
@@ -942,6 +946,7 @@ class Camera(Primitives.Assembly):
                 [_,Qm] = Utils.KQ(MTM)
                     
                 phantom.mapping = M
+                print Qm
                 phantom.alignTo(Qm[0],-Qm[1],None,
                                 phantom.lens.PinholeEntrance, 1e-3) 
                 phantomAssembly.insert(phantom)
@@ -1180,7 +1185,7 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 1
     c.lens.aperture                 = 2.8
-    c.mappingResolution             = [10, 10]
+    c.mappingResolution             = [5, 5]
     c.lens.translate(np.array([0.026474,0,0]))
 #    c.lens.rotate(-0.1, c.z)
 #    l                               = Laser()
@@ -1217,7 +1222,7 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
     
-    pts = np.random.randn(500,3)*0.01   
+    pts = (np.random.rand(500,3)-0.5)*0.04 
     if (v2.surfaceProperty == v2.MIRROR).all():
         c.calculateMapping(v, 532e-9)
         pts[:,1] = 0*pts[:,1]
@@ -1245,7 +1250,7 @@ if __name__=='__main__':
     print "Vector\n", vec
     
     plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
-               vec[:,ax[0]],vec[:,ax[1]])
+               vec[:,ax[1]],vec[:,ax[0]])
 #    plt.quiver(pts[:,ax[0]],pts[:,ax[1]],
 #               vec[:,ax[0]],vec[:,ax[1]])
     plt.axis('equal')

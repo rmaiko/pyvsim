@@ -528,8 +528,12 @@ def KQ(A):
     D = np.diag(np.sign(np.diag(R)))
     K = np.dot(R,D)
     Q = np.dot(D,Q) #D^-1 = D     
+    print "K\n", K
+    print "D\n", D
+    print "Q\n", Q
 
     if np.max(np.abs(A[:,:3] - np.dot(K,Q))) > 1e-10:
+        #print "WARNING - KQ decomposition failed\n", A - np.dot(K,Q), "\n", Q
         print "WARNING - KQ decomposition failed\n", A - np.dot(K,Q)
         
     return K / K[-1,-1], Q
