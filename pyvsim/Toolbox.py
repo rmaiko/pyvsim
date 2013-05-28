@@ -76,6 +76,7 @@ class Sensor(Primitives.Plane):
         self.name                   = 'Sensor '+str(self._id)
         # self.heigth = 0.024                   x      y        z
         self.dimension              = np.array([0,  0.0089,  0.0118])
+
         
         #                                      # ROW         # COLUMN
         #                                      #0.0089         0.0118
@@ -946,7 +947,6 @@ class Camera(Primitives.Assembly):
                 [_,Qm] = Utils.KQ(MTM)
                     
                 phantom.mapping = M
-                print Qm
                 phantom.alignTo(Qm[0],-Qm[1],None,
                                 phantom.lens.PinholeEntrance, 1e-3) 
                 phantomAssembly.insert(phantom)
@@ -1202,8 +1202,8 @@ if __name__=='__main__':
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-#    v2.surfaceProperty              = v.MIRROR
-    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.surfaceProperty              = v.MIRROR
+#    v2.surfaceProperty              = v.TRANSPARENT 
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))

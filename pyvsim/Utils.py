@@ -528,13 +528,12 @@ def KQ(A):
     D = np.diag(np.sign(np.diag(R)))
     K = np.dot(R,D)
     Q = np.dot(D,Q) #D^-1 = D     
-    print "K\n", K
-    print "D\n", D
-    print "Q\n", Q
+#    print "K\n", K
+#    print "D\n", D
+#    print "Q\n", Q
 
     if np.max(np.abs(A[:,:3] - np.dot(K,Q))) > 1e-10:
-        #print "WARNING - KQ decomposition failed\n", A - np.dot(K,Q), "\n", Q
-        print "WARNING - KQ decomposition failed\n", A - np.dot(K,Q)
+        print "WARNING - KQ decomposition failed, residue: \n", A - np.dot(K,Q)
         
     return K / K[-1,-1], Q
 
@@ -731,7 +730,7 @@ def DLT(uvlist, xyzlist):
                      [      0, -M[2,0],    M[1,0]],
                      [      0, -M[2,1],    M[1,1]],
                      [      0, -M[2,2],    M[1,2]]])
-    print M, "\n", np.linalg.det(M[:,:3]), "\n"
+#    print M, "\n", np.linalg.det(M[:,:3]), "\n"
     return (M, dMdX, np.linalg.det(M[:,:3]), D[0]/D[-2], D[-1])
 
 def DLTnormalization(pointslist):
