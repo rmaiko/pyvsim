@@ -165,6 +165,9 @@ def tetraVolume(p1,p2,p3,p4):
                              vecs[1,:,0]*vecs[0,:,1]*vecs[2,:,2]) 
 
 def jet(value, minval, maxval):
+    """
+    Returns the RGB values to emulate a "jet" colormap from matlab
+    """
     val = 4 * (value - minval)/(maxval-minval)
     r   = min(val - 1.5, -val + 4.5)
     g   = min(val - 0.5, -val + 3.5)

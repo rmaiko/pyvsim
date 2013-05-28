@@ -645,7 +645,15 @@ class Camera(Primitives.Assembly):
     def mapPoints(self, pts):
         """
         This method determines the position that a set of points x,y,z map on
-        the camera sensor
+        the camera sensor.
+        
+        In order to optimize calculation speed, a lot of memory is used, but 
+        the method seems to run smoothly up to 2M points in a 5x5 mapping (2GB
+        of available RAM) 
+        
+        The number of elements in the bottleneck matrix is:
+        
+        N = npts * 3 * mappingResolution[0] * mappingResolution[1]
         
         Parameters
         ----------
@@ -664,6 +672,7 @@ class Camera(Primitives.Assembly):
         npts    = np.size(pts,0)
         # Calculate vectors from samplingCenters to given points
         d       = self.physicalSamplingCenters - np.reshape(pts,(npts,1,1,3))
+        #print d.shape, d.nbytes
         # Calculate squared norms of vectors
         d       = np.einsum('ijkl,ijkl->ijk',d,d)
         # Flatten arrays to find minima
@@ -898,6 +907,29 @@ class Camera(Primitives.Assembly):
 
     
     def virtualCameras(self, centeronly = True):
+        """
+        Returns an assembly composed of cameras at the position and orientation
+        defined by the original camera mapping. E.g. if a camera is looking
+        through a mirror, the virtualCamera will be the mirror image of the
+        camera.
+        
+        Parameters
+        ----------
+        centeronly : boolean
+            If the camera mapping resolution has created more than a single 
+            mapping matrix (>2), setting this value to True makes the routine
+            create only one camera (for the center mapping). Otherwise it will
+            create as many cameras as mapping matrices.
+            
+        Returns
+        -------
+        virtualCameras : pyvsim.Assembly
+            The cameras within this assembly are copies of the original camera
+            only with position and orientation changed (and carcass color), so
+            they are completely functional.
+            Care should be taken, as having too many cameras requires a lot of
+            memory (mappings, sensor data is stored in each camera).
+        """
         if self.mapping is None:
             raise  ValueError("No mapping available, " +
                               "could not create virtual cameras")
@@ -1178,10 +1210,12 @@ if __name__=='__main__':
     import System
     import copy
     import Library
+    tic = Utils.Tictoc()
+    
     c                               = Camera()
     c.lens.focusingDistance         = 1
     c.lens.aperture                 = 2.8
-    c.mappingResolution             = [5, 5]
+    c.mappingResolution             = [10, 10]
     c.lens.translate(np.array([0.026474,0,0]))
 #    c.lens.rotate(-0.1, c.z)
 #    l                               = Laser()
@@ -1218,7 +1252,7 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
     
-    pts = (np.random.rand(500,3)-0.5)*0.04 
+    pts = (np.random.rand(400e3,3)-0.5)*0.04 
     if (v2.surfaceProperty == v2.MIRROR).all():
         c.calculateMapping(v, 532e-9)
         pts[:,1] = 0*pts[:,1]
@@ -1232,17 +1266,21 @@ if __name__=='__main__':
             
     c.depthOfField()
         
-    phantoms = c.virtualCameras(False)
-    
-    if phantoms is not None:       
-        environment.insert(phantoms)
+#    phantoms = c.virtualCameras(False)
+#    
+#    if phantoms is not None:       
+#        environment.insert(phantoms)
   
+    tic.tic()
     (pos,vec) = c.mapPoints(pts)
-    print "Position\n", pos
-    print "Vector\n", vec
+    tic.toc(np.size(pts,0))
+#    print "Position\n", pos
+#    print "Vector\n", vec
     
+    mag = np.sqrt(np.sum(vec[:,ax]*vec[:,ax],1))
     plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
-               vec[:,ax[1]],vec[:,ax[0]])
+               vec[:,ax[1]],vec[:,ax[0]], mag)
+
 #    plt.quiver(pts[:,ax[0]],pts[:,ax[1]],
 #               vec[:,ax[0]],vec[:,ax[1]])
     plt.axis('equal')
