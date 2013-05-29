@@ -277,7 +277,7 @@ class Component(Core.PyvsimObject):
         LinAlgError
             If the calculation has other mathematical problems.
             
-        """
+        """        
         if pivotPoint is None:
             pivotPoint = self.origin
         
@@ -303,6 +303,8 @@ class Component(Core.PyvsimObject):
                          self.y,
                          self.z])
         M   = np.linalg.solve(Xold,Xnew)
+        if Utils.aeq(M, np.eye(3)):
+            return
 
         assert (np.linalg.det(M) - 1)**2 < GLOBAL_TOL # prop of rotation Matrix
         
