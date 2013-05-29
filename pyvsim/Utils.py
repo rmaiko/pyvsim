@@ -440,7 +440,10 @@ def barycentricCoordinates(p,p1,p2,p3):
         
     Examples
     --------   
-    >>> [p,p1,p2,p3] = np.array([[0.5,0.5,0],[0,0,0],[1,0,0],[0,1,0]])
+    >>> [p,p1,p2,p3] = np.array([[0.5,0.5, 0],
+    ...                          [  0,  0, 0],
+    ...                          [  1,  0, 0],
+    ...                          [  0,  1, 0]])
     >>> barycentricCoordinates(p,p1,p2,p3)
     array([ 0. ,  0.5,  0.5])
     
@@ -539,6 +542,64 @@ def KQ(A):
         print "WARNING - KQ decomposition failed, residue: \n", A - np.dot(K,Q)
         
     return K / K[-1,-1], Q
+
+def pointSegmentDistance(p1, p2, x):
+    """
+    Given one point and some line segments, calculates the euclidean distance
+    between each segment and this point.
+    
+    If the point lies outside segment, returns the distance between point and
+    nearest extremity of the segment    
+    
+    Parameters
+    ----------
+    p1 : numpy.array (N,3)
+        Coordinates of segments' initial points
+    p2 : numpy.array (N,3)
+        Coordinates of segments' final points
+    x : numpy.array(3)
+        Coordinates of point
+        
+    Returns
+    -------
+    distance : numpy.array (N)
+        Distance between each of the segments and the point
+        
+    Examples
+    --------
+    >>> p1 = np.array([[  0,  0, 0],
+    ...                [  0,  0, 0],
+    ...                [  0,  0, 0]])
+    >>> p2 = np.array([[  1,  0, 0],
+    ...                [  0,  1, 0],
+    ...                [  0,  0, 1]])  
+    >>> x  = np.array([  1,  1, 1])
+    >>> pointSegmentDistance(p1, p2, x)
+    array([ 1.41421356,  1.41421356,  1.41421356])
+    >>> x  = np.array([  2,  0, 0])
+    >>> pointSegmentDistance(p1, p2, x)
+    array([ 1.,  2.,  2.])
+    """
+    v    = (p2 - p1) 
+    vlen = np.sqrt(np.sum(v*v,1))
+    if (vlen == 0).any():
+        return np.ones_like(vlen)*1000
+    v    = np.einsum("ij,i->ij", v, 1 / vlen)
+    # Calculate vectors from segment extremities to point
+    p1x = x - p1
+    p2x = x - p2
+    # Calculate point-line (not segment) distance
+    d_v_x   = np.cross(p1x,v)
+    d_v_x   = np.sqrt(np.sum(d_v_x*d_v_x,1))
+    # Calculate the projection of the point p at the line
+    p1_x_prime = np.abs(np.sum(p1x*v, 1))
+    p2_x_prime = np.abs(np.sum(p2x*v, 1))
+    insegment  = aeq(p1_x_prime + p2_x_prime, vlen) 
+    # Calculate point-point distances
+    d_p1_x = np.sqrt(np.sum(p1x*p1x,1))
+    d_p2_x = np.sqrt(np.sum(p2x*p2x,1))
+    d_extrem = np.min(np.vstack([d_p1_x,d_p2_x]),0)
+    return d_v_x*insegment + d_extrem*(1 - insegment)
 
 def linesIntersection(v,p):
     """

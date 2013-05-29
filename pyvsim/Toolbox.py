@@ -416,83 +416,80 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         self.name                   = 'Lens '+str(self._id)
         self.dbName             = "Lenses"
         self.dbParameters           = ["color", "opacity", "diameter", "length",
-                                       "flangeFocalDistance", "F", "H_scalar",
-                                       "H_line_scalar", "E_scalar", "X_scalar",
+                                       "flangeFocalDistance", "F", "H_fore_scalar",
+                                       "H_aft_scalar", "E_scalar", "X_scalar",
                                        "_Edim", "_Xdim", "distortionParameters"]
         # Plotting parameters
-        self.color                      = [0.2,0.2,0.2]
-        self.opacity                    = 0.8
-        self.diameter                   = 0.076
-        self.length                     = 0.091
+        self.color                        = [0.2,0.2,0.2]
+        self.opacity                      = 0.8
+        self.diameter                     = 0.076
+        self.length                       = 0.091
         self.createPoints()
         # Main planes model
         self.flangeFocalDistance          =  0.0440
         self.F                            =  0.1000
-        self.H_scalar                     =  0.0460
-        self.H_line_scalar                =  0.0560
-        self.E_scalar                     =  0.0214
-        self.X_scalar                     =  0.0363
+        self._H_fore_scalar               =  0.0460
+        self._H_aft_scalar                =  0.0560
+        self._E_scalar                    =  0.0214
+        self._X_scalar                    =  0.0362568218298555
         self._Edim                        =  0.1000
-        self._Xdim                        =  0.0802
+        self._Xdim                        =  0.0802568218
         # Adjustable parameters
         self._focusingDistance            =  10
         self.aperture                     =  2
         self.distortionParameters         = np.array([0,0,0,1])
         #Calculated parameters
         self.focusingOffset               = 0
-        self.PinholeEntrance              = None
-        self.PinholeExit                  = None
+        self.PinholeFore              = None
+        self.PinholeAft                  = None
         self.calculatePositions()
         
     @property
-    def H(self):
-        return self.x*(self.H_scalar + self.focusingOffset) + self.origin
-    @H.setter
-    def H(self, h):
-        self.H_scalar = h
+    def H_fore(self):    return self.x * self.H_fore_scalar + self.origin
+    @H_fore.setter
+    def H_fore(self, h): self._H_fore_scalar = h
+    
+    @property
+    def H_aft(self):    return self.x * self.H_aft_scalar + self.origin
+    @H_aft.setter
+    def H_aft(self, h): self.H_aft_scalar = h    
         
     @property
-    def H_line(self):
-        return self.x*(self.H_line_scalar + self.focusingOffset) + self.origin
-    @H_line.setter
-    def H_line(self, h):
-        self.H_line_scalar = h
-        
+    def H_fore_scalar(self): return (self._H_fore_scalar + self.focusingOffset)
+    @property        
+    def H_aft_scalar(self):  return (self._H_aft_scalar + self.focusingOffset)
+    
+    @property        
+    def E_scalar(self):      return (self._E_scalar + self.focusingOffset)
+    @property        
+    def X_scalar(self):      return (self._X_scalar + self.focusingOffset)        
+          
     @property
-    def E(self):
-        return self.x*(self.E_scalar + self.focusingOffset) + self.origin
+    def E(self):    return self.x*self.E_scalar + self.origin
     @E.setter
-    def E(self, e):
-        self.E_scalar = e
+    def E(self, e): self.E_scalar = e
         
     @property
-    def X(self):
-        return self.x*(self.X_scalar + self.focusingOffset) + self.origin
+    def X(self):    return self.x*self.X_scalar + self.origin
     @X.setter
-    def X(self, x):
-        self.X_scalar = x
+    def X(self, x): self.X_scalar = x
                         
     @property
-    def focusingDistance(self):
-        return self._focusingDistance
+    def focusingDistance(self): return self._focusingDistance
     @focusingDistance.setter
     def focusingDistance(self,distance):
         self._focusingDistance = distance
         self.calculatePositions()
         
     @property
-    def Edim(self):
-        return self._Edim / self.aperture
+    def Edim(self): return self._Edim / self.aperture
     @Edim.setter
-    def Edim(self, entrancePupilDiameter):
-        self._Edim = entrancePupilDiameter
+    def Edim(self, entrancePupilDiameter): self._Edim = entrancePupilDiameter
         
     @property
-    def Xdim(self):
-        return self._Xdim / self.aperture
+    def Xdim(self): return self._Xdim / self.aperture
     @Xdim.setter
-    def Xdim(self, entrancePupilDiameter):
-        self._Xdim = entrancePupilDiameter        
+    def Xdim(self, pupilDiameter): self._Xdim = pupilDiameter        
                
     def calculatePositions(self):
         """
@@ -510,23 +507,37 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         #   1            1                     1
         # -----  =  ----------- + ----------------------------
         #   F          F + d'      focusingDistance - SH - d'
-        SH      = self.H_scalar + self.flangeFocalDistance
-        c       = self.F * (self.focusingDistance - SH + self.F)
-        b       = self.focusingDistance - SH
-        d_line  = 0.5*((b - self.F) - np.sqrt((b - self.F)**2 + 
-                                              4*(self.F * b - c)))
+        #                                      
+        #             -(foc - F - H) - sqrt((foc-f-H)**2 + 4*F**2))
+        #  dprime =  ----------------------------------------------
+        #                                  2
+        aux     = self.focusingDistance - self.F - (self._H_fore_scalar + 
+                                                    self.flangeFocalDistance)
+        delta   = aux**2 - 4*(self.F**2)
+        d_line  = (aux - np.sqrt(delta))/2
+        
+#        print "------ FOCUS CALCULATION ------------------------"
+#        print "foc          : ", self.focusingDistance
+#        print "aux          : ", aux
+#        print "F            : ", self.F
+#        print "H            : ", (self._H_fore_scalar + 
+#                                                    self.flangeFocalDistance)
+#        print "sqrt(delta)  : ", np.sqrt(delta)
+#        print "d_line       : ", d_line
+#        print "Hprime       : ", self.H_aft
+        
         #
         # Now, we have to find the pseudo position of the pinhole (which is
-        # not H'.
+        # not H_fore.
         v                       = d_line + self.F
-        a                       = self.E_scalar - self.H_scalar
+        a                       = self._E_scalar - self._H_fore_scalar
         v_bar                   = v + a - v*a/self.F
         
-        self.focusingOffset = d_line
+        self.focusingOffset     = d_line
         
-        self.PinholeExit       = self.origin + self.x * (v_bar - 
-                                                      self.flangeFocalDistance)
-        self.PinholeEntrance       = self.origin + self.x * (self.E_scalar + d_line)
+        self.PinholeAft   = self.origin + self.x * (v_bar - 
+                                                    self.flangeFocalDistance)
+        self.PinholeFore  = self.origin + self.x * self.E_scalar
         
     def clearData(self):
         """
@@ -564,7 +575,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         Given a set of points (e.g. in the sensor), will return a list of
         vectors representing the direction to be followed by ray tracing.       
         """
-        return self.lensDistortion(Utils.normalize(self.PinholeExit - p))
+        return self.lensDistortion(Utils.normalize(self.PinholeAft - p))
     
     def lensDistortion(self, vectors):
         """
@@ -702,7 +713,8 @@ class Camera(Primitives.Assembly):
         vector  = -vector / np.tile(vecnorm,(3,1)).T
         return (result, vector)
         
-    def shootRays(self, sensorParamCoords, 
+    def shootRays(self, 
+                  sensorParamCoords, 
                   referenceWavelength = 532e-9,
                   maximumRayTrace = 10,
                   restart = False):
@@ -713,7 +725,7 @@ class Camera(Primitives.Assembly):
             initialVectors = self.lens.rayVector(sensorCoords)
             bundle         = Primitives.RayBundle()
             bundle.insert(initialVectors, 
-                          self.lens.PinholeEntrance, 
+                          self.lens.PinholeFore, 
                           referenceWavelength)
             self.insert(bundle, 3, overwrite = True)
 
@@ -815,96 +827,141 @@ class Camera(Primitives.Assembly):
         cond = cond / (np.size(self.sensorSamplingCenters)/3)
         return cond
     
-    def depthOfField(self, referenceWavelength = 532e-9):
-        CoC = 29e-6
-        points_param  = np.array([[-1,-1],[-1,+1],[+1,+1],[+1,-1]])
+    def depthOfField(self,
+                     allowableDiameter   = 29e-6,
+                     referenceWavelength = 532e-9):
+        
+        points_param  = np.array([[-1,-1],
+                                  [-1,+1],
+                                  [+1,+1],
+                                  [+1,-1]])
         points        = self.sensor.parametricToPhysical(points_param)
         
-        # Distance from H' (second main plane) to points in sensor projected
-        # at the optical axis
-        S_H_line  = np.sum(self.lens.x*(self.lens.H_line - points), 1)
-        # Distance from exit pupil (X) to points in sensor, projected again
-        S_X       = np.sum(self.lens.x*(self.lens.X - points), 1)
+        X             = self.lens.Xdim
+        HprimeX       = -(self.lens.X_scalar - self.lens.H_aft_scalar)
+        dcoc          = allowableDiameter
+        # The distance between sensor extremities and center of fore main
+        # plane, projected at the lens optical axis
+        points_proj   = np.sum((self.lens.H_aft - points)*self.lens.x,1)
         
-        # Distance from H (first main plane) to entrance pinhole
-        H_PE      = np.sum(self.lens.x*(self.lens.H - self.lens.PinholeEntrance))
+        p_prime_fore  = (X*points_proj + dcoc*HprimeX) / (X + dcoc)
+        p_prime_aft   = (X*points_proj - dcoc*HprimeX) / (X - dcoc)
+        p_prime_spot  = points_proj
         
-        d         = Utils.norm(S_X) * CoC / self.lens.Xdim
-        d_near    = 1 / (1/self.lens.F - 1/(S_H_line + d))
-        d_far     = 1 / (1/self.lens.F - 1/(S_H_line - d))
+        p_fore = self.lens.F*p_prime_fore / (p_prime_fore - self.lens.F)
+        p_aft  = self.lens.F*p_prime_aft  / (p_prime_aft  - self.lens.F)
+        p_spot = self.lens.F*p_prime_spot / (p_prime_spot - self.lens.F)
         
-        # Must compensate for the fact that the pinhole is not the main plane
-        d_near    = d_near + H_PE
-        d_far     = d_far  + H_PE
+        p_fore = p_fore + self.lens.H_fore_scalar
+        p_aft  = p_aft  + self.lens.H_fore_scalar
+        p_spot = p_spot + self.lens.H_fore_scalar
+        """ Find the vectors emerging from the lens: """
+        vecs   = self.lens.rayVector(points)
+        vecx   = np.sum(vecs*self.lens.x, 1) # projection at optical axis
+        # "Elongate" points to adapt to ray tracing
+        p_fore = np.einsum("i,ij->ij",p_fore / vecx, vecs) + self.lens.origin
+        p_aft  = np.einsum("i,ij->ij",p_aft  / vecx, vecs) + self.lens.origin
+        p_spot = np.einsum("i,ij->ij",p_spot / vecx, vecs) + self.lens.origin
+        """ p_fore and p_aft are the points in space limiting the in-focus
+        region, were there no obstructions, reflection, etc """
         
-        # Distance from pinhole exit to points in sensor, no projection
-        S_PX      = (self.lens.PinholeExit - 
-                     self.sensor.parametricToPhysical(points_param))
-        S_PX_x    = np.sum(self.lens.x * S_PX, 1)
+        p_fore_horz = np.empty_like(p_fore)
+        p_fore_vert = np.empty_like(p_fore)
+        p_aft_horz = np.empty_like(p_aft)
+        p_aft_vert = np.empty_like(p_aft)
+        for n in range(np.size(p_fore,0)):
+            (p_fore_vert[n],p_fore_horz[n]) = self.findFocusingPoint(p_fore[n], 
+                                                                     referenceWavelength)
+            (p_aft_vert[n],p_aft_horz[n]) = self.findFocusingPoint(p_aft[n], 
+                                                                   referenceWavelength)
+        for n in range(len(self.items)):
+            if (self.items[n].name == "In-focus-vertical" or
+                self.items[n].name == "In-focus-horizontal"):
+                self.remove(n)
+        volume_vert                 = Primitives.Volume()
+        volume_vert.surfaceProperty = volume_vert.TRANSPARENT
+        volume_vert.name            = "In-focus-vertical"
+        volume_vert.color           = np.array([1,0,0])#np.array(Utils.metersToRGB(referenceWavelength))
+        volume_vert.opacity         = 0.25
+        volume_vert.points          = np.vstack([p_aft_vert,p_fore_vert])
+        self.insert(volume_vert)
         
-        # Scaling factors
-        VecNear   = S_PX * np.tile(d_near / S_PX_x, (3,1)).T
-        VecFar    = S_PX * np.tile(d_far  / S_PX_x, (3,1)).T
+        volume_horz                 = Primitives.Volume()
+        volume_horz.surfaceProperty = volume_horz.TRANSPARENT
+        volume_horz.name            = "In-focus-horizontal"
+        volume_horz.color           = np.array([1,1,0])#np.array(Utils.metersToRGB(referenceWavelength))
+        volume_horz.opacity         = 0.25
+        volume_horz.points          = np.vstack([p_aft_horz,p_fore_horz])
+        self.insert(volume_horz)
         
-        bundle    = self.shootRays(points_param, 
-                                   referenceWavelength, 
-                                   Utils.norm(VecNear))
-        Pnear     = bundle.rayPaths[-1]
-#        print Utils.norm(VecNear)
         
-#        print bundle.rayLength
-#        print bundle.rayLastVectors
-#        print bundle.rayPaths
-        
-        bundle    = self.shootRays(None, 
-                                   None, 
-                                   Utils.norm(VecFar),
-                                   restart = True)
-#        print Utils.norm(VecFar)
-#        print bundle.rayLength
-#        print bundle.rayLastVectors
-#        print bundle.rayPaths
-        Pfar      = bundle.rayPaths[-1]
-        
-        P         = np.vstack([Pnear, Pfar])
-        
-        v         = Primitives.Volume()
-        v.color   = np.array(Utils.metersToRGB(referenceWavelength))
-        v.opacity = 0.25
-        v.points  = P
-        self.insert(v, 4)
-        
-        ptsy = np.zeros((4,3))
-        ptsz = np.zeros((4,3))
-        for n in range(4):
-            pupilPoints = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
-                                    self.lens.E + self.lens.z*self.lens.Edim/2,
-                                    self.lens.E - self.lens.y*self.lens.Edim/2,
-                                    self.lens.E - self.lens.z*self.lens.Edim/2,])
-            vectors = (self.lens.PinholeEntrance + 0.5 * (VecNear[n] + VecFar[n]) -
-                                                                    pupilPoints)
-            bundletest = Primitives.RayBundle()
-            bundletest.insert(Utils.normalize(vectors), pupilPoints, 532e-9)
-            self.insert(bundletest)
-            bundletest.maximumRayTrace = 1.5
-            bundletest.stepRayTrace = 1.5
-            bundletest.trace()
-            p = bundletest.rayPaths[-1]
-            v = bundletest.rayPaths[-2] - bundletest.rayPaths[-1]
-            ptsy[n] = Utils.linesIntersection(v[[0,2]], p[[0,2]])
-            ptsz[n] = Utils.linesIntersection(v[[1,3]], p[[1,3]])
-        plane = Primitives.Plane()
-        plane.points = ptsy
-#        print np.mean(ptsy[:,0])
-        plane.color = [1,0,0]
-        self.insert(plane)
-        plane = Primitives.Plane()
-        plane.points = ptsz
-        print np.mean(ptsy[:,0]) - np.mean(ptsz[:,0])
-        plane.color = [1,1,0]
-        self.insert(plane)
-        return v
 
+#        print "------ DOF CALCULATION ------------------------"
+#        print "p'+\n", p_prime_fore
+#        print "p'-\n", p_prime_aft
+#        print "p+ \n", p_fore
+#        print "p- \n", p_aft
+#        print "ps \n", p_spot
+#        print "dcoc         : ", dcoc
+#        print "E diameter   : ", self.lens.Edim
+#        print "X diameter   : ", X
+#        print "X            : ", self.lens.X_scalar
+#        print "HprimeX      : ", HprimeX
+#        print "H'           : ", self.lens.H_aft
+#        print "points[0]    : ", points[0]
+#        print "H'S[0]       : ", points_proj
+        
+        return (volume_vert, volume_horz)
+    
+    def findFocusingPoint(self, theoreticalPoint, wavelength, tol = 1e-3):
+        """
+        As the environment that the camera is placed can include mirrors
+        and refractive materials, the light path has to be calculated with 
+        the ray tracing algorithm.
+        
+        For the given point, four rays are cast - each at a border of the
+        entrance pupil. Their initial vector is defined as the one that reaches
+        the theoretical point (given).
+        
+        Then, for each pair (the horizontal and the vertical), the 
+        intersection of the ray paths is verified. The intersection point is
+        then the point in space where focusing is perfect.
+        """
+        pupilPoints   = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
+                                  self.lens.E + self.lens.z*self.lens.Edim/2,
+                                  self.lens.E - self.lens.y*self.lens.Edim/2,
+                                  self.lens.E - self.lens.z*self.lens.Edim/2])
+        # Vectors going to the theoretical point
+        vectors       = theoreticalPoint - pupilPoints
+        norms         = np.sqrt(np.sum(vectors*vectors,1))
+        # Normalize
+        vectors       = np.einsum("ij,i->ij",vectors, 1/norms)
+        # Create a ray bundle
+        rays          = Primitives.RayBundle()
+        n = self.insert(rays)
+        rays.insert(vectors, pupilPoints, wavelength)
+        rays.maximumRayTrace = 10 * np.mean(norms)
+        rays.stepRayTrace    = 10 * np.mean(norms)
+        rays.trace()
+        self.remove(n-1)
+        # Now run the bundle trying to find the intersection
+        steps =  np.size(rays.rayPaths, 0)
+        Ph = None
+        Pv = None
+        for n in range(1,steps):
+            p2   = rays.rayPaths[n]
+            p1   = rays.rayPaths[n-1]
+            v    = p2 - p1
+            pt_vert = Utils.linesIntersection(v[[0,2]], p1[[0,2]])
+            pt_horz = Utils.linesIntersection(v[[1,3]], p1[[1,3]])
+#            print n
+#            print Utils.pointSegmentDistance(p1, p2, pt_vert)
+#            print Utils.pointSegmentDistance(p1, p2, pt_horz)
+            if (Utils.pointSegmentDistance(p1, p2, pt_vert) < tol).all():
+                Pv = pt_vert
+            if (Utils.pointSegmentDistance(p1, p2, pt_horz) < tol).all():
+                Ph = pt_horz
+        return (Pv, Ph)
     
     def virtualCameras(self, centeronly = True):
         """
@@ -967,7 +1024,7 @@ class Camera(Primitives.Assembly):
                 [_,__,V] = np.linalg.svd(M)                             
                 pinholePosition = (V[-1] / V[-1][-1])[:-1]
                 phantom.translate(pinholePosition - 
-                                  phantom.lens.PinholeEntrance)
+                                  phantom.lens.PinholeFore)
 
                 # Transform the DLT matrix (that originally goes from global
                 # coordinates to sensor parametric) to local sensor coordinates
@@ -976,7 +1033,7 @@ class Camera(Primitives.Assembly):
                     
                 phantom.mapping = M
                 phantom.alignTo(Qm[0],-Qm[1],None,
-                                phantom.lens.PinholeEntrance, 1e-3) 
+                                phantom.lens.PinholeFore, 1e-3) 
                 phantomAssembly.insert(phantom)
         
         return phantomAssembly
@@ -1213,27 +1270,29 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 1
-    c.lens.aperture                 = 2.8
-    c.mappingResolution             = [10, 10]
+    c.lens.focusingDistance         = 10
+    c.lens.aperture                 = 5.6
+    c.mappingResolution             = [3, 3]
     c.lens.translate(np.array([0.026474,0,0]))
+    c.translate(-c.x*c.sensorPosition)
 #    c.lens.rotate(-0.1, c.z)
 #    l                               = Laser()
 #    l.usefulLength                  = np.array([0.1, 2])
     
     
     v                               = Primitives.Volume()
+#    v.rotate(np.pi/9, v.z)
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.material                     = Library.IdealMaterial()
-    v.material.value               = 1
+    v.material                      = Library.IdealMaterial()
+    v.material.value                = 1
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
     v2.surfaceProperty              = v.MIRROR
-#    v2.surfaceProperty              = v.TRANSPARENT 
+    v2.surfaceProperty              = v.TRANSPARENT 
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))
@@ -1241,51 +1300,58 @@ if __name__=='__main__':
 
     environment = Primitives.Assembly()
     environment.insert(c)
-    environment.insert(v)
-    environment.insert(v2)
+#    environment.insert(v)
+#    environment.insert(v2)
 #    environment.insert(l)
 #    l.trace()
     
 #    Some geometrical transformations to make the problem more interesting
 #    c.rotate(np.pi/4,c.x)    
-#    environment.rotate(np.pi/0.1314, c.x)
-#    environment.rotate(np.pi/27, c.y)
-#    environment.rotate(np.pi/2.1, c.z)
+    environment.rotate(np.pi/0.1314, c.x)
+    environment.rotate(np.pi/27, c.y)
+    environment.rotate(np.pi/2.1, c.z)
     
-    pts = (np.random.rand(400e3,3)-0.5)*0.04 
-    if (v2.surfaceProperty == v2.MIRROR).all():
-        c.calculateMapping(v, 532e-9)
-        pts[:,1] = 0*pts[:,1]
-        pts = pts + np.array([0.5,0.55,0]) 
-        ax = (0,2)        
-    else:
-        c.calculateMapping(v2, 532e-9)
-        pts[:,0] = 0*pts[:,0] 
-        pts = pts + np.array([0.57,0,0])  
-        ax = (1,2)      
+#    pts = (np.random.rand(400e3,3)-0.5)*0.04 
+#    if (v2.surfaceProperty == v2.MIRROR).all():
+#        c.calculateMapping(v, 532e-9)
+#        pts[:,1] = 0*pts[:,1]
+#        pts = pts + np.array([0.5,0.55,0]) 
+#        ax = (0,2)        
+#    else:
+#        c.calculateMapping(v2, 532e-9)
+#        pts[:,0] = 0*pts[:,0] 
+#        pts = pts + np.array([0.57,0,0])  
+#        ax = (1,2)      
             
-    c.depthOfField()
+    vv,vh = c.depthOfField()
+    print vv.points
+    print vh.points
+    vv = copy.deepcopy(vv)
+    vv.surfaceProperty = vv.TRANSPARENT
+    environment.insert(vv)
+    vv.expand(0.05)
+    c.calculateMapping(vv, 532e-9)
         
 #    phantoms = c.virtualCameras(False)
 #    
 #    if phantoms is not None:       
 #        environment.insert(phantoms)
   
-    tic.tic()
-    (pos,vec) = c.mapPoints(pts)
-    tic.toc(np.size(pts,0))
+#    tic.tic()
+#    (pos,vec) = c.mapPoints(pts)
+#    tic.toc(np.size(pts,0))
 #    print "Position\n", pos
 #    print "Vector\n", vec
     
-    mag = np.sqrt(np.sum(vec[:,ax]*vec[:,ax],1))
-    plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
-               vec[:,ax[1]],vec[:,ax[0]], mag)
+#    mag = np.sqrt(np.sum(vec[:,ax]*vec[:,ax],1))
+#    plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
+#               vec[:,ax[1]],vec[:,ax[0]], mag)
 
 #    plt.quiver(pts[:,ax[0]],pts[:,ax[1]],
 #               vec[:,ax[0]],vec[:,ax[1]])
-    plt.axis('equal')
-    plt.grid(True)
-    plt.show()
+#    plt.axis('equal')
+#    plt.grid(True)
+#    plt.show()
 
     System.plot(environment)
 #    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 

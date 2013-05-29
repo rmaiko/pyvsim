@@ -447,7 +447,7 @@ class Assembly(Component):
             otherwise it is added at the n-th position.
         overwrite : boolean = False
             [Optional] If the parameter n is given *and* the n-th position is
-            occunp.pied, this flag specifies whether the element at this position
+            occupied, this flag specifies whether the element at this position
             should be overwritten (True) of simply shifted (False).
         
         Returns
@@ -1367,6 +1367,14 @@ class Volume(Part):
         self.points =((np.reshape(self.points[:,0],(8,1,1)) * self.x).squeeze()+ 
                       (np.reshape(self.points[:,1],(8,1,1)) * self.y).squeeze()+ 
                       (np.reshape(self.points[:,2],(8,1,1)) * self.z).squeeze()) 
+        
+    def expand(self, factor):
+        """
+        Inflates the volume by "factor"
+        """
+        center = np.mean(self.points,0)
+        for n in range(np.size(self.points,0)):
+            self.points[n] = self.points[n] + factor*(self.points[n] - center)
         
     def physicalToParametric(self, c):
         """
