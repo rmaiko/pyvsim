@@ -718,6 +718,28 @@ class Camera(Primitives.Assembly):
                   referenceWavelength = 532e-9,
                   maximumRayTrace = 10,
                   restart = False):
+        """
+        This is a convenience method to create a ray bundle departing from the
+        fore pinhole (the center of the entrance pupil) to be used in ray 
+        tracing.
+        
+        Parameters
+        ----------
+        sensorParamCoords : numpy.array (N,2)
+            The UV coordinates of the point in the sensor originating the rays
+        referenceWavelength : float
+            The wavelength (in meters) to be used for casting the rays used in
+            determining the camera field of view. When looking for chromatic
+            aberrations, more than one mapping (maybe one camera for each color
+            component)
+        maximumRayTrace : float
+            The maximum distance for the ray to be traced
+        restart : boolean (False)
+            If the previous tracing needs to be continued, setting this flag
+            to True will make the process continue from its last point 
+            (don't forget to increase maximumRayTrace, which refers to the total
+            distance travelled by the ray, including from previous runs)
+        """
         if not restart:
             sensorCoords   = self.sensor.parametricToPhysical(sensorParamCoords)
             # Creates vectors to initialize ray tracing for each point in the 
@@ -736,6 +758,31 @@ class Camera(Primitives.Assembly):
         return self.items[3]
         
     def calculateMapping(self, target, referenceWavelength = 532e-9):
+        """
+        This method calculates the transformation matrix(ces) to go from
+        world coordinates (XYZ) to parametric sensor coordinates (UV). This is
+        a method to avoid having to do ray tracing for each particle, when
+        generating a synthetic PIV image, for example.
+        
+        The field of view is mapped using a volume (target), and it is assumed
+        that the light path is rectilinear inside it. The field of view is
+        discretized in MxN regions, as defined in the mappingResolution 
+        property of the camera.
+        
+        Discretization in more than one volume is only needed in cases where
+        the pinhole camera model is not valid, e.g. in the presence of radial
+        distortions or refractive elements. In theory any mapping is represented
+        in a piecewise linear manner using the domain partition, however this
+        makes computation of synthetic images much more expensive.
+        
+        Parameters
+        ----------
+        referenceWavelength : float
+            The wavelength (in meters) to be used for casting the rays used in
+            determining the camera field of view. When looking for chromatic
+            aberrations, more than one mapping (maybe one camera for each color
+            component)
+        """
         # First determine the points in the sensor to be reference for the
         # mapping
         [U,V]  = np.meshgrid(np.linspace(-1,1,self.mappingResolution[1]), 
@@ -830,6 +877,34 @@ class Camera(Primitives.Assembly):
     def depthOfField(self,
                      allowableDiameter   = 29e-6,
                      referenceWavelength = 532e-9):
+        """
+        This method calculates the camera field of view and depth of field.
+        Two volumes are returned - one for vertical focusing and another for
+        horizontal focusing (when the ambient has no refractive elements, both
+        will probably be the same).
+        
+        Parameters
+        ----------
+        allowableDiameter : float
+            The diameter of the maximum allowable circle of confusion (in 
+            meters). The standard value of 29 microns is chosen to match the
+            Zeiss lens datasheets
+        referenceWavelength : float
+            As the volumes are calculated with ray tracing, a wavelength must
+            be chosen for the rays that are casted during the procedure. If
+            looking for chromatic aberration, the user must repeat the procedure
+            for several wavelengths
+                
+        Returns
+        -------
+        (VV, VH) : pyvsim.Volume
+            Each of the volumes represent the region where a point is imaged
+            by the camera as a feature with a diameter no greater than 
+            "allowableDiameter". Only in the case of astigmatism, VV and VH
+            are not the same, then VV (vertical) is the volume where the point 
+            is in focus at the camera.y axis and VH (horizontal) is in focus
+            at the camera.z axis 
+        """
         
         points_param  = np.array([[-1,-1],
                                   [-1,+1],
@@ -838,7 +913,7 @@ class Camera(Primitives.Assembly):
         points        = self.sensor.parametricToPhysical(points_param)
         
         X             = self.lens.Xdim
-        HprimeX       = -(self.lens.X_scalar - self.lens.H_aft_scalar)
+        HprimeX       = self.lens.H_aft_scalar - self.lens.X_scalar
         dcoc          = allowableDiameter
         # The distance between sensor extremities and center of fore main
         # plane, projected at the lens optical axis
@@ -870,9 +945,9 @@ class Camera(Primitives.Assembly):
         p_aft_horz = np.empty_like(p_aft)
         p_aft_vert = np.empty_like(p_aft)
         for n in range(np.size(p_fore,0)):
-            (p_fore_vert[n],p_fore_horz[n]) = self.findFocusingPoint(p_fore[n], 
+            (p_fore_vert[n],p_fore_horz[n]) = self._findFocusingPoint(p_fore[n], 
                                                                      referenceWavelength)
-            (p_aft_vert[n],p_aft_horz[n]) = self.findFocusingPoint(p_aft[n], 
+            (p_aft_vert[n],p_aft_horz[n]) = self._findFocusingPoint(p_aft[n], 
                                                                    referenceWavelength)
         for n in range(len(self.items)):
             if (self.items[n].name == "In-focus-vertical" or
@@ -913,7 +988,7 @@ class Camera(Primitives.Assembly):
         
         return (volume_vert, volume_horz)
     
-    def findFocusingPoint(self, theoreticalPoint, wavelength, tol = 1e-3):
+    def _findFocusingPoint(self, theoreticalPoint, wavelength, tol = 1e-3):
         """
         As the environment that the camera is placed can include mirrors
         and refractive materials, the light path has to be calculated with 
@@ -926,6 +1001,32 @@ class Camera(Primitives.Assembly):
         Then, for each pair (the horizontal and the vertical), the 
         intersection of the ray paths is verified. The intersection point is
         then the point in space where focusing is perfect.
+        
+        Parameters
+        ----------
+        theoreticalPoint : numpy.array (3)
+            This is the point in space where the camera would be imaging if it
+            were isolated (no mirrors, refractions, etc)
+        wavelength : float
+            As the volumes are calculated with ray tracing, a wavelength must
+            be chosen for the rays that are casted during the procedure. If
+            looking for chromatic aberration, the user must repeat the procedure
+            for several wavelengths
+        tol : float (1e-3)
+            The tolerance in finding the ray intersection. This value is kept
+            relatively high because in the case of astigmatism, the Y and Z
+            axes of the camera might not be aligned with the astigmatism axes,
+            which can cause the intersection not to be perfect. This value
+            still produces results comparable to the one found in Zeiss 
+            datasheets
+            
+        Returns
+        -------
+        (PV, PH) : tuple of numpy.array (3)
+            PV is the point of intersection of the marginal rays casted from
+            the Y (camera vertical) extremities of the entrance pupil. PH is
+            the point of intersection of the rays casted from the Z (camera
+            horizontal) extremities of the entrance pupil.
         """
         pupilPoints   = np.array([self.lens.E + self.lens.y*self.lens.Edim/2,
                                   self.lens.E + self.lens.z*self.lens.Edim/2,
@@ -996,6 +1097,12 @@ class Camera(Primitives.Assembly):
         phantomPrototype.body.opacity       = 0.2
         phantomPrototype.lens.color         = [0.5,0.5,0.5]
         phantomPrototype.lens.opacity       = 0.2
+        print phantomPrototype.x
+        print phantomPrototype.y
+        print phantomPrototype.z
+        print phantomPrototype.lens.x
+        print phantomPrototype.lens.y
+        print phantomPrototype.lens.z
         phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
 
         phantomAssembly                     = Primitives.Assembly()
@@ -1270,8 +1377,8 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 10
-    c.lens.aperture                 = 5.6
+    c.lens.focusingDistance         = 1.5
+    c.lens.aperture                 = 22
     c.mappingResolution             = [3, 3]
     c.lens.translate(np.array([0.026474,0,0]))
     c.translate(-c.x*c.sensorPosition)
@@ -1281,18 +1388,18 @@ if __name__=='__main__':
     
     
     v                               = Primitives.Volume()
-#    v.rotate(np.pi/9, v.z)
+    v.rotate(np.pi/9, v.z)
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
     v.material                      = Library.IdealMaterial()
-    v.material.value                = 1
+    v.material.value                = 1.333
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
     v2.surfaceProperty              = v.MIRROR
-    v2.surfaceProperty              = v.TRANSPARENT 
+#    v2.surfaceProperty              = v.TRANSPARENT 
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))
@@ -1300,13 +1407,13 @@ if __name__=='__main__':
 
     environment = Primitives.Assembly()
     environment.insert(c)
-#    environment.insert(v)
-#    environment.insert(v2)
+    environment.insert(v)
+    environment.insert(v2)
 #    environment.insert(l)
 #    l.trace()
     
 #    Some geometrical transformations to make the problem more interesting
-#    c.rotate(np.pi/4,c.x)    
+    c.rotate(np.pi/4,c.x)    
     environment.rotate(np.pi/0.1314, c.x)
     environment.rotate(np.pi/27, c.y)
     environment.rotate(np.pi/2.1, c.z)
@@ -1323,19 +1430,19 @@ if __name__=='__main__':
 #        pts = pts + np.array([0.57,0,0])  
 #        ax = (1,2)      
             
-    vv,vh = c.depthOfField()
+    vv,vh = c.depthOfField(allowableDiameter = 15e-6)
     print vv.points
     print vh.points
     vv = copy.deepcopy(vv)
     vv.surfaceProperty = vv.TRANSPARENT
     environment.insert(vv)
-    vv.expand(0.05)
+#    vv.expand(0.01)
     c.calculateMapping(vv, 532e-9)
         
-#    phantoms = c.virtualCameras(False)
-#    
-#    if phantoms is not None:       
-#        environment.insert(phantoms)
+    phantoms = c.virtualCameras()
+    
+    if phantoms is not None:       
+        environment.insert(phantoms)
   
 #    tic.tic()
 #    (pos,vec) = c.mapPoints(pts)
