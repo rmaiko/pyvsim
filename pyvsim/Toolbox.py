@@ -1445,7 +1445,7 @@ if __name__=='__main__':
 #    vv.surfaceProperty = vv.TRANSPARENT
 #    environment += vv
 #    vv.expand(0.01)
-    c.calculateMapping(l.volume[0], 532e-9)
+    c.calculateMapping(l.volume, 532e-9)
         
 #    phantoms = c.virtualCameras()
 #    

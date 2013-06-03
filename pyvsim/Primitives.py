@@ -397,8 +397,59 @@ class Assembly(Component):
             raise TypeError("Operations are only allowed between \
                              pyvsim components")
         self.remove(other)        
-        return self     
+        return self       
         
+    def __eq__(self, other):
+        """
+        This overloading is used in ray tracing, because it might be that the
+        tracing target is given as an assembly, but the intersection always
+        happens with a subcomponent of the assembly
+        """
+        return (self is other) or (other in self._items)
+    
+    def __neq__(self, other):
+        """
+        This overloading is given to maintain coherence with __eq__
+        """
+        return (not (self is other)) and (not (other in self._items))
+        
+    def __getitem__(self, k):
+        """
+        This overloading is provided so that the assembly can be referenced by
+        index, as in an array
+        """
+        return self._items[k]
+    
+    def __setitem__(self, k, value):
+        """
+        This overloading is provided so that the assembly can be referenced by
+        index, as in an array
+        """        
+        self.insert(self, value, n = k, overwrite = True)      
+        
+    def __delitem__(self,k):
+        """
+        Removes the element of a list
+        
+        Method provided to align assembly behavior to that of a list.
+        """        
+        self.remove(k)
+        
+    def __len__(self):
+        """
+        Returns the length of the items list.
+        
+        Method provided to align assembly behavior to that of a list.
+        """
+        return len(self._items)
+    
+    def __contains__(self, other):
+        """
+        Check if items list contains element
+        
+        Method provided to align assembly behavior to that of a list.
+        """        
+        return other in self._items
         
     def refractiveIndex(self, wavelength = 532e-9):
         """
@@ -456,13 +507,7 @@ class Assembly(Component):
             
     @items.deleter
     def items(self):
-        del self._items
-        
-    def __getitem__(self, k):
-        return self._items[k]
-    
-    def __setitem__(self, k, value):
-        self.insert(self, value, n = k, overwrite = True)        
+        del self._items  
         
     def insert(self, component, n = None, overwrite = False):
         """
