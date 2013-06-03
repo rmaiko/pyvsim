@@ -821,6 +821,7 @@ class Camera(Primitives.Assembly):
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))
         lastInts  = np.reshape(lastInts, 
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))  
+
 #        print firstInts
 #        print lastInts      
         
@@ -1207,7 +1208,8 @@ class Laser(Primitives.Assembly):
     @property
     def bounds(self):
         """
-        TODO
+        The laser participates in the ray tracing procedure only if it lays
+        the volumes representing its light beam
         """
         if self.volume is not None:
             return self.volume.bounds
@@ -1381,7 +1383,7 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 1.5
     c.lens.aperture                 = 2.8
-    c.mappingResolution             = [3, 3]
+    c.mappingResolution             = [2, 2]
     c.lens.translate(np.array([0.026474,0,0]))
     c.translate(-c.x*c.sensorPosition)
 #    c.lens.rotate(-0.1, c.z)
@@ -1392,18 +1394,18 @@ if __name__=='__main__':
     
     
     
-    v                               = Primitives.Volume()
-    v.rotate(np.pi/9, v.z)
-    v.opacity                       = 0.1
-    v.dimension                     = np.array([0.3, 0.3, 0.3])
-    v.material                      = Library.IdealMaterial()
-    v.material.value                = 1.333
-    v.surfaceProperty               = v.TRANSPARENT
-    v.translate(np.array([0.35,0.5,0])) 
+#    v                               = Primitives.Volume()
+#    v.rotate(np.pi/9, v.z)
+#    v.opacity                       = 0.1
+#    v.dimension                     = np.array([0.3, 0.3, 0.3])
+#    v.material                      = Library.IdealMaterial()
+#    v.material.value                = 1.333
+#    v.surfaceProperty               = v.TRANSPARENT
+#    v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
-    v2.surfaceProperty              = v.MIRROR
+    v2.surfaceProperty              = v2.MIRROR
 #    v2.surfaceProperty              = v.TRANSPARENT 
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
@@ -1411,12 +1413,13 @@ if __name__=='__main__':
     v2.rotate(-np.pi/4,v2.z)
 
     environment = Primitives.Assembly()
-    environment.insert(c)
-    environment.insert(v)
-    environment.insert(v2)
-    environment.insert(l)
+    environment += c
+#    environment += v
+    environment += v2
+    environment += l
+
     l.trace()
-    
+    print environment
 #    Some geometrical transformations to make the problem more interesting
 #    c.rotate(np.pi/4,c.x)    
 #    environment.rotate(np.pi/0.1314, c.x)
@@ -1435,14 +1438,14 @@ if __name__=='__main__':
 #        pts = pts + np.array([0.57,0,0])  
 #        ax = (1,2)      
             
-    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
-    print vv.points
-    print vh.points
-    vv = copy.deepcopy(vv)
-    vv.surfaceProperty = vv.TRANSPARENT
-    environment += vv
-    vv.expand(0.01)
-    c.calculateMapping(vv, 532e-9)
+#    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
+#    print vv.points
+#    print vh.points
+#    vv = copy.deepcopy(vv)
+#    vv.surfaceProperty = vv.TRANSPARENT
+#    environment += vv
+#    vv.expand(0.01)
+    c.calculateMapping(l.volume[0], 532e-9)
         
 #    phantoms = c.virtualCameras()
 #    
@@ -1472,8 +1475,8 @@ if __name__=='__main__':
 #                             diameter = 0.0001)
 #    c.sensor.displaySensor()
 
-    System.save(environment, "test.dat")
-    
-    ambient = System.load("test.dat")
+#    System.save(environment, "test.dat")
+#    
+#    ambient = System.load("test.dat")
 #
 #    System.plot(ambient)

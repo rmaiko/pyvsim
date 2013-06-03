@@ -386,7 +386,7 @@ class Assembly(Component):
             raise TypeError("Operations are only allowed between \
                              pyvsim components")       
         self.insert(other)       
-        return self 
+        return self
     
     def __isub__(self,other):
         """
@@ -457,6 +457,12 @@ class Assembly(Component):
     @items.deleter
     def items(self):
         del self._items
+        
+    def __getitem__(self, k):
+        return self._items[k]
+    
+    def __setitem__(self, k, value):
+        self.insert(self, value, n = k, overwrite = True)        
         
     def insert(self, component, n = None, overwrite = False):
         """
