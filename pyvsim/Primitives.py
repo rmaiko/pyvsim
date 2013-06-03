@@ -356,7 +356,7 @@ class Assembly(Component):
     numpy.ndarray.
     """
     def __init__(self):
-        self._items                     = np.array([])
+        self._items                     = np.array([], dtype = object)
         self._bounds                    = None
         self.surfaceProperty            = Component.TRANSPARENT
         Component.__init__(self)
@@ -405,13 +405,20 @@ class Assembly(Component):
         tracing target is given as an assembly, but the intersection always
         happens with a subcomponent of the assembly
         """
-        return (self is other) or (other in self._items)
+        answer = np.zeros_like(other)
+        
+        answer += (other is self)
+
+        for item in self._items:
+            answer += (item == other)
+            
+        return answer
     
     def __neq__(self, other):
         """
         This overloading is given to maintain coherence with __eq__
         """
-        return (not (self is other)) and (not (other in self._items))
+        return 1 - (self == other) 
         
     def __getitem__(self, k):
         """
@@ -425,7 +432,7 @@ class Assembly(Component):
         This overloading is provided so that the assembly can be referenced by
         index, as in an array
         """        
-        self.insert(self, value, n = k, overwrite = True)      
+        self.insert(value, k)      
         
     def __delitem__(self,k):
         """
@@ -509,7 +516,7 @@ class Assembly(Component):
     def items(self):
         del self._items  
         
-    def insert(self, component, n = None, overwrite = False):
+    def insert(self, component, n = None):
         """
         Adds element at the component list. 
         
@@ -521,10 +528,6 @@ class Assembly(Component):
             [Optional] The position of the component to be added. If no 
             parameter is given, the element is added at the end of the list, 
             otherwise it is added at the n-th position.
-        overwrite : boolean = False
-            [Optional] If the parameter n is given *and* the n-th position is
-            occupied, this flag specifies whether the element at this position
-            should be overwritten (True) of simply shifted (False).
         
         Returns
         -------
@@ -532,12 +535,12 @@ class Assembly(Component):
             The list length.
         """
         if n is None:
-            self._items = np.append(self._items, component)
-        else:
-            if not overwrite or len(self._items) < n+1:
-                self._items = np.insert(self._items, n, component)
-            else:
-                self._items[n] = component
+            n = len(self)
+            self._items    = np.insert(self._items,
+                                       len(self._items), 
+                                       None)             
+        
+        self._items[n] = component
             
         component.parent = self
         self._bounds = None

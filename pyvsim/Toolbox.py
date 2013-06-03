@@ -749,7 +749,11 @@ class Camera(Primitives.Assembly):
             bundle.insert(initialVectors, 
                           self.lens.PinholeFore, 
                           referenceWavelength)
-            self.insert(bundle, 3, overwrite = True)
+
+            if len(self) >= 4: 
+                self[3] = bundle
+            else:
+                self.insert(bundle)     
 
         self.items[3].maximumRayTrace   = maximumRayTrace
         self.items[3].stepRayTrace      = np.mean(maximumRayTrace) / 2
@@ -800,14 +804,13 @@ class Camera(Primitives.Assembly):
         
 
         # Finds the intersections that are important:
-        intersections = (bundle.rayIntersections == target)
-                         
+        intersections = (target == bundle.rayIntersections)
         # Finds first and last points
         intersections   = np.tile(intersections,GLOBAL_NDIM)
         firstInts       = np.zeros_like(bundle.rayPaths[0])
         lastInts        = np.zeros_like(bundle.rayPaths[0])
         mask            = np.ones_like(bundle.rayPaths[0])
-
+        
         for n in range(np.size(bundle.rayPaths,0)):
             firstInts[mask * intersections[n] == 1] = \
                         bundle.rayPaths[n][mask * intersections[n] == 1]
@@ -1394,14 +1397,14 @@ if __name__=='__main__':
     
     
     
-#    v                               = Primitives.Volume()
-#    v.rotate(np.pi/9, v.z)
-#    v.opacity                       = 0.1
-#    v.dimension                     = np.array([0.3, 0.3, 0.3])
-#    v.material                      = Library.IdealMaterial()
-#    v.material.value                = 1.333
-#    v.surfaceProperty               = v.TRANSPARENT
-#    v.translate(np.array([0.35,0.5,0])) 
+    v                               = Primitives.Volume()
+    v.rotate(np.pi/9, v.z)
+    v.opacity                       = 0.1
+    v.dimension                     = np.array([0.3, 0.3, 0.3])
+    v.material                      = Library.IdealMaterial()
+    v.material.value                = 1.333
+    v.surfaceProperty               = v.TRANSPARENT
+    v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
     v2.dimension                    = np.array([0.1, 0.3, 0.3])
@@ -1414,7 +1417,7 @@ if __name__=='__main__':
 
     environment = Primitives.Assembly()
     environment += c
-#    environment += v
+    environment += v
     environment += v2
     environment += l
 
@@ -1438,7 +1441,7 @@ if __name__=='__main__':
 #        pts = pts + np.array([0.57,0,0])  
 #        ax = (1,2)      
             
-#    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
+    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
 #    print vv.points
 #    print vh.points
 #    vv = copy.deepcopy(vv)
