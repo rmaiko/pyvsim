@@ -1742,7 +1742,7 @@ class RayBundle(Assembly):
             step                  = 0
             
             rayPoints[0,:,:]      = copy.deepcopy(self.startingPoints)
-                   
+                 
         stepsize              = np.ones(nrays) * self.stepRayTrace
         stepsize[distance + stepsize > 
                  self.maximumRayTrace] = self.maximumRayTrace - distance
@@ -1760,6 +1760,7 @@ class RayBundle(Assembly):
             topComponent = topComponent.parent
         # Ray tracing loop
         while np.sum(stepsize) > GLOBAL_TOL:
+            
             # Increase matrix size (if this is done too often, performance is
             # really, really bad. So adjust self.preAllocatedSteps wisely
             if step + 2 >= np.size(rayPoints,0):
@@ -1775,13 +1776,13 @@ class RayBundle(Assembly):
              surfaceRef]   = topComponent.intersections(rayPoints[step],
                                                         rayPoints[step+1],
                                                         GLOBAL_TOL)
+
             self.finalIntersections[t <= 1] = surfaceRef[t <= 1]
             rayIntersc[step+1,:,:]          = np.reshape(surfaceRef,(nrays,1))
         
             # Calculate the distance ran by the rays
             distance = (distance + 
-                        t * (t <= 1) * stepsize + 
-                        (t > 1) * stepsize)
+                        t * (t <= 1) * stepsize + (t > 1) * stepsize)
         
             # Calculate the next vectors
             currVector  = self._calculateNextVectors(currVector, 
@@ -1797,7 +1798,10 @@ class RayBundle(Assembly):
 #                        (distance + self.stepRayTrace > self.maximumRayTrace)))#*
 #                       #Utils.norm(currVector))           
             stepsize[distance + stepsize > 
-                self.maximumRayTrace] = self.maximumRayTrace - distance
+                     self.maximumRayTrace] = \
+                     (self.maximumRayTrace - distance)[distance + stepsize > 
+                                                       self.maximumRayTrace]
+
             # Calculate next inputs:
             step              = step + 1
             rayPoints[step]   = coords
@@ -1933,7 +1937,7 @@ class RayBundle(Assembly):
             result[surfaceProperty[:,3]] = 0 * result[surfaceProperty[:,3]]
         # Then put reflected rays
         result[surfaceProperty[:,0]] = reflected[surfaceProperty[:,0]]
-        result[cosTheta2 < 0]      = reflected[cosTheta2 < 0]
+        result[cosTheta2 < 0]        = reflected[cosTheta2 < 0]
         
         return result
         

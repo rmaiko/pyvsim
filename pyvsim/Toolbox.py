@@ -797,7 +797,6 @@ class Camera(Primitives.Assembly):
         UV               = np.reshape(parametricCoords, 
                                       (np.size(U,0),np.size(U,1),2))
 #        print UV
-        
         bundle = self._shootRays(parametricCoords, 
                                 referenceWavelength,
                                 maximumRayTrace = self.lens.focusingDistance*2)
@@ -1200,7 +1199,7 @@ class Laser(Primitives.Assembly):
 #        self.beamProfile                = self.gaussianProfile
         self.beamDiameter               = 0.009
 #        self.beamDivergence             = np.array([0.5e-3, 0.25])
-        self.beamDivergence             = np.array([0.0005, 0.25])
+        self.beamDivergence             = np.array([0.0005, 0.05])
         self.power                      = 0.300
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
@@ -1284,7 +1283,7 @@ class Laser(Primitives.Assembly):
             vol.points          = np.vstack([self.rays.rayPaths[n],
                                              self.rays.rayPaths[n+1]])
             vol.color           = Utils.metersToRGB(self.wavelength)
-            vol.opacity         = 1
+            vol.opacity         = 0.1
             self.volume.insert(vol)
             
     def traceReflections(self):
@@ -1386,7 +1385,7 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 1.5
     c.lens.aperture                 = 2.8
-    c.mappingResolution             = [2, 2]
+    c.mappingResolution             = [3, 3]
     c.lens.translate(np.array([0.026474,0,0]))
     c.translate(-c.x*c.sensorPosition)
 #    c.lens.rotate(-0.1, c.z)
