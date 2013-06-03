@@ -900,29 +900,13 @@ def pointInHexa(p,hexapoints):
                         hexapoints[HEXA_CONN_PARTIAL[n,2]],
                         hexapoints[HEXA_CONN_PARTIAL[n,1]] - 
                         hexapoints[HEXA_CONN_PARTIAL[n,2]])
+        
         truthtable = truthtable * \
-                    (listdot(p - hexapoints[HEXA_CONN_PARTIAL[n,2]], vout) < 0)
+                    (np.einsum("ij,j->i",
+                               p - hexapoints[HEXA_CONN_PARTIAL[n,2]], 
+                               vout) < 0)
 
-    return truthtable        
-   
-def listdot(a,b):
-    # If numpy dot product is capable of doing the job
-    if (a.ndim == b.ndim) and (a.ndim == 1):
-        return np.dot(a,b)
-    else:
-        # Helps eliminating further ifs
-        if a.ndim < b.ndim:
-            small = a
-            large = b
-        else:
-            small = b
-            large = a
-        # Dot product of a vector and a list of vectors
-        if (small.ndim == 1) and (len(small) == len(large[0])):
-            return np.sum(np.tile(small,(len(large),1)) * large,1)
-        # Dot product of two list of vectors:
-        if (small.ndim == large.ndim) and (np.size(small) == np.size(large)):
-            return np.sum(a*b,1)
+    return truthtable                      
                  
 def quadInterpolation(p,pquad,values): 
     """
