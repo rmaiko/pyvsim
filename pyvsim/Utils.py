@@ -20,8 +20,6 @@ import scipy.linalg
 import time
 import warnings
 import ConfigParser
-import threading
-import thread
 
 CONFIG_FILE = "./config.dat"
 
@@ -967,33 +965,8 @@ def quadInterpolation(p,pquad,values):
     c3 = np.reshape(Sl*Sd/den,(npts,1,1))
     c4 = np.reshape(Sr*Sd/den,(npts,1,1))
     
-    return (c1*values[0] + c2*values[1] + c3*values[2] + c4*values[3]).squeeze()
-           
-class TimeoutError(Exception):
-    pass
-           
-class timeout():
-    def __init__(self, function, timeout = 10, forgiving = True):
-        self.function   = function
-        self.maxtime    = timeout
-        self.forgiving  = forgiving
-            
-    def timeout(self):
-        thread.interrupt_main()
-        
-    def run(self, *args, **kwargs):
-        timer = threading.Timer(self.maxtime, self.timeout)
-        try:
-            timer.start()
-            answer = self.function(*args, **kwargs)
-        except KeyboardInterrupt:
-            answer = None
-            if self.forgiving:
-                print "Function timed out ", self.function
-            else:
-                raise TimeoutError
-        timer.cancel()
-        return answer
+    return (c1*values[0] + c2*values[1] + 
+            c3*values[2] + c4*values[3]).squeeze()
            
 class Tictoc:
     """
@@ -1092,24 +1065,6 @@ def displayProfile(filename):
     os.system("python -m cProfile -o autogenprofile.txt " + filename)
     p = pstats.Stats("autogenprofile.txt")
     p.strip_dirs().sort_stats('cumulative').print_stats(70)
-       
-# def triangleNormal(p1,p2,p3):
-    # """
-    # Given three points in space, returns the triangle normal. Assumes:
-    # 1 - points are given as numpy arrays (crashes if not met)
-    # 2 - points are given counterclockwise (negative result if not met)
-    
-    # Algorithm:
-        # v1 = p2 - p1
-        # v2 = p3 - p1
-        # N = np.cross(v1,v2)
-        # return N/np.linalg.norm(N)
-    # """
-    # v1 = p2 - p1
-    # v2 = p3 - p1
-    # N = np.cross(v1,v2)
-    # return vec.normalize(N)
-
 
 if __name__ == "__main__":
     print "Will execute doctest"

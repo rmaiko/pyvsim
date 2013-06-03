@@ -424,7 +424,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         self.opacity                      = 0.8
         self.diameter                     = 0.076
         self.length                       = 0.091
-        self.createPoints()
+        self._createPoints()
         # Main planes model
         self.flangeFocalDistance          =  0.0440
         self.F                            =  0.1000
@@ -442,7 +442,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         self.focusingOffset               = 0
         self.PinholeFore              = None
         self.PinholeAft                  = None
-        self.calculatePositions()
+        self._calculatePositions()
         
     @property
     def H_fore(self):    return self.x * self.H_fore_scalar + self.origin
@@ -479,7 +479,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
     @focusingDistance.setter
     def focusingDistance(self,distance):
         self._focusingDistance = distance
-        self.calculatePositions()
+        self._calculatePositions()
         
     @property
     def Edim(self): return self._Edim / self.aperture
@@ -491,7 +491,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
     @Xdim.setter
     def Xdim(self, pupilDiameter): self._Xdim = pupilDiameter        
                
-    def calculatePositions(self):
+    def _calculatePositions(self):
         """
         Calculate some important points, must be called whenever the lens 
         is moved.
@@ -546,9 +546,9 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         
         The notable points, however, are recalculated.
         """
-        self.calculatePositions()
+        self._calculatePositions()
         
-    def createPoints(self):
+    def _createPoints(self):
         """
         This is needed to plot the lens. This will create and the
         points and the connectivity list of a  tube.
@@ -615,7 +615,7 @@ class Camera(Primitives.Assembly):
         self.sensorSamplingCenters      = None
         self.physicalSamplingCenters    = None
         # Create and position subcomponents:
-        self.positionComponents()
+        self._positionComponents()
         
     def clearData(self):
         self.mapping                    = None
@@ -632,7 +632,7 @@ class Camera(Primitives.Assembly):
         """
         return None
         
-    def positionComponents(self):
+    def _positionComponents(self):
         """
         This method is a shortcut to define the initial position of the camera,
         there is a definition of the initial positioning of the sensor and the 
@@ -713,7 +713,7 @@ class Camera(Primitives.Assembly):
         vector  = -vector / np.tile(vecnorm,(3,1)).T
         return (result, vector)
         
-    def shootRays(self, 
+    def _shootRays(self, 
                   sensorParamCoords, 
                   referenceWavelength = 532e-9,
                   maximumRayTrace = 10,
@@ -794,7 +794,7 @@ class Camera(Primitives.Assembly):
                                       (np.size(U,0),np.size(U,1),2))
 #        print UV
         
-        bundle = self.shootRays(parametricCoords, 
+        bundle = self._shootRays(parametricCoords, 
                                 referenceWavelength,
                                 maximumRayTrace = self.lens.focusingDistance*2)
         
@@ -1204,7 +1204,7 @@ class Laser(Primitives.Assembly):
         self.usefulLength               = np.array([1, 3])
         self.safeEnergy                 = 1e-3
         self.safetyTracingResolution    = 20
-        self.positionComponents()
+        self._positionComponents()
         
     @property
     def bounds(self):
@@ -1216,7 +1216,7 @@ class Laser(Primitives.Assembly):
         else:
             return None
         
-    def positionComponents(self):
+    def _positionComponents(self):
         """
         TODO
         """
