@@ -162,7 +162,8 @@ class Visitor(object):
         
 class VTKPlotter(Visitor):
     """
-    This class takes a snapshot of the assembly tree and generates a VTK plot.
+    This class is a Facade to VTK. It takes a snapshot of the assembly tree 
+    and generates a VTK plot.
     """
     def __init__(self):
         Visitor.__init__(self)
@@ -265,6 +266,8 @@ class VTKPlotter(Visitor):
         actor.SetPoints(pts)
         actor.SetPolys(cts)
         
+        # If the normals of the object are specified (smooth object), this is
+        # rendered as such
         if obj.normals is not None:
             nrm = vtk.vtkDoubleArray()
             nrm.SetNumberOfComponents(3)
@@ -472,7 +475,10 @@ class Saver(Visitor):
 class pyvsimJSONEncoder(json.JSONEncoder):
     """
     A JSON Encoder capable of dealing with a pyvsim simulation tree without
-    creating duplicates of objects.
+    creating duplicates of objects and solving circular references (at least
+    the type found naturally in a pyvsim tree).
+    
+    This class is also aware of PyvsimObjects and numpy.ndarrays.
     """
     FILEMODE   = None
     SCREENMODE = 2 
@@ -498,7 +504,13 @@ class pyvsimJSONEncoder(json.JSONEncoder):
                                   default           = None)
         self.serializedObjects  = {}
         
-    def default(self, obj):       
+    def default(self, obj):      
+        """
+        Objects are encoded in a special dictionary, with the magic key
+        "object_type", which is essential for the unpacking of the object.
+        
+        It exploits the property __dict__ of the objects to pack the data 
+        """
         if isinstance(obj, object):
             temp = {}
             temp["object_module"] = str(obj.__class__.__module__)
@@ -522,6 +534,10 @@ class pyvsimJSONEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 class pyvsimJSONDecoder(json.JSONDecoder):
+    """
+    Extension of the python JSONDecoder class aware of pyvsim objects (via the
+    PyvsimObject interface) and numpy.ndarrays
+    """
     def __init__(self, 
                  encoding=None, 
                  object_hook=None, 
@@ -534,7 +550,15 @@ class pyvsimJSONDecoder(json.JSONDecoder):
         self.cornFlakes = {}
         
     def default(self, obj): 
+        """
+        Objects are encoded in a special-purpose dictionary with the magic
+        entry "object_type". When this key is found, an object of the type is
+        instantiated and receives the data contained in the dictionary.
         
+        Another problem is dealing with object copies. The variable cornFlakes
+        stores a reference to each object that was already unpacked, and when
+        the internal identifiers match, the pointer is reused.
+        """
         if (isinstance(obj, Core.PyvsimObject) or 
             obj is None or 
             isinstance(obj, np.ndarray)):
@@ -563,6 +587,10 @@ class pyvsimJSONDecoder(json.JSONDecoder):
         return obj
     
     def treatArray(self, obj):
+        """
+        This is a tricky method when the numpy.ndarray contains objects (for
+        example in the list of ray tracing intersections). 
+        """
         if obj["dtype"] == "object":
             obj["data"] = np.array(obj["data"])
             iterator    = np.nditer(obj["data"],

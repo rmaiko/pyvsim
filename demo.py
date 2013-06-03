@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-PyVSim part2.1
+PyVSim 1.0
 Copyright 2013 Ricardo Entz
 
 Licensed under the Apache License, Version 2.0 (the "License");

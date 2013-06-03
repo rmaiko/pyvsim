@@ -1863,7 +1863,7 @@ if __name__=="__main__":
     """
     print ""
     print "*********************************************************************"
-    print "*************       pyVSim Core module unit test      ***************"
+    print "**********       pyvsim primitives module unit test      ************"
     print "*********************************************************************"
     #=====================================
     # Simplified geometry creation - cube
@@ -2011,7 +2011,7 @@ if __name__=="__main__":
     part.reflectAlways              = False
     part.lightSource                = False
     print "Items:"
-    print assembly.items
+    print assembly
     
     bundle = RayBundle()
     bundle.translate(np.array([0.5,0.5,0.5]))
@@ -2026,7 +2026,7 @@ if __name__=="__main__":
     tic.toc()
     print "Ray lengths         : ", bundle.rayLength
     print "Number of steps     : ", bundle.steps
-    print bundle.rayPaths[-1]
+#    print bundle.rayPaths[-1]
     
     bundle.preAllocatedSteps          = 10
     bundle.stepRayTrace               = 5
@@ -2034,17 +2034,17 @@ if __name__=="__main__":
     print "Pre allocated steps : ", bundle.preAllocatedSteps
     print "Step ray trace      : ", bundle.stepRayTrace
     
-    print bundle.startingPoints
-    print bundle.initialVectors
+#    print bundle.startingPoints
+#    print bundle.initialVectors
     bundle.rotate(np.pi/4, np.array([0,0,1]))
-    print bundle.initialVectors
+#    print bundle.initialVectors
     
     tic.tic()
     bundle.trace()
     tic.toc()
     print "Ray lengths         : ", bundle.rayLength
     print "Number of steps     : ", bundle.steps
-    print bundle.rayPaths[-1] 
+#    print bundle.rayPaths[-1] 
     
     print "************  Testing geometrical operations       ******************"
     theorypoints = np.array([[0,-1,-1],

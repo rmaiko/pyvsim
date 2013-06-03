@@ -1467,8 +1467,8 @@ if __name__=='__main__':
 #                             diameter = 0.0001)
 #    c.sensor.displaySensor()
 
-#    System.save(environment, "test.dat")
-#    
-#    ambient = System.load("test.dat")
+    System.save(environment, "test.dat")
+    
+    ambient = System.load("test.dat")
 #
 #    System.plot(ambient)
