@@ -535,11 +535,11 @@ class Assembly(Component):
             The list length.
         """
         if n is None:
-            n = len(self)
+            n = len(self._items)
             self._items    = np.insert(self._items,
-                                       len(self._items), 
+                                       n, 
                                        None)             
-        
+    
         self._items[n] = component
             
         component.parent = self
@@ -561,6 +561,7 @@ class Assembly(Component):
         element
             A reference to the element, if one is to re-use that.
         """
+        index = None
         if type(element) is str:
             for i, elem in enumerate(self._items):
                 if elem.name == element:
@@ -573,6 +574,9 @@ class Assembly(Component):
             index = element
         else:
             raise TypeError("Input must be either string, int or pyvsimobject")           
+        
+        if index is None:
+            raise IndexError("index out of bounds")
         
         self._items[index].parent = None            
         element = self._items[index]

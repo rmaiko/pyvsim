@@ -746,20 +746,22 @@ class Camera(Primitives.Assembly):
             # sensor 
             initialVectors = self.lens.rayVector(sensorCoords)
             bundle         = Primitives.RayBundle()
+            bundle.name    = self.name + "RayTracingBundle"
             bundle.insert(initialVectors, 
                           self.lens.PinholeFore, 
                           referenceWavelength)
+            try:
+                self.remove(bundle.name)
+            except IndexError:
+                pass
+            
+            self.insert(bundle)               
 
-            if len(self) >= 4: 
-                self[3] = bundle
-            else:
-                self.insert(bundle)     
-
-        self.items[3].maximumRayTrace   = maximumRayTrace
-        self.items[3].stepRayTrace      = np.mean(maximumRayTrace) / 2
-        self.items[3].trace(tracingRule = Primitives.RayBundle.TRACING_FOV,
+        bundle.maximumRayTrace   = maximumRayTrace
+        bundle.stepRayTrace      = np.mean(maximumRayTrace) / 2
+        bundle.trace(tracingRule = Primitives.RayBundle.TRACING_FOV,
                             restart     = restart) 
-        return self.items[3]
+        return bundle
         
     def calculateMapping(self, target, referenceWavelength = 532e-9):
         """
@@ -956,6 +958,7 @@ class Camera(Primitives.Assembly):
             if (self.items[n].name == "In-focus-vertical" or
                 self.items[n].name == "In-focus-horizontal"):
                 self.remove(n)
+                
         volume_vert                 = Primitives.Volume()
         volume_vert.surfaceProperty = volume_vert.TRANSPARENT
         volume_vert.name            = "In-focus-vertical"
@@ -971,6 +974,7 @@ class Camera(Primitives.Assembly):
         volume_horz.opacity         = 0.25
         volume_horz.points          = np.vstack([p_aft_horz,p_fore_horz])
         self.insert(volume_horz)
+
         
         
 
@@ -1199,7 +1203,7 @@ class Laser(Primitives.Assembly):
 #        self.beamProfile                = self.gaussianProfile
         self.beamDiameter               = 0.009
 #        self.beamDivergence             = np.array([0.5e-3, 0.25])
-        self.beamDivergence             = np.array([0.0005, 0.05])
+        self.beamDivergence             = np.array([0.0005, 0.25])
         self.power                      = 0.300
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
