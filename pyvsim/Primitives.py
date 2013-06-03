@@ -375,29 +375,7 @@ class Assembly(Component):
             for item in self._items:
                 string = string +  (item.depth*3) * " "  + "+->"
                 string = string +  item.__repr__() + "\n|"
-        return string
-    
-    def __add__(self, other):
-        """
-        Overloads the "+" operator - DANGER - creates a copy of the assembly
-        """
-        if not issubclass(type(other), Component):
-            raise TypeError("Operations are only allowed between \
-                             pyvsim components")       
-        mycopy = copy.deepcopy(self)
-        mycopy.insert(other)       
-        return mycopy  
-    
-    def __sub__(self, other):
-        """
-        Overloads the "-" operator - DANGER - creates a copy of the assembly
-        """
-        if not issubclass(type(other), Component):
-            raise TypeError("Operations are only allowed between \
-                             pyvsim components")       
-        mycopy = copy.deepcopy(self)
-        mycopy.remove(other)       
-        return mycopy                
+        return string             
     
     def __iadd__(self,other):
         """
@@ -1957,7 +1935,7 @@ if __name__=="__main__":
     part.points         = np.array(points)
     part.connectivity   = np.array(conn)
     assembly            = Assembly()
-    assembly.insert(part)
+    assembly += part
     print "Successfully created a project tree"
     print part.name
     print assembly.name
@@ -2074,7 +2052,7 @@ if __name__=="__main__":
     bundle = RayBundle()
     bundle.translate(np.array([0.5,0.5,0.5]))
     bundle.insert(np.array([[1,0,0],[0,1,0],[0,0,1]]))
-    assembly.insert(bundle)
+    assembly += bundle
     
     print "Tracing ray bundle"
     print "Pre allocated steps : ", bundle.preAllocatedSteps
