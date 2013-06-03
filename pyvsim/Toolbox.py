@@ -1190,15 +1190,13 @@ class Laser(Primitives.Assembly):
         # Plotting properties
         self.color                      = [0.1,0.1,0.1]
         self.opacity                    = 1.000
-        self.width                      = 0.250
-        self.heigth                     = 0.270
-        self.length                     = 1.060
+        self.dimension                  = np.array([1.060, 0.250, 0.270])
         self.wavelength                 = 532e-9
         # Beam properties
 #        self.beamProfile                = self.gaussianProfile
         self.beamDiameter               = 0.009
 #        self.beamDivergence             = np.array([0.5e-3, 0.25])
-        self.beamDivergence             = np.array([0.0001, 0.25])
+        self.beamDivergence             = np.array([0.0005, 0.25])
         self.power                      = 0.300
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
@@ -1220,16 +1218,16 @@ class Laser(Primitives.Assembly):
         """
         TODO
         """
-        self.body           = Primitives.Volume(self.length, self.heigth, self.width)
+        self.body           = Primitives.Volume(self.dimension)
         self.rays           = Primitives.RayBundle()
         self.insert(self.body)
         self.insert(self.rays)
         
-        self.body.translate(-self.x*self.length)
+        self.body.translate(-self.x*self.dimension[0])
         self.body.color     = self.color
         self.body.opacity   = self.opacity
         
-        vectors        = np.tile(self.x,(4,1))
+        vectors             = np.tile(self.x,(4,1))
         # Divergence in the xz plane
         vectors = np.vstack([Utils.rotateVector(vectors[:2], 
                                                 self.beamDivergence[1]/2,
@@ -1276,11 +1274,12 @@ class Laser(Primitives.Assembly):
         self.volume = Primitives.Assembly()
         self.insert(self.volume)
         for n in range(start, end-1):
-            vol          = Primitives.Volume()
-            vol.points   = np.vstack([self.rays.rayPaths[n],
-                                      self.rays.rayPaths[n+1]])
-            vol.color    = Utils.metersToRGB(self.wavelength)
-            vol.opacity  = 1
+            vol                 = Primitives.Volume()
+            vol.surfaceProperty = vol.TRANSPARENT
+            vol.points          = np.vstack([self.rays.rayPaths[n],
+                                             self.rays.rayPaths[n+1]])
+            vol.color           = Utils.metersToRGB(self.wavelength)
+            vol.opacity         = 1
             self.volume.insert(vol)
             
     def traceReflections(self):
@@ -1320,12 +1319,15 @@ class Laser(Primitives.Assembly):
 #        initdensity = energy / (self.beamDiameter / nres)**2
 #        print np.log10(initdensity)
 #        print np.log10(self.safeEnergy)
+
+        # Lay points at the reference area and rearrange them into the
+        # convention to create hexas
         [I,J] = np.meshgrid(range(nres),range(nres))
-        I0 = np.vstack([I[ :-1, :-1].ravel(), J[ :-1, :-1].ravel()]).T
-        I1 = np.vstack([I[1:  , :-1].ravel(), J[1:  , :-1].ravel()]).T
-        I2 = np.vstack([I[1:  ,1:  ].ravel(), J[1:  ,1:  ].ravel()]).T
-        I3 = np.vstack([I[ :-1,1:  ].ravel(), J[ :-1,1:  ].ravel()]).T
-#        print I0
+        I0    = np.vstack([I[ :-1,  :-1].ravel(), J[ :-1,  :-1].ravel()]).T
+        I1    = np.vstack([I[1:  ,  :-1].ravel(), J[1:  ,  :-1].ravel()]).T
+        I2    = np.vstack([I[1:  , 1:  ].ravel(), J[1:  , 1:  ].ravel()]).T
+        I3    = np.vstack([I[ :-1, 1:  ].ravel(), J[ :-1, 1:  ].ravel()]).T
+
         currentEnergy = 10
         volumeCollection = Primitives.Assembly()
         
@@ -1378,13 +1380,16 @@ if __name__=='__main__':
     
     c                               = Camera()
     c.lens.focusingDistance         = 1.5
-    c.lens.aperture                 = 22
+    c.lens.aperture                 = 2.8
     c.mappingResolution             = [3, 3]
     c.lens.translate(np.array([0.026474,0,0]))
     c.translate(-c.x*c.sensorPosition)
 #    c.lens.rotate(-0.1, c.z)
-#    l                               = Laser()
-#    l.usefulLength                  = np.array([0.1, 2])
+    l                               = Laser()
+    l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
+    l.translate(np.array([0,0.5,0]))
+    l.usefulLength                  = np.array([0.1, 2])
+    
     
     
     v                               = Primitives.Volume()
@@ -1409,14 +1414,14 @@ if __name__=='__main__':
     environment.insert(c)
     environment.insert(v)
     environment.insert(v2)
-#    environment.insert(l)
-#    l.trace()
+    environment.insert(l)
+    l.trace()
     
 #    Some geometrical transformations to make the problem more interesting
-    c.rotate(np.pi/4,c.x)    
-    environment.rotate(np.pi/0.1314, c.x)
-    environment.rotate(np.pi/27, c.y)
-    environment.rotate(np.pi/2.1, c.z)
+#    c.rotate(np.pi/4,c.x)    
+#    environment.rotate(np.pi/0.1314, c.x)
+#    environment.rotate(np.pi/27, c.y)
+#    environment.rotate(np.pi/2.1, c.z)
     
 #    pts = (np.random.rand(400e3,3)-0.5)*0.04 
 #    if (v2.surfaceProperty == v2.MIRROR).all():
@@ -1430,19 +1435,19 @@ if __name__=='__main__':
 #        pts = pts + np.array([0.57,0,0])  
 #        ax = (1,2)      
             
-    vv,vh = c.depthOfField(allowableDiameter = 15e-6)
+    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
     print vv.points
     print vh.points
     vv = copy.deepcopy(vv)
     vv.surfaceProperty = vv.TRANSPARENT
-    environment.insert(vv)
-#    vv.expand(0.01)
+    environment += vv
+    vv.expand(0.01)
     c.calculateMapping(vv, 532e-9)
         
-    phantoms = c.virtualCameras()
-    
-    if phantoms is not None:       
-        environment.insert(phantoms)
+#    phantoms = c.virtualCameras()
+#    
+#    if phantoms is not None:       
+#        environment.insert(phantoms)
   
 #    tic.tic()
 #    (pos,vec) = c.mapPoints(pts)

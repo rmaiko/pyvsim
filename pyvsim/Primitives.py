@@ -58,7 +58,7 @@ class Component(Core.PyvsimObject):
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
         self.parent                     = None
-        self._depth                     = None
+        self._depth                     = None          
                
     @property
     def x(self):                return self._x
@@ -376,6 +376,51 @@ class Assembly(Component):
                 string = string +  (item.depth*3) * " "  + "+->"
                 string = string +  item.__repr__() + "\n|"
         return string
+    
+    def __add__(self, other):
+        """
+        Overloads the "+" operator - DANGER - creates a copy of the assembly
+        """
+        if not issubclass(type(other), Component):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")       
+        mycopy = copy.deepcopy(self)
+        mycopy.insert(other)       
+        return mycopy  
+    
+    def __sub__(self, other):
+        """
+        Overloads the "-" operator - DANGER - creates a copy of the assembly
+        """
+        if not issubclass(type(other), Component):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")       
+        mycopy = copy.deepcopy(self)
+        mycopy.remove(other)       
+        return mycopy                
+    
+    def __iadd__(self,other):
+        """
+        Overloads the "+=" operator to act as an insert element, or a list 
+        extension
+        """
+        if not issubclass(type(other), Component):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")       
+        self.insert(other)       
+        return self 
+    
+    def __isub__(self,other):
+        """
+        Overloads the "-=" operator to act as an remove element, or a list 
+        extension
+        """
+        if not issubclass(type(other), Component):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")
+        self.remove(other)        
+        return self     
+        
         
     def refractiveIndex(self, wavelength = 532e-9):
         """
@@ -469,24 +514,37 @@ class Assembly(Component):
         self._bounds = None
         return len(self._items)
         
-    def remove(self, n):
+    def remove(self, element):
         """
         Remove the element at the n-th position of the component list. This
         also de-registers this assembly as its parent.
         
         Parameters
         ----------
-        n
-            The position of the element
+        element : string, int or object
+            The name, the position in the list or the object to be removed
             
         Returns
         -------
         element
             A reference to the element, if one is to re-use that.
         """
-        element = self._items[n]
-        self._items[n].parent = None
-        self._items = np.delete(self._items, n)
+        if type(element) is str:
+            for i, elem in enumerate(self._items):
+                if elem.name == element:
+                    index = i
+        elif issubclass(type(element), Core.PyvsimObject):
+            for i, elem in enumerate(self._items):
+                if elem is element:
+                    index = i
+        elif type(element) is int:
+            index = element
+        else:
+            raise TypeError("Input must be either string, int or pyvsimobject")           
+        
+        self._items[index].parent = None            
+        element = self._items[index]
+        self._items = np.delete(self._items, index)
         return element
         
     def acceptVisitor(self, visitor):
