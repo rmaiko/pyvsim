@@ -52,24 +52,9 @@ if __name__ == '__main__':
     
     r.maximumRayTrace = 2
     r.trace()
-
-    import json
-    try:
-        f = open("./test.dat", 'w')
-        json.dump(a, f, cls = System.pyvsimJSONEncoder)        
-    finally:
-        f.close()
-#    enc = e.encode(a)
-#    print enc
-#    d = pyvsim.System.pyvsimJSONDecoder()
-    print "DECODING"
-    try:
-        f = open("./test.dat", 'r')
-        dec = json.load(f, cls = System.pyvsimJSONDecoder)
-    finally:
-        f.close()
     
-#    print dec
-#    print dec.__dict__
+    save(obj = a, filename = "./test.dat", mode = "json")
+
+    dec = load(filename = "./test.dat")
     
     plot(dec,displayAxes=False)
