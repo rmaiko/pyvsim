@@ -440,39 +440,34 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         self.distortionParameters         = np.array([0,0,0,1])
         #Calculated parameters
         self.focusingOffset               = 0
-        self.PinholeFore              = None
-        self.PinholeAft                  = None
+        self.PinholeFore                  = None
+        self.PinholeAft                   = None
         self._calculatePositions()
         
     @property
-    def H_fore(self):    return self.x * self.H_fore_scalar + self.origin
+    def H_fore(self):        return self.x * self.H_fore_scalar + self.origin
     @H_fore.setter
-    def H_fore(self, h): self._H_fore_scalar = h
-    
+    def H_fore(self, h):     self._H_fore_scalar = h 
     @property
-    def H_aft(self):    return self.x * self.H_aft_scalar + self.origin
+    def H_aft(self):         return self.x * self.H_aft_scalar + self.origin
     @H_aft.setter
-    def H_aft(self, h): self.H_aft_scalar = h    
-        
+    def H_aft(self, h):      self.H_aft_scalar = h      
     @property
     def H_fore_scalar(self): return (self._H_fore_scalar + self.focusingOffset)
     @property        
     def H_aft_scalar(self):  return (self._H_aft_scalar + self.focusingOffset)
-    
     @property        
     def E_scalar(self):      return (self._E_scalar + self.focusingOffset)
     @property        
-    def X_scalar(self):      return (self._X_scalar + self.focusingOffset)        
-          
+    def X_scalar(self):      return (self._X_scalar + self.focusingOffset)           
     @property
-    def E(self):    return self.x*self.E_scalar + self.origin
+    def E(self):             return self.x*self.E_scalar + self.origin
     @E.setter
-    def E(self, e): self.E_scalar = e
-        
+    def E(self, e):          self.E_scalar = e
     @property
-    def X(self):    return self.x*self.X_scalar + self.origin
+    def X(self):             return self.x*self.X_scalar + self.origin
     @X.setter
-    def X(self, x): self.X_scalar = x
+    def X(self, x):          self.X_scalar = x
                         
     @property
     def focusingDistance(self): return self._focusingDistance
@@ -950,14 +945,23 @@ class Camera(Primitives.Assembly):
         p_aft_horz = np.empty_like(p_aft)
         p_aft_vert = np.empty_like(p_aft)
         for n in range(np.size(p_fore,0)):
-            (p_fore_vert[n],p_fore_horz[n]) = self._findFocusingPoint(p_fore[n], 
-                                                                     referenceWavelength)
-            (p_aft_vert[n],p_aft_horz[n]) = self._findFocusingPoint(p_aft[n], 
-                                                                   referenceWavelength)
-        for n in range(len(self.items)):
-            if (self.items[n].name == "In-focus-vertical" or
-                self.items[n].name == "In-focus-horizontal"):
-                self.remove(n)
+            (p_fore_vert[n],
+             p_fore_horz[n]) = self._findFocusingPoint(p_fore[n], 
+                                                       referenceWavelength)
+            (p_aft_vert[n],
+             p_aft_horz[n]) = self._findFocusingPoint(p_aft[n], 
+                                                      referenceWavelength)
+        
+        # Remove duplicates (in case calculation has already been done)        
+        try:
+            self.remove("In-focus-vertical")
+        except IndexError:
+            pass
+        
+        try:
+            self.remove("In-focus-horizontal")
+        except IndexError:
+            pass
                 
         volume_vert                 = Primitives.Volume()
         volume_vert.surfaceProperty = volume_vert.TRANSPARENT
@@ -1048,8 +1052,8 @@ class Camera(Primitives.Assembly):
         rays          = Primitives.RayBundle()
         n = self.insert(rays)
         rays.insert(vectors, pupilPoints, wavelength)
-        rays.maximumRayTrace = 10 * np.mean(norms)
-        rays.stepRayTrace    = 10 * np.mean(norms)
+        rays.maximumRayTrace = 1.5 * np.mean(norms)
+        rays.stepRayTrace    = np.mean(norms)
         rays.trace()
         self.remove(n-1)
         # Now run the bundle trying to find the intersection
@@ -1067,8 +1071,16 @@ class Camera(Primitives.Assembly):
 #            print Utils.pointSegmentDistance(p1, p2, pt_horz)
             if (Utils.pointSegmentDistance(p1, p2, pt_vert) < tol).all():
                 Pv = pt_vert
+                angle = np.arccos(np.dot(v[0],v[2])/(np.linalg.norm(v[0])*
+                                                   np.linalg.norm(v[2])))*180/3.1415
+                solidangle = (np.pi/4)*(angle*np.pi/180)**2
+                print "Vert, angle %3.4f, solid angle %1.4e" % (angle, solidangle)
             if (Utils.pointSegmentDistance(p1, p2, pt_horz) < tol).all():
                 Ph = pt_horz
+                angle = np.arccos(np.dot(v[1],v[3])/(np.linalg.norm(v[1])*
+                                                   np.linalg.norm(v[3])))*180/3.1415
+                solidangle = (np.pi/4)*(angle*np.pi/180)**2
+                print "Horz, angle %3.4f, solid angle %1.4e" % (angle, solidangle)
         return (Pv, Ph)
     
     def virtualCameras(self, centeronly = True):
@@ -1266,15 +1278,19 @@ class Laser(Primitives.Assembly):
 
     def trace(self):
         """
+        Creates an assembly containing volumes representing the laser 
+        propagation. The volumes are created from usefulLength[0] to
+        usefulLength[1], which is only a way to calculate less elements
+        and reduce calculation costs, not an energy relation.
         """
-        self.rays.maximumRayTrace = self.usefulLength[0]
-        self.rays.stepRayTrace    = self.usefulLength[0]
+        self.rays.maximumRayTrace   = self.usefulLength[0]
+        self.rays.stepRayTrace      = self.usefulLength[0]
         self.rays.trace(tracingRule = self.rays.TRACING_FOV)
         
         start = np.size(self.rays.rayPaths,0) - 1
         
-        self.rays.maximumRayTrace = self.usefulLength[1]
-        self.rays.stepRayTrace    = self.usefulLength[1]
+        self.rays.maximumRayTrace   = self.usefulLength[1]
+        self.rays.stepRayTrace      = self.usefulLength[1]
         self.rays.trace(tracingRule = self.rays.TRACING_FOV, restart= True)
         
         end   = np.size(self.rays.rayPaths,0)
@@ -1288,10 +1304,11 @@ class Laser(Primitives.Assembly):
                                              self.rays.rayPaths[n+1]])
             vol.color           = Utils.metersToRGB(self.wavelength)
             vol.opacity         = 0.1
-            self.volume.insert(vol)
+            self.volume += vol
             
     def traceReflections(self):
         """
+        POC implementation of a calculation of laser safety distances
         """
         npts = self.safetyTracingResolution**2
         nres = self.safetyTracingResolution
@@ -1358,14 +1375,14 @@ class Laser(Primitives.Assembly):
                 for j in range(nres-1):
                     if currentEnergy[j,i] > self.safeEnergy:
                         vol        = Primitives.Volume(fastInit = True)
-                        vol.points = np.vstack([pts1[i,j],
-                                                pts1[i+1,j],
+                        vol.points = np.vstack([pts1[i  ,j  ],
+                                                pts1[i+1,j  ],
                                                 pts1[i+1,j+1],
-                                                pts1[i,j+1],
-                                                pts2[i,j],
-                                                pts2[i+1,j],
+                                                pts1[i  ,j+1],
+                                                pts2[i  ,j  ],
+                                                pts2[i+1,j  ],
                                                 pts2[i+1,j+1],
-                                                pts2[i,j+1]])
+                                                pts2[i  ,j+1]])
                         vol.color = Utils.jet(currentEnergy[j,i], 
                                               self.safeEnergy, 
                                               self.safeEnergy*100)
@@ -1387,12 +1404,14 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 1.5
-    c.lens.aperture                 = 2.8
-    c.mappingResolution             = [3, 3]
-    c.lens.translate(np.array([0.026474,0,0]))
+    c.lens.focusingDistance         = 1.0
+    c.lens.aperture                 = 2.
+    c.mappingResolution             = [2,2]
+    # Compensate the flange focal distance (camera was not made for this mount)
+    c.lens.translate(c.x*(c.lens.flangeFocalDistance+c.sensorPosition))
     c.translate(-c.x*c.sensorPosition)
 #    c.lens.rotate(-0.1, c.z)
+
     l                               = Laser()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
@@ -1443,16 +1462,23 @@ if __name__=='__main__':
 #        pts[:,0] = 0*pts[:,0] 
 #        pts = pts + np.array([0.57,0,0])  
 #        ax = (1,2)      
-            
-    vv,vh = c.depthOfField(allowableDiameter = 10.4e-6)
-#    print vv.points
-#    print vh.points
+    tic.tic()        
+    vv,vh = c.depthOfField(allowableDiameter = 29e-6)
+    tic.toc()
+    print vv.points
+    print vh.points
 #    vv = copy.deepcopy(vv)
 #    vv.surfaceProperty = vv.TRANSPARENT
-#    environment += vv
+    environment += vv
 #    vv.expand(0.01)
-    c.calculateMapping(l.volume, 532e-9)
-        
+    tic.tic()
+    c.calculateMapping(vv, 532e-9)
+    tic.toc()    
+    
+    pts = np.vstack([vv.points.T, np.ones(8)])
+    
+    print np.dot(c.mapping[0,0],pts).T
+    print c.lens.E
 #    phantoms = c.virtualCameras()
 #    
 #    if phantoms is not None:       
