@@ -195,13 +195,8 @@ class VTKPlotter(Visitor):
         Attention: This will stop the program execution until the
         window is closed. This is a "feature" of matplotlib and VTK.
         """
-#        print "There are %i elements to be plotted" % len(self.actorList)
-        if displayAxes:
-            axesActor = vtk.vtkAxesActor()
-            axesActor.SetShaftTypeToLine()
-            self.actorList.append(axesActor)
-                    
-        window = self.VTKWindow()
+#        print "There are %i elements to be plotted" % len(self.actorList)                    
+        window = self.VTKWindow(displayAxes)
         window.addActors(self.actorList)
         window.start()
         return window
@@ -297,13 +292,14 @@ class VTKPlotter(Visitor):
         thread, a error in VTK interface to Python makes it wait until the
         window is closed.
         """
-        def __init__(self):
+        def __init__(self, displayAxes = True):
             threading.Thread.__init__(self)        
             self.footText       = "PyVSim ver. " + VERSION
             self.windowTitle    = "PyVSim Visualization window - powered by VTK"
             self.windowColor    = [0,0.35,0.55]
             self.windowSize     = [800,800]
             self.actorlist      = None
+            self.displayAxes    = displayAxes
             
             self.rend           = vtk.vtkRenderer()
             self.window         = vtk.vtkRenderWindow()
@@ -323,7 +319,7 @@ class VTKPlotter(Visitor):
             self.legend.GetTextProperty().SetFontSize(12)
             self.legend.SetPosition2(0,0)
             self.legend.SetInput(self.footText)
-            self.rend.AddActor(self.legend)  
+            self.rend.AddActor(self.legend)                  
         
         def addActors(self,actorlist):
             self.actorlist = actorlist
@@ -331,6 +327,14 @@ class VTKPlotter(Visitor):
                 self.rend.AddActor(actor)
                 
         def run(self):
+            if self.displayAxes:
+                axesActor = vtk.vtkAxesActor()
+                axesActor.SetShaftTypeToLine()
+                axes = vtk.vtkOrientationMarkerWidget()
+                axes.SetOrientationMarker(axesActor);
+                axes.SetInteractor(self.interactor);
+                axes.EnabledOn();
+                axes.InteractiveOn();
             self.window.Render()
             self.window.SetWindowName(self.windowTitle)
             self.interactor.Start()
