@@ -511,15 +511,18 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         delta   = aux**2 - 4*(self.F**2)
         d_line  = (aux - np.sqrt(delta))/2
         
-#        print "------ FOCUS CALCULATION ------------------------"
-#        print "foc          : ", self.focusingDistance
-#        print "aux          : ", aux
-#        print "F            : ", self.F
-#        print "H            : ", (self._H_fore_scalar + 
-#                                                    self.flangeFocalDistance)
-#        print "sqrt(delta)  : ", np.sqrt(delta)
-#        print "d_line       : ", d_line
-#        print "Hprime       : ", self.H_aft
+        print "------ FOCUS CALCULATION ------------------------"
+        print "foc          : ", self.focusingDistance
+        print "aux          : ", aux
+        print "F            : ", self.F
+        print "H            : ", (self._H_fore_scalar + 
+                                                    self.flangeFocalDistance)
+        print "sqrt(delta)  : ", np.sqrt(delta)
+        print "d_line       : ", d_line
+        print "X            : ", self.X
+        print "Hprime       : ", self.H_aft
+        print "H            : ", self.H_fore
+        print "E            : ", self.E
         
         #
         # Now, we have to find the pseudo position of the pinhole (which is
@@ -528,11 +531,15 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         a                       = self._E_scalar - self._H_fore_scalar
         v_bar                   = v + a - v*a/self.F
         
+        
+#        print "foc   %.5f \nv     %.5f \na     %.5f \nv_bar %.5f" % (self.focusingDistance, 
+#                                                                     v, a, v_bar)
+        
         self.focusingOffset     = d_line
         
         self.PinholeAft   = self.origin + self.x * (v_bar - 
                                                     self.flangeFocalDistance)
-        self.PinholeFore  = self.origin + self.x * self.E_scalar
+        self.PinholeFore  = self.E
         
     def clearData(self):
         """
@@ -927,16 +934,37 @@ class Camera(Primitives.Assembly):
         p_aft  = self.lens.F*p_prime_aft  / (p_prime_aft  - self.lens.F)
         p_spot = self.lens.F*p_prime_spot / (p_prime_spot - self.lens.F)
         
-        p_fore = p_fore + self.lens.H_fore_scalar
-        p_aft  = p_aft  + self.lens.H_fore_scalar
-        p_spot = p_spot + self.lens.H_fore_scalar
         """ Find the vectors emerging from the lens: """
+        print "=--------------------- DOF CALC --------------------------"
+#        print "pts\n", points
+#        print "H ", self.lens.H_fore
+#        print "H'", self.lens.H_aft
+#        print "E ", self.lens.E
+#        print "X ", self.lens.X
+#        print "d'", self.lens.focusingOffset
+#        print "fl", self.lens.origin
+#        print "ph_aft ", self.lens.PinholeAft
+#        print "ph_fore", self.lens.PinholeFore
+#        print "p_fore\n", p_fore
+#        print "p_aft\n",  p_aft
+#        print "p_spot\n", p_spot
         vecs   = self.lens.rayVector(points)
+#        print "vecs\n", vecs
         vecx   = np.sum(vecs*self.lens.x, 1) # projection at optical axis
+#        print vecx
+        p_fore += self.lens.H_fore_scalar - self.lens.E_scalar 
+        p_aft  += self.lens.H_fore_scalar - self.lens.E_scalar  
+        p_spot += self.lens.H_fore_scalar - self.lens.E_scalar  
         # "Elongate" points to adapt to ray tracing
-        p_fore = np.einsum("i,ij->ij",p_fore / vecx, vecs) + self.lens.origin
-        p_aft  = np.einsum("i,ij->ij",p_aft  / vecx, vecs) + self.lens.origin
-        p_spot = np.einsum("i,ij->ij",p_spot / vecx, vecs) + self.lens.origin
+        p_fore = np.einsum("i,ij->ij", p_fore * 1/vecx,vecs) + self.lens.E
+        p_aft  = np.einsum("i,ij->ij", p_aft  * 1/vecx,vecs) + self.lens.E
+        p_spot = np.einsum("i,ij->ij", p_spot * 1/vecx,vecs) + self.lens.E
+#        p_fore = np.einsum("i,ij->ij",p_fore / vecx, vecs) + self.lens.origin
+#        p_aft  = np.einsum("i,ij->ij",p_aft  / vecx, vecs) + self.lens.origin
+#        p_spot = np.einsum("i,ij->ij",p_spot / vecx, vecs) + self.lens.origin
+        print "p_fore\n", p_fore
+        print "p_aft\n", p_aft
+        print "p_spot\n", p_spot
         """ p_fore and p_aft are the points in space limiting the in-focus
         region, were there no obstructions, reflection, etc """
         
@@ -944,6 +972,7 @@ class Camera(Primitives.Assembly):
         p_fore_vert = np.empty_like(p_fore)
         p_aft_horz = np.empty_like(p_aft)
         p_aft_vert = np.empty_like(p_aft)
+        
         for n in range(np.size(p_fore,0)):
             (p_fore_vert[n],
              p_fore_horz[n]) = self._findFocusingPoint(p_fore[n], 
@@ -1043,29 +1072,37 @@ class Camera(Primitives.Assembly):
                                   self.lens.E + self.lens.z*self.lens.Edim/2,
                                   self.lens.E - self.lens.y*self.lens.Edim/2,
                                   self.lens.E - self.lens.z*self.lens.Edim/2])
+        print "Entrance pupil\n", pupilPoints
         # Vectors going to the theoretical point
         vectors       = theoreticalPoint - pupilPoints
         norms         = np.sqrt(np.sum(vectors*vectors,1))
         # Normalize
         vectors       = np.einsum("ij,i->ij",vectors, 1/norms)
+        print "Vectors\n", vectors
+        print "Vecnorms\n", np.sqrt(np.sum(vectors*vectors,1))
         # Create a ray bundle
         rays          = Primitives.RayBundle()
         n = self.insert(rays)
         rays.insert(vectors, pupilPoints, wavelength)
-        rays.maximumRayTrace = 1.5 * np.mean(norms)
-        rays.stepRayTrace    = np.mean(norms)
+        rays.maximumRayTrace = 1.01 * np.max(norms)
+        rays.stepRayTrace    = rays.maximumRayTrace
         rays.trace()
-        self.remove(n-1)
+#        self.remove(n-1)
         # Now run the bundle trying to find the intersection
         steps =  np.size(rays.rayPaths, 0)
         Ph = None
         Pv = None
+
         for n in range(1,steps):
             p2   = rays.rayPaths[n]
             p1   = rays.rayPaths[n-1]
             v    = p2 - p1
             pt_vert = Utils.linesIntersection(v[[0,2]], p1[[0,2]])
             pt_horz = Utils.linesIntersection(v[[1,3]], p1[[1,3]])
+#            print n
+#            print pt_vert
+#            print pt_horz
+#            print Utils.pointSegmentDistance(p1, p2, pt_vert)
 #            print n
 #            print Utils.pointSegmentDistance(p1, p2, pt_vert)
 #            print Utils.pointSegmentDistance(p1, p2, pt_horz)
@@ -1404,8 +1441,8 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 1.0
-    c.lens.aperture                 = 2.
+    c.lens.focusingDistance         = 1
+    c.lens.aperture                 = 11
     c.mappingResolution             = [2,2]
     # Compensate the flange focal distance (camera was not made for this mount)
     c.lens.translate(c.x*(c.lens.flangeFocalDistance+c.sensorPosition))
@@ -1424,12 +1461,12 @@ if __name__=='__main__':
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
     v.material                      = Library.IdealMaterial()
-    v.material.value                = 1.333
+    v.material.value                = 1.
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
     v2                              = Primitives.Volume()
-    v2.dimension                    = np.array([0.1, 0.3, 0.3])
+    v2.dimension                    = np.array([0.0001, 0.3, 0.3])
     v2.surfaceProperty              = v2.MIRROR
 #    v2.surfaceProperty              = v.TRANSPARENT 
     v2.material                     = Library.IdealMaterial()
@@ -1439,18 +1476,18 @@ if __name__=='__main__':
 
     environment = Primitives.Assembly()
     environment += c
-    environment += v
-    environment += v2
-    environment += l
+#    environment += v
+#    environment += v2
+#    environment += l
 
-    l.trace()
-    print environment
+#    l.trace()
+
 #    Some geometrical transformations to make the problem more interesting
 #    c.rotate(np.pi/4,c.x)    
 #    environment.rotate(np.pi/0.1314, c.x)
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
-    
+#    
 #    pts = (np.random.rand(400e3,3)-0.5)*0.04 
 #    if (v2.surfaceProperty == v2.MIRROR).all():
 #        c.calculateMapping(v, 532e-9)
@@ -1466,19 +1503,24 @@ if __name__=='__main__':
     vv,vh = c.depthOfField(allowableDiameter = 29e-6)
     tic.toc()
     print vv.points
-    print vh.points
+#    print vh.points
 #    vv = copy.deepcopy(vv)
 #    vv.surfaceProperty = vv.TRANSPARENT
     environment += vv
 #    vv.expand(0.01)
+
     tic.tic()
     c.calculateMapping(vv, 532e-9)
     tic.toc()    
     
     pts = np.vstack([vv.points.T, np.ones(8)])
     
+    print pts.T
     print np.dot(c.mapping[0,0],pts).T
     print c.lens.E
+    print vv.points[0,2] / np.dot(c.mapping[0,0],pts).T[0,2]
+    print "DOF: %.2f %.2f" % (vv.points[0,0], vv.points[-1,0])
+
 #    phantoms = c.virtualCameras()
 #    
 #    if phantoms is not None:       
@@ -1500,7 +1542,7 @@ if __name__=='__main__':
 #    plt.grid(True)
 #    plt.show()
 
-    System.plot(environment)
+#    System.plot(environment)
 #    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
 #                             energy = 1e-10, 
 #                             wavelength = 532e-9, 

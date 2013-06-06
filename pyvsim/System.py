@@ -296,7 +296,7 @@ class VTKPlotter(Visitor):
             threading.Thread.__init__(self)        
             self.footText       = "PyVSim ver. " + VERSION
             self.windowTitle    = "PyVSim Visualization window - powered by VTK"
-            self.windowColor    = [0,0.35,0.55]
+            self.windowColor    = [0,0.25,0.40]
             self.windowSize     = [800,800]
             self.actorlist      = None
             self.displayAxes    = displayAxes
