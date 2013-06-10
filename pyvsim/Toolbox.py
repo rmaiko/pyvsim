@@ -678,6 +678,7 @@ class Camera(Primitives.Assembly):
         self.dimension                  = np.array([0.175,0.066,0.084])
         # Geometrical properties
         self.sensorPosition             = -0.017526
+        self._scheimpflugAngle          = 0
         # Mapping properties
         self.mappingResolution          = [2, 2]
         self.mapping                    = None
@@ -706,6 +707,39 @@ class Camera(Primitives.Assembly):
         made to intersect rays with the camera
         """
         return None
+    
+    @property
+    def scheimpflugAngle(self): return self._scheimpflugAngle
+    @scheimpflugAngle.setter
+    def scheimpflugAngle(self, value):
+        """
+        This unfortunate vicious behavior is implemented to make sure that the
+        _scheimpflugAngle property is always up-to-date, and if one tries to set
+        that a meaningful error message is given.
+        
+        If python supported real overloading, the problem would be solved easily
+        """
+        raise NotImplementedError("Please use the setScheimpflugAngle function")
+    
+    def setScheimpflugAngle(self, angle, axis):
+        """
+        This is a convenience function to set the Scheimpflug angle as in a 
+        well-build adapter (which means that the pivoting is performed through
+        the sensor center).
+        
+        Parameters
+        ----------
+        angle : float (radians)
+            The scheimpflug angle
+        axis : numpy.array (3)
+            The axis of rotation
+        """
+        self.lens.alignTo(self.x, 
+                          self.y, 
+                          None, 
+                          self.origin + self.x*self.sensorPosition)
+        self.rotate(-angle,     axis, self.origin + self.x*self.sensorPosition)
+        self.lens.rotate(angle, axis, self.origin + self.x*self.sensorPosition)
         
     def _positionComponents(self):
         """
@@ -725,7 +759,13 @@ class Camera(Primitives.Assembly):
         self.insert(self.sensor)
         self.insert(self.body)
         
-        # Flange focal distance adjustment
+        # Adaptation in case lens is not compatible with camera (different
+        # flange focal distances)
+        self.lens.translate(self.x*
+                            (self.lens.flangeFocalDistance + 
+                             self.sensorPosition))
+        
+        # Sensor position adjustment
         self.sensor.translate(self.x*self.sensorPosition)
         
     def mapPoints(self, pts):
@@ -1534,13 +1574,13 @@ if __name__=='__main__':
     c.lens.focusingDistance         = 0.9725
     c.lens.aperture                 = 2
     c.mappingResolution             = [2,2]
-    # Compensate the flange focal distance (camera was not made for this mount)
-    c.lens.translate(c.x*(c.lens.flangeFocalDistance+c.sensorPosition))
+    # Put the sensor at the position [0,0,0] to make verification easier
     c.translate(-c.x*c.sensorPosition)
     
     scheimpflug = -.75*np.pi/180
-    c.rotate(-scheimpflug,     c.y, c.x*c.sensorPosition)
-    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
+    c.setScheimpflugAngle(scheimpflug, c.y)
+#    c.rotate(-scheimpflug,     c.y, c.x*c.sensorPosition)
+#    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
