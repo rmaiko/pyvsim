@@ -362,7 +362,7 @@ class Assembly(Component):
         Component.__init__(self)
         self.name                       = 'Assembly '+str(self._id)
         # Ray tracing properties
-        self.material         = Library.IdealMaterial(1)
+        self.material                   = Library.IdealMaterial(1)
         self.surfaceProperty            = Component.TRANSPARENT
         
     def __repr__(self):
@@ -858,6 +858,7 @@ class Part(Component):
         self.name                       = 'Part ' + str(self.id)
         self.points                     = np.array([])
         self.connectivity               = np.array([])
+        self.data                       = None
         self.normals                    = None
         self.color                      = None
         self.opacity                    = 0.5
@@ -1397,32 +1398,6 @@ class Volume(Part):
     def __init__(self, dimension = np.array([1,1,1]), fastInit=False):
         """
         This is another convenience class to represent volumes (a hexahedron).
-        
-        The following conventions are used::
-        
-        x
-            Dimension of heigth
-        y
-            Dimension of depth
-        z
-            Dimension of width
-            
-        The hexahedron is built the following way:
-                            X
-                            ^
-                     +------|----------+
-                     |      |          |
-                     |      |          | heigth
-                     |      |          |
-                   h /------|----------/
-                  t /       |         /
-                 p /        +--------/---------> Z
-                e /        /        /
-               d /--------/--------/
-                        width   
-                        /
-                       /
-                      v Y
                       
         The point numbering convention is::
         
