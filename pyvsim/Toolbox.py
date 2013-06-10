@@ -484,7 +484,67 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
     @property
     def Xdim(self): return self._Xdim / self.aperture
     @Xdim.setter
-    def Xdim(self, pupilDiameter): self._Xdim = pupilDiameter        
+    def Xdim(self, pupilDiameter): self._Xdim = pupilDiameter   
+    
+    def display(self):
+        plt.hold(True)
+        plt.axis("equal")
+        plt.grid(True, which = "both", axis = "y")
+        plt.plot([-self.diameter/2,
+                   self.diameter/2,
+                   self.diameter/2,
+                  -self.diameter/2,
+                  -self.diameter/2],
+                 [0,0,self.length,self.length,0],
+                 "k", 
+                 #label="External contour",
+                 linewidth=4)
+        plt.plot([0,0],
+                 [-0.1*self.length,1.1*self.length],
+                 "k-.", 
+                 #label="Centerline",
+                 linewidth=1)
+        plt.plot([-self.diameter/1.5,
+                   self.diameter/1.5],
+                 [self.H_aft_scalar,self.H_aft_scalar],
+                 "b", 
+                 label="H'",
+                 linewidth=2)
+        plt.plot([-self.diameter/1.5,
+                   self.diameter/1.5],
+                 [self.H_fore_scalar,self.H_fore_scalar],
+                 "r", 
+                 label="H",
+                 linewidth=2)     
+        plt.plot([-self.diameter/1.5,
+                   self.diameter/1.5],
+                 [self.focusingOffset,self.focusingOffset],
+                 "k", 
+                 label="d' (focusing offset)",
+                 linewidth=1)  
+        plt.plot([-self.diameter/1.5,-self.Edim/2],
+                 [self.E_scalar,self.E_scalar],
+                 "r", 
+                 label="E",
+                 linewidth=3)  
+        plt.plot([self.diameter/1.5,self.Edim/2],
+                 [self.E_scalar,self.E_scalar],
+                 "r", 
+#                 label="E",
+                 linewidth=3)         
+        plt.plot([-self.diameter/1.5,-self.Xdim/2],
+                 [self.X_scalar,self.X_scalar],
+                 "b", 
+                 label="X",
+                 linewidth=3)  
+        plt.plot([self.diameter/1.5,self.Xdim/2],
+                 [self.X_scalar,self.X_scalar],
+                 "b", 
+#                 label="X",
+                 linewidth=3)            
+        plt.legend()
+        plt.show()
+             
                
     def _calculatePositions(self):
         """
@@ -1562,6 +1622,8 @@ if __name__=='__main__':
                ((vv.points[1,0]-vv.points[0,0]) + (vv.points[5,0]-vv.points[4,0])))
     print tanplan, np.arctan(tanplan)*180/np.pi
     
+    c.lens.focusingDistance = 0.44
+    c.lens.display()
 
     System.plot(environment)
 #    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
