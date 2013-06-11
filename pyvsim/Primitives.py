@@ -1492,6 +1492,37 @@ class Volume(Part):
         """
         return Utils.pointInHexa(p,self.points)    
     
+    def interpolate(self, p, verify = True):
+        """
+        This is a convienience function to interpolate the data in the ".data"
+        field of this object. As the field is not under surveillance, it is
+        the responsibility of the user to ensure that the field contains a
+        numpy.array with the shape (M,8), i.e. one data point for each
+        vertex
+        
+        
+        
+        Parameters
+        ----------
+        p : numpy.array (N,3)
+            A collection of points
+            
+        verify : boolean (True)
+            Verifies if the point is contained in the hexa defined by the
+            edges. If not, the corresponding row of result will be zeroed out
+            
+        Returns
+        -------
+        result : numpy.array (N,M) 
+            An array with the data from the field ".data" interpolated
+        """
+        if not verify:
+            return Utils.hexaInterpolation(p, self.points, self.data)
+        else:
+            return np.einsum("ij,i->ij",
+                             Utils.hexaInterpolation(p, self.points, self.data),
+                             Utils.pointInHexa(p,self.points))        
+    
 
 class RayBundle(Assembly):
     """

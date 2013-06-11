@@ -82,6 +82,9 @@ def hexaInterpolation(p, hexapoints, values):
     interpolated : numpy.array (N, M)
         Values interpolated at points p
     """
+    assert (hexapoints.shape == (8,3))
+    assert np.size(values,0) == 8
+    
     if p.ndim == 1:
         # This is done if only one point is given
         p = np.reshape(p,(1,np.size(p)))
@@ -119,12 +122,12 @@ def hexaInterpolation(p, hexapoints, values):
     # Now we take the corresponding volumes per node and divide by the factor
     # calculated above. This yields the weights to average the values
     C = np.prod(Vp[:,HEXA_FACES_PER_NODE],2) / np.reshape(den,(np.size(p,0),1))
-    
+
     if values.ndim == 1:
         return np.sum(C * values,1).squeeze()
     else:
         C = np.reshape(C,(np.size(C,0),1,8))
-        C = np.tile(C, (1,3,1))
+        C = np.tile(C, (1,np.size(values,1),1))
         values = np.array([values.T])
         return np.sum(C * values,2).squeeze()
 

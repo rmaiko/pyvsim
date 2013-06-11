@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 import Utils
 import Primitives
 from scipy.special import erf
+from scipy.interpolate import RectBivariateSpline
 import warnings
 import Core
 
@@ -107,7 +108,7 @@ class Sensor(Primitives.Plane):
         """
         return 0.5*(coordinates+1)*self.resolution
     
-    def displaySensor(self,colormap='jet'):
+    def display(self,colormap='jet'):
         plt.figure(facecolor = [1,1,1])
         imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
         imgplot.set_cmap(colormap)
@@ -1364,6 +1365,7 @@ class Laser(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Laser '+str(self._id)
+        self.transientFields            = ["profileInterpolator"]
         self.body                       = None
         self.rays                       = None
         self.volume                     = None
@@ -1374,12 +1376,27 @@ class Laser(Primitives.Assembly):
         self.wavelength                 = 532e-9
         # Beam properties
 #        self.beamProfile                = self.gaussianProfile
-        self.beamDiameter               = 0.009
+        self.beamDiameter               = 0.018
 #        self.beamDivergence             = np.array([0.5e-3, 0.25])
         self.beamDivergence             = np.array([0.0005, 0.25])
-        self.power                      = 0.300
+        self.power                      = 0.500
+        [X,Y] = np.meshgrid(np.arange(-6,7), 
+                            np.arange(-6,7))
+        self.profile                    = np.exp(-0.15*(X**2+Y**2))
+        energy = np.sum(self.profile) * (self.beamDiameter**2 / 
+                                         np.size(self.profile))
+        print "Energy", energy
+        print np.size(self.profile)
+        multiplier = self.power / energy
+        print "Multiplier", multiplier
+        self.profile                    = self.profile * multiplier
+        self.profileInterpolator = RectBivariateSpline(
+                                    np.linspace(-1,1,np.size(self.profile,1)),
+                                    np.linspace(-1,1,np.size(self.profile,1)),
+                                    self.profile)
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
+        self.sheetDiscretization        = 0.1
         self.safeEnergy                 = 1e-3
         self.safetyTracingResolution    = 20
         self._positionComponents()
@@ -1394,6 +1411,16 @@ class Laser(Primitives.Assembly):
             return self.volume.bounds
         else:
             return None
+        
+    def display(self):
+        plt.figure(facecolor = [1,1,1])
+        plt.axis("equal")
+        plt.grid(True, which = "both", axis = "both")
+        plt.title("Laser beam profile - J/m^2")
+        imgplot = plt.imshow(self.profile)
+        imgplot.set_interpolation('none')
+        plt.colorbar()  
+        plt.show()
         
     def clearData(self):
         if self.volume is not None:
@@ -1457,21 +1484,66 @@ class Laser(Primitives.Assembly):
         start = np.size(self.rays.rayPaths,0) - 1
         
         self.rays.maximumRayTrace   = self.usefulLength[1]
-        self.rays.stepRayTrace      = self.usefulLength[1]
+        self.rays.stepRayTrace      = self.sheetDiscretization
         self.rays.trace(tracingRule = self.rays.TRACING_FOV, restart= True)
         
         end   = np.size(self.rays.rayPaths,0)
         
         self.volume = Primitives.Assembly()
         self.insert(self.volume)
+        pts = np.array([[-1,-1],
+                        [+1,-1],
+                        [+1,+1],
+                        [-1,+1]])
         for n in range(start, end-1):
-            vol                 = Primitives.Volume()
+            vol                 = Primitives.Volume(fastInit = True)
             vol.surfaceProperty = vol.TRANSPARENT
             vol.points          = np.vstack([self.rays.rayPaths[n],
                                              self.rays.rayPaths[n+1]])
+            S1                  = Utils.quadArea(self.rays.rayPaths[n,0], 
+                                                 self.rays.rayPaths[n,1], 
+                                                 self.rays.rayPaths[n,2], 
+                                                 self.rays.rayPaths[n,3])
+            S2                  = Utils.quadArea(self.rays.rayPaths[n+1,0], 
+                                                 self.rays.rayPaths[n+1,1], 
+                                                 self.rays.rayPaths[n+1,2], 
+                                                 self.rays.rayPaths[n+1,3])
+            vecs                = Utils.normalize(self.rays.rayPaths[n+1]-
+                                                  self.rays.rayPaths[n])
+            vol.data = np.hstack((np.vstack((pts,pts)),
+                                  np.vstack((vecs,vecs)),
+                                  np.vstack((np.ones((4,1))*S1,
+                                             np.ones((4,1))*S2))))
             vol.color           = Utils.metersToRGB(self.wavelength)
             vol.opacity         = 0.1
             self.volume += vol
+            
+    def illuminate(self, pts):
+        """
+        Given a set of points in space, this method calculates the light 
+        intensity (in J/m^2) and direction produced by the laser.
+        
+        Parameters
+        ----------
+        pts : numpy.array (N,3)
+            A number of points in space
+        
+        Returns
+        -------
+        intensity : numpy.array (N,3)
+            A vector which norm is the light intensity (in J/m^2) pointing to
+            the direction that the light emanating from the laser is
+        """
+        result = np.zeros((np.size(pts,0),np.size(self.volume[0].data,1)))
+        for vol in self.volume:
+            result += vol.interpolate(pts)
+        [i,j] = result[:,:2].T
+        vecs  = Utils.normalize(result[:,2:5])
+        S     = result[:,5] 
+        intensity = self.profileInterpolator.ev(i, j) * (self.beamDiameter ** 2/
+                                                         S)
+        intensity[S == 0] = 0
+        return np.einsum("ij,i->ij",vecs, intensity)
             
     def traceReflections(self):
         """
@@ -1583,18 +1655,20 @@ if __name__=='__main__':
 #    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
+    l.beamDivergence                = np.array([0.0000, 0.25])
+    l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
-    l.usefulLength                  = np.array([0.1, 2])
+    l.usefulLength                  = np.array([0.5, 1.2])
     
     
     
     v                               = Primitives.Volume()
-    v.rotate(np.pi/9, v.z)
+#    v.rotate(np.pi/9, v.z)
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
     v.material                      = Library.IdealMaterial()
-    v.material.value                = 1.200
+    v.material.value                = 1.
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
@@ -1609,8 +1683,8 @@ if __name__=='__main__':
 
     environment = Primitives.Assembly()
     environment += c
-    environment += v
-    environment += v2
+#    environment += v
+#    environment += v2
     environment += l
 
 #    Some geometrical transformations to make the problem more interesting
@@ -1692,10 +1766,36 @@ if __name__=='__main__':
 
     c.doall()
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
+    
+    pts = np.ones((100,3))
+    pts[:,2] = 0.0*pts[0:,2]
+    pts[:,1] = 0.5*pts[0:,1]
+    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
+    pts = np.array([0.5,0.5,0])+np.random.randn(100,3)*0.01
+    
+    [X,Z] = np.meshgrid(np.linspace(0.15,0.65,100),
+                        np.linspace(-0.1,0.1,100))
+    Y     = 0.50*np.ones(100*100)
+    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+
+    tic.tic()
+    res = l.illuminate(pts)
+    tic.toc(np.size(pts,0))
+    
+#    for n in range(len(res)):
+#        print pts[n], res[n]
+    mag = Utils.norm(res)
+    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],mag)
+    plt.colorbar()
+    l.display()
+
+    
+#    for r in res:
+#        print r[5]
 
 #    c._findFocusingPoint(c.x*c.lens.focusingDistance,wavelength=532e-9)
 #    print c.lens.focusingDistance - c.lens.E_scalar - c.lens.origin[0]
-    System.plot(environment)
+
 #    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
 #                             energy = 1e-10, 
 #                             wavelength = 532e-9, 
@@ -1706,4 +1806,4 @@ if __name__=='__main__':
 #    
 #    ambient = System.load("test.dat")
 #
-#    System.plot(ambient)
+    System.plot(environment)
