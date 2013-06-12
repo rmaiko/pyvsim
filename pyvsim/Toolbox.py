@@ -262,11 +262,12 @@ class Sensor(Primitives.Plane):
 
         killist      = np.nonzero(killist)[0]
         
+        print np.size(killist)
+        
         if np.size(killist) < 1:
             return
         
         if np.size(killist) != np.size(diameter):
-            killist      = killist - 1
             diameter2    = diameter[killist]
             coords2      = coords[killist]
             totalPhotons = totalPhotons[killist]
@@ -403,17 +404,22 @@ class Sensor(Primitives.Plane):
         if stepMax < nparts:  
             print "Recording partials"             
             k = 0
-            while (k + 1)*stepMax < nparts:
-                self._recordParticles(coords     [k*stepMax:(k + 1)*stepMax], 
-                                      energy     [k*stepMax:(k + 1)*stepMax], 
-                                      wavelength [k*stepMax:(k + 1)*stepMax], 
-                                      diameter   [k*stepMax:(k + 1)*stepMax])
+            nrec = 0
+            
+            while (k+1)*stepMax < nparts:
+                self._recordParticles(coords     [k*stepMax:(k+1)*stepMax], 
+                                      energy     [k*stepMax:(k+1)*stepMax], 
+                                      wavelength [k*stepMax:(k+1)*stepMax], 
+                                      diameter   [k*stepMax:(k+1)*stepMax])
+                nrec += np.size(coords[k*stepMax:(k+1)*stepMax],0)
                 k = k + 1
+
             self._recordParticles(coords     [k*stepMax:], 
                                   energy     [k*stepMax:], 
                                   wavelength [k*stepMax:], 
                                   diameter   [k*stepMax:])
-            print "Recording done in ", k, " steps"
+            nrec += np.size(coords[k*stepMax:],0)
+            print "Recorded %i particles in %i steps" % (nrec, k+1)
         else:
             print "Recording total"
             self._recordParticles(coords, energy, wavelength, diameter)
@@ -1456,7 +1462,9 @@ class Laser(Primitives.Assembly):
         self.profileInterpolator  = RectBivariateSpline(
                                     np.linspace(-1,1,np.size(self._profile,1)),
                                     np.linspace(-1,1,np.size(self._profile,1)),
-                                    self.profile)
+                                    self.profile,
+                                    kx = 1,
+                                    ky = 1)
         if self.volume is not None:
             self.remove(self.volume)
             self.volume                     = None 
@@ -1687,24 +1695,25 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 0.9725
-    c.lens.aperture                 = 1
+    c.lens.focusingDistance         = 0.99 #0.9725
+    c.lens.aperture                 = 2
     c.mappingResolution             = [2,2]
     # Put the sensor at the position [0,0,0] to make verification easier
     c.translate(-c.x*c.sensorPosition)
     
-    scheimpflug = 0*-2.75*np.pi/180
-    c.setScheimpflugAngle(scheimpflug, c.z)
+    scheimpflug = 0*-.75*np.pi/180
+    c.setScheimpflugAngle(scheimpflug, c.y)
 #    c.rotate(-scheimpflug,     c.y, c.x*c.sensorPosition)
 #    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
     l.beamDivergence                = np.array([0.0005, 0.25])
-    l.pulseEnergy                   = 0.05
+    l.pulseEnergy                   = 0.5
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
-    l.usefulLength                  = np.array([0.5, 1.2])
+    l.usefulLength                  = np.array([0.55, 0.8])
+    l.sheetDiscretization           = 0.1
     
     
     
@@ -1724,19 +1733,16 @@ if __name__=='__main__':
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))
-    v2.rotate(-np.pi/4,v2.z)
+    v2.rotate(-1.01*np.pi/4,v2.z)
 
     environment = Primitives.Assembly()
     environment += c
 #    environment += v
     environment += v2
     environment += l
-    
-    print c.sensor.parametricToPhysical(np.array([0,1]))
-    print c.sensor.parametricToPhysical(np.array([1,0]))
 
 #    Some geometrical transformations to make the problem more interesting
-#    c.rotate(90*np.pi/180,c.lens.x)    
+    c.rotate(90*np.pi/180,c.lens.x)    
 #    environment.rotate(np.pi/0.1314, c.x)
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
@@ -1749,66 +1755,80 @@ if __name__=='__main__':
     
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
     
-    pts = np.ones((100,3))
-    pts[:,2] = 0.0*pts[0:,2]
-    pts[:,1] = 0.5*pts[0:,1]
-    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
-    pts = np.array([0.5,0.5,0])+np.random.randn(100000,3)*0.01
+#    pts = np.ones((100,3))
+#    pts[:,2] = 0.0*pts[0:,2]
+#    pts[:,1] = 0.5*pts[0:,1]
+#    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
+#    pts = np.array([0.5,0.5,0])+((np.random.rand(10000,3)-0.5)*2*
+#                                 np.array([0.04,0.0025,0.05]))
+#    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
     
-#    [X,Z] = np.meshgrid(np.linspace(0.15,0.65,100),
-#                        np.linspace(-0.02,0.02,100))
-#    Y     = 0.50*np.ones(np.size(X))
-#    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
-#    print pts
+    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
+                        np.linspace(-0.05,0.05,100))
+    Y     = 0.50*np.ones(np.size(X))
+    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+    diameter = 2.2e-6*np.ones(np.size(X))#+0.05e-6*np.random.randn(np.size(X))
 
+    
+    
+    
+    
+    import miecalculations
+    
+    
+    """Calculate the position of each point in the sensor"""
+    [uvw, vector] = c.mapPoints(pts)
+    dist_dlt = uvw[:,2]                               # Distance from projection center
+    uv = np.einsum("ij,i->ij", uvw[:,:2], 1/dist_dlt) # DLT normalization
+    
+    """Calculate the incoming light"""
     tic.tic()
     res = l.illuminate(pts)
     tic.toc(np.size(pts,0))
-    print "ok-1"
-    import miecalculations
-    print "ok-1.5"
-    
-    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
-    
-    [uvw, vector] = c.mapPoints(pts)
-    print "ok0"
-    dist_dlt = uvw[:,2]
-    uv = np.einsum("ij,i->ij", uvw[:,:2], 1/dist_dlt)
-    lightintensity = Utils.norm(res)
+    lightintensity = Utils.norm(res)                  # Light intensity
+
+#    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],lightintensity)
+#    plt.colorbar()
+#    plt.show()
+    """Calculate scattering cross section for all particles"""
     angle = np.arccos(np.sum(vector*res,1)/lightintensity)
     angle[lightintensity == 0] = 0
-
-    print "ok1"
+    
     
     scs = miecalculations.mieScatteringCrossSections(1.45386, 
-                                                     np.linspace(0.5e-6,3e-6,100), 
+                                                     np.linspace(0.5e-6,3e-6,300), 
                                                      532e-9, 
                                                      np.linspace(np.min(angle),np.max(angle),20))[0]
 
     interpolant = RectBivariateSpline(np.linspace(np.min(angle),np.max(angle),20),
-                                      np.linspace(0.5e-6,3e-6,100),
+                                      np.linspace(0.5e-6,3e-6,300),
                                       scs,
                                       kx = 1, ky = 1)
 
-    scs = interpolant.ev(angle, diameter)
+    angle       = 0*angle + np.mean(angle)
+    scs         = interpolant.ev(angle, diameter)
+
+    """Calculate the diameter of the image"""
+    pts_sensor  = c.sensor.parametricToPhysical(uv)
     
-    pts_sensor = c.sensor.parametricToPhysical(uv)
+    HpS         = np.sum((c.lens.H_aft - pts_sensor) * c.lens.x,1)
+    HpX         = c.lens.X_scalar - c.lens.H_aft_scalar
     
-    HpS = np.sum((c.lens.H_aft - pts_sensor) * c.lens.x,1)
-    HpX = c.lens.X_scalar - c.lens.H_aft_scalar
-    
-    dist_dlt += c.lens.E_scalar - c.lens.H_fore_scalar
-    p = (c.lens.F * dist_dlt) / (dist_dlt - c.lens.F)
-    imdim = c.lens.Xdim * (p - HpS) / (p - HpX) 
-    imdim += 2.44*532e-9*c.lens.aperture
-    print imdim[:5], np.min(imdim), np.max(imdim)
+    dist_dlt   += c.lens.E_scalar - c.lens.H_fore_scalar
+    p           = (c.lens.F * dist_dlt) / (dist_dlt - c.lens.F)
+    imdim       = c.lens.Xdim * (p - HpS) / (p - HpX) 
+    imdim      += 2.44*532e-9*c.lens.aperture
+
     
 #    for n in range(len(scs)):
 #        print "%.1f %i %0.1e %.1f" % (diameter[n]*1e6, 
 #                                      angle[n]*180/np.pi, 
 #                                      scs[n],
 #                                      lightintensity[n])
-    
+    print imdim[:5]
+    print np.min(imdim), np.median(imdim), np.max(imdim)
+    for n in range(200,10000,200):
+        print n, uv[n-1]
     c.sensor.recordParticles(uv, 
                              scs*lightintensity*1.18e-3*0.8/2.1, 
                              532e-9, 
