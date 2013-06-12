@@ -77,6 +77,7 @@ class Sensor(Primitives.Plane):
         self.name                   = 'Sensor '+str(self._id)
         # self.heigth = 0.024                   x      y        z
         self.dimension              = np.array([0,  0.0089,  0.0118])
+#        self.dimension              = np.array([0,  0.024,  0.036])
 
         
         #                                      # ROW         # COLUMN
@@ -87,7 +88,7 @@ class Sensor(Primitives.Plane):
         self.fullWellCapacity       = 40e3
         self.quantumEfficiency      = 0.5
         self.bitDepth               = 14
-        self.backgroundMeanLevel    = 10
+        self.backgroundMeanLevel    = 100
         self.backgroundNoiseStd     = 10
         self.rawData                = None
         self.saturationData         = None
@@ -99,14 +100,20 @@ class Sensor(Primitives.Plane):
         
     def parametricToPixel(self,coordinates):
         """
-        coords = [y,z] (in parametric -1..1 space)
+        coords = [u,v] (in parametric -1..1 space)
+        
+        There is an inversion of the UV columns because of the unfortunate 
+        parametric coordinate system that maps:
+         
+        u -> sensor.z
+        v -> sensor.y
         
         returns:
         [row column] - fractional position in sensor pixels
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
         """
-        return 0.5*(coordinates+1)*self.resolution
+        return 0.5*(coordinates[:,::-1]+1)*self.resolution
     
     def display(self,colormap='jet'):
         plt.figure(facecolor = [1,1,1])
@@ -202,7 +209,7 @@ class Sensor(Primitives.Plane):
         error funcion (which is the integral of the gaussian profile) 
         is executed 4 times for each element of the tensors. So, if we 
         have one very large image and many small ones, we waste a lot
-        of computing power.
+        of computing pulseEnergy.
         
         Do not forget the sign convention for the image
         --|----------------------------------> 
@@ -941,7 +948,7 @@ class Camera(Primitives.Assembly):
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))
         lastInts  = np.reshape(lastInts, 
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))  
-
+#        print UV
 #        print firstInts
 #        print lastInts      
         
@@ -1375,31 +1382,48 @@ class Laser(Primitives.Assembly):
         self.dimension                  = np.array([1.060, 0.250, 0.270])
         self.wavelength                 = 532e-9
         # Beam properties
-#        self.beamProfile                = self.gaussianProfile
-        self.beamDiameter               = 0.018
-#        self.beamDivergence             = np.array([0.5e-3, 0.25])
-        self.beamDivergence             = np.array([0.0005, 0.25])
-        self.power                      = 0.500
+        self._profile                   = None
+        self.profileInterpolator        = None
+        self._pulseEnergy               = 0.500
+        self._beamDivergence            = np.array([0.0005, 0.25])
+        self._beamDiameter              = 0.018
         [X,Y] = np.meshgrid(np.arange(-6,7), 
                             np.arange(-6,7))
         self.profile                    = np.exp(-0.15*(X**2+Y**2))
-        energy = np.sum(self.profile) * (self.beamDiameter**2 / 
-                                         np.size(self.profile))
-        print "Energy", energy
-        print np.size(self.profile)
-        multiplier = self.power / energy
-        print "Multiplier", multiplier
-        self.profile                    = self.profile * multiplier
-        self.profileInterpolator = RectBivariateSpline(
-                                    np.linspace(-1,1,np.size(self.profile,1)),
-                                    np.linspace(-1,1,np.size(self.profile,1)),
-                                    self.profile)
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
         self.sheetDiscretization        = 0.1
         self.safeEnergy                 = 1e-3
         self.safetyTracingResolution    = 20
         self._positionComponents()
+        
+    @property    
+    def profile(self): return self._profile
+    @profile.setter
+    def profile(self, profileMatrix):
+        self._profile = profileMatrix
+        self.clearData()
+        
+    @property
+    def pulseEnergy(self): return self._pulseEnergy
+    @pulseEnergy.setter
+    def pulseEnergy(self, power):
+        self._pulseEnergy = power
+        self.clearData()
+        
+    @property
+    def beamDivergence(self): return self._beamDivergence
+    @beamDivergence.setter
+    def beamDivergence(self, div):
+        self._beamDivergence = div
+        self.clearData()
+        
+    @property
+    def beamDiameter(self): return self._beamDiameter
+    @beamDiameter.setter
+    def beamDiameter(self, diam):
+        self._beamDiameter = diam
+        self.clearData()
         
     @property
     def bounds(self):
@@ -1423,23 +1447,37 @@ class Laser(Primitives.Assembly):
         plt.show()
         
     def clearData(self):
+        energy = np.sum(self.profile) * (self.beamDiameter**2 / 
+                                         np.size(self.profile))
+#        print "Energy", energy
+        multiplier = self.pulseEnergy / energy
+#        print "Multiplier", multiplier
+        self._profile             = self._profile * multiplier
+        self.profileInterpolator  = RectBivariateSpline(
+                                    np.linspace(-1,1,np.size(self._profile,1)),
+                                    np.linspace(-1,1,np.size(self._profile,1)),
+                                    self.profile)
         if self.volume is not None:
             self.remove(self.volume)
             self.volume                     = None 
+            
+        self._positionComponents()
+        
         Primitives.Assembly.clearData(self)
         
     def _positionComponents(self):
         """
         TODO
         """
-        self.body           = Primitives.Volume(self.dimension)
+        if self.body is None:
+            self.body           = Primitives.Volume(self.dimension)
+            self.insert(self.body)
+            self.body.translate(-self.x*self.dimension[0])
+            self.body.color     = self.color
+            self.body.opacity   = self.opacity
+            
         self.rays           = Primitives.RayBundle()
-        self.insert(self.body)
         self.insert(self.rays)
-        
-        self.body.translate(-self.x*self.dimension[0])
-        self.body.color     = self.color
-        self.body.opacity   = self.opacity
         
         vectors             = np.tile(self.x,(4,1))
         # Divergence in the xz plane
@@ -1476,6 +1514,12 @@ class Laser(Primitives.Assembly):
         propagation. The volumes are created from usefulLength[0] to
         usefulLength[1], which is only a way to calculate less elements
         and reduce calculation costs, not an energy relation.
+        
+        Important parameters
+            - Laser.usefulLength : the useful region of the laser sheet
+            - Laser.sheetDiscretization : the length of the discretization 
+            volume. Shorter elements provide better interpolation, but make
+            computation extremely costly.
         """
         self.rays.maximumRayTrace   = self.usefulLength[0]
         self.rays.stepRayTrace      = self.usefulLength[0]
@@ -1579,7 +1623,7 @@ class Laser(Primitives.Assembly):
         self.insert(bundle)        
         bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,)
         
-        energy =  self.power / (nres)**2
+        energy =  self.pulseEnergy / (nres)**2
 #        initdensity = energy / (self.beamDiameter / nres)**2
 #        print np.log10(initdensity)
 #        print np.log10(self.safeEnergy)
@@ -1644,18 +1688,19 @@ if __name__=='__main__':
     
     c                               = Camera()
     c.lens.focusingDistance         = 0.9725
-    c.lens.aperture                 = 2
+    c.lens.aperture                 = 1
     c.mappingResolution             = [2,2]
     # Put the sensor at the position [0,0,0] to make verification easier
     c.translate(-c.x*c.sensorPosition)
     
-    scheimpflug = -.75*np.pi/180
-    c.setScheimpflugAngle(scheimpflug, c.y)
+    scheimpflug = 0*-2.75*np.pi/180
+    c.setScheimpflugAngle(scheimpflug, c.z)
 #    c.rotate(-scheimpflug,     c.y, c.x*c.sensorPosition)
 #    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
-    l.beamDivergence                = np.array([0.0000, 0.25])
+    l.beamDivergence                = np.array([0.0005, 0.25])
+    l.pulseEnergy                   = 0.05
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
@@ -1664,11 +1709,11 @@ if __name__=='__main__':
     
     
     v                               = Primitives.Volume()
-#    v.rotate(np.pi/9, v.z)
+    v.rotate(np.pi/9, v.z)
     v.opacity                       = 0.1
     v.dimension                     = np.array([0.3, 0.3, 0.3])
     v.material                      = Library.IdealMaterial()
-    v.material.value                = 1.
+    v.material.value                = 1.33
     v.surfaceProperty               = v.TRANSPARENT
     v.translate(np.array([0.35,0.5,0])) 
     
@@ -1684,11 +1729,14 @@ if __name__=='__main__':
     environment = Primitives.Assembly()
     environment += c
 #    environment += v
-#    environment += v2
+    environment += v2
     environment += l
+    
+    print c.sensor.parametricToPhysical(np.array([0,1]))
+    print c.sensor.parametricToPhysical(np.array([1,0]))
 
 #    Some geometrical transformations to make the problem more interesting
-    c.rotate(90*np.pi/180,c.lens.x)    
+#    c.rotate(90*np.pi/180,c.lens.x)    
 #    environment.rotate(np.pi/0.1314, c.x)
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
@@ -1697,97 +1745,84 @@ if __name__=='__main__':
     l.trace()
     tic.toc() 
 
-    """
-#    pts = (np.random.rand(400e3,3)-0.5)*0.04 
-#    if (v2.surfaceProperty == v2.MIRROR).all():
-#        c.calculateMapping(v, 532e-9)
-#        pts[:,1] = 0*pts[:,1]
-#        pts = pts + np.array([0.5,0.55,0]) 
-#        ax = (0,2)        
-#    else:
-#        c.calculateMapping(v2, 532e-9)
-#        pts[:,0] = 0*pts[:,0] 
-#        pts = pts + np.array([0.57,0,0])  
-#        ax = (1,2)      
-    
-    tic.tic()        
-    vv,vh = c.depthOfField(allowableDiameter = 29e-6)
-    tic.toc()
-#    print vv.points
-#    print vh.points
-#    vv = copy.deepcopy(vv)
-#    vv.surfaceProperty = vv.TRANSPARENT
-    environment += vv
-    vv.expand(0.0001)
-
-    tic.tic()
-    c.calculateMapping(vv, 532e-9)
-    tic.toc()    
-    
-    print vv.data
-    print vh.data
-    
-    pts = np.vstack([vh.points.T, np.ones(8)])
-    
-#    print pts.T
-    print "mapping"
-    print np.dot(c.mapping[0,0],pts).T
-#    print c.lens.E
-#    print vv.points[0,2] / np.dot(c.mapping[0,0],pts).T[0,2]
-#    print "DOF: %.2f %.2f" % (vv.points[0,0], vv.points[-1,0])
-
-#    phantoms = c.virtualCameras()
-#    
-#    if phantoms is not None:       
-#        environment.insert(phantoms)
-  
-#    tic.tic()
-#    (pos,vec) = c.mapPoints(pts)
-#    tic.toc(np.size(pts,0))
-#    print "Position\n", pos
-#    print "Vector\n", vec
-    
-#    mag = np.sqrt(np.sum(vec[:,ax]*vec[:,ax],1))
-#    plt.quiver(-pos[:,0]/pos[:,2],-pos[:,1]/pos[:,2],
-#               vec[:,ax[1]],vec[:,ax[0]], mag)
-
-#    plt.quiver(pts[:,ax[0]],pts[:,ax[1]],
-#               vec[:,ax[0]],vec[:,ax[1]])
-#    plt.axis('equal')
-#    plt.grid(True)
-#    plt.show()
-#    h        = c.lens.H_aft[0] / np.tan(scheimpflug)
-#    tanalpha = h / (c.lens.focusingDistance - c.lens.H_fore[0])
-#    print tanalpha, np.arctan(tanalpha)*180/np.pi
-#    tanplan = (((vv.points[0,1]-vv.points[1,1]) + (vv.points[4,1]-vv.points[5,1])) /
-#               ((vv.points[1,0]-vv.points[0,0]) + (vv.points[5,0]-vv.points[4,0])))
-#    print tanplan, np.arctan(tanplan)*180/np.pi
-    """
-
     c.doall()
+    
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
     
     pts = np.ones((100,3))
     pts[:,2] = 0.0*pts[0:,2]
     pts[:,1] = 0.5*pts[0:,1]
     pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
-    pts = np.array([0.5,0.5,0])+np.random.randn(100,3)*0.01
+    pts = np.array([0.5,0.5,0])+np.random.randn(100000,3)*0.01
     
-    [X,Z] = np.meshgrid(np.linspace(0.15,0.65,100),
-                        np.linspace(-0.1,0.1,100))
-    Y     = 0.50*np.ones(100*100)
-    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+#    [X,Z] = np.meshgrid(np.linspace(0.15,0.65,100),
+#                        np.linspace(-0.02,0.02,100))
+#    Y     = 0.50*np.ones(np.size(X))
+#    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+#    print pts
 
     tic.tic()
     res = l.illuminate(pts)
     tic.toc(np.size(pts,0))
+    print "ok-1"
+    import miecalculations
+    print "ok-1.5"
     
+    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
+    
+    [uvw, vector] = c.mapPoints(pts)
+    print "ok0"
+    dist_dlt = uvw[:,2]
+    uv = np.einsum("ij,i->ij", uvw[:,:2], 1/dist_dlt)
+    lightintensity = Utils.norm(res)
+    angle = np.arccos(np.sum(vector*res,1)/lightintensity)
+    angle[lightintensity == 0] = 0
+
+    print "ok1"
+    
+    scs = miecalculations.mieScatteringCrossSections(1.45386, 
+                                                     np.linspace(0.5e-6,3e-6,100), 
+                                                     532e-9, 
+                                                     np.linspace(np.min(angle),np.max(angle),20))[0]
+
+    interpolant = RectBivariateSpline(np.linspace(np.min(angle),np.max(angle),20),
+                                      np.linspace(0.5e-6,3e-6,100),
+                                      scs,
+                                      kx = 1, ky = 1)
+
+    scs = interpolant.ev(angle, diameter)
+    
+    pts_sensor = c.sensor.parametricToPhysical(uv)
+    
+    HpS = np.sum((c.lens.H_aft - pts_sensor) * c.lens.x,1)
+    HpX = c.lens.X_scalar - c.lens.H_aft_scalar
+    
+    dist_dlt += c.lens.E_scalar - c.lens.H_fore_scalar
+    p = (c.lens.F * dist_dlt) / (dist_dlt - c.lens.F)
+    imdim = c.lens.Xdim * (p - HpS) / (p - HpX) 
+    imdim += 2.44*532e-9*c.lens.aperture
+    print imdim[:5], np.min(imdim), np.max(imdim)
+    
+#    for n in range(len(scs)):
+#        print "%.1f %i %0.1e %.1f" % (diameter[n]*1e6, 
+#                                      angle[n]*180/np.pi, 
+#                                      scs[n],
+#                                      lightintensity[n])
+    
+    c.sensor.recordParticles(uv, 
+                             scs*lightintensity*1.18e-3*0.8/2.1, 
+                             532e-9, 
+                             np.abs(imdim))
+
+    c.sensor.display("jet")
+
+
 #    for n in range(len(res)):
 #        print pts[n], res[n]
-    mag = Utils.norm(res)
-    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],mag)
-    plt.colorbar()
-    l.display()
+#    mag = Utils.norm(res)
+#    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],mag)
+#    plt.colorbar()
+#    l.display()
 
     
 #    for r in res:

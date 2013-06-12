@@ -1360,16 +1360,16 @@ class Plane(Part):
         """
         vector = coords - self.origin
         if coords.ndim == 1:
-            py = 2*(np.dot(self.y,vector) / self.dimension[0]) 
-            pz = 2*(np.dot(self.z,vector) / self.dimension[1])
-            return np.array([py,pz])        
+            pv = 2*(np.dot(self.y,vector) / self.dimension[1]) 
+            pu = 2*(np.dot(self.z,vector) / self.dimension[2])
+            return np.array([pu,pv])        
         else:
             nvecs = np.size(vector,0)
-            py = (np.sum(np.tile(self.y,(nvecs,1).T*vector,1) / 
-                          self.dimension[0]))
-            pz = (np.sum(np.tile(self.z,(nvecs,1).T*vector,1) / 
-                          self.dimension[0]))
-            return 2*np.array([py,pz]).T
+            pu = (np.sum(np.tile(self.z,(nvecs,1).T*vector,1) / 
+                          self.dimension[1]))
+            pv = (np.sum(np.tile(self.y,(nvecs,1).T*vector,1) / 
+                          self.dimension[2]))
+            return 2*np.array([pu,pv]).T
     
 class Volume(Part):
     """

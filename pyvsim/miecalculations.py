@@ -345,58 +345,58 @@ def distributedSCS(refractiveIndex,
     distribution = np.tile(percentage, (len(theta),1))
     return (np.sum(scs[0] * distribution, 1), np.sum(scs[1] * distribution, 1))
   
-
-import Utils
-tic = Utils.Tictoc()
-import matplotlib.pyplot as plt
-
-tic.tic()
-theta = np.linspace(0*np.pi/180,100*np.pi/180,1001)
-diam = np.arange(0.0,3.1,0.0062)
-pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
-perc = np.diff(pdf)
-diam = diam[1:]*1e-6
-scs1 = distributedSCS(1.45386, 
-                      diam, 
-                      perc, 
-                      532e-9,
-                      theta)[0]
-                                                   
-tic.toc()
-apertureAngle = 0
-kernel = np.ones(apertureAngle*len(theta)/180)
-kernel = kernel / len(kernel)
-print "Kernel is %d elements long" % len(kernel)
-
-#for s in scs1:
-#    print s
-#for n,s in enumerate(perc):
-#    print diam[n], s    
+if __name__ == "__main__":
+    import Utils
+    tic = Utils.Tictoc()
+    import matplotlib.pyplot as plt
     
-plt.figure(facecolor = [1,1,1])
-plt.hold(True)
-plt.plot(theta*180/np.pi, scs1, label = "Whole distribution")
-
-for n in range(0,len(diam),int(len(diam)/5.)):
-    print n, diam[n]
-    scs2 = distributedSCS(1.45386, 
-                      np.array([diam[n]]), 
-                      1, #np.array([perc[n]]), 
-                      532e-9,
-                      theta)[0]   
-    if apertureAngle > 0:
-        # filtered
-        plt.plot(theta*180/np.pi,np.convolve(scs2,kernel,mode="same"), 
-                 label = "D=%s micron contribution" % (diam[n]*1e6))
-    else:
-        # unfiltered
-        plt.plot(theta*180/np.pi,scs2, 
-                 label = "D=%s micron contribution" % (diam[n]*1e6))
-
-plt.xlabel("Scattering angle")
-plt.ylabel("Scattering cross section (m^2)/(sr)")
-plt.legend(loc=3)
-
-plt.yscale('log')
-plt.grid(True, which="both", axis="both")
-plt.show()
+    tic.tic()
+    theta = np.linspace(0*np.pi/180,100*np.pi/180,1001)
+    diam = np.arange(0.0,3.1,0.0062)
+    pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
+    perc = np.diff(pdf)
+    diam = diam[1:]*1e-6
+    scs1 = distributedSCS(1.45386, 
+                          diam, 
+                          perc, 
+                          532e-9,
+                          theta)[0]
+                                                       
+    tic.toc()
+    apertureAngle = 0
+    kernel = np.ones(apertureAngle*len(theta)/180)
+    kernel = kernel / len(kernel)
+    print "Kernel is %d elements long" % len(kernel)
+    
+    #for s in scs1:
+    #    print s
+    #for n,s in enumerate(perc):
+    #    print diam[n], s    
+        
+    plt.figure(facecolor = [1,1,1])
+    plt.hold(True)
+    plt.plot(theta*180/np.pi, scs1, label = "Whole distribution")
+    
+    for n in range(0,len(diam),int(len(diam)/5.)):
+        print n, diam[n]
+        scs2 = distributedSCS(1.45386, 
+                          np.array([diam[n]]), 
+                          1, #np.array([perc[n]]), 
+                          532e-9,
+                          theta)[0]   
+        if apertureAngle > 0:
+            # filtered
+            plt.plot(theta*180/np.pi,np.convolve(scs2,kernel,mode="same"), 
+                     label = "D=%s micron contribution" % (diam[n]*1e6))
+        else:
+            # unfiltered
+            plt.plot(theta*180/np.pi,scs2, 
+                     label = "D=%s micron contribution" % (diam[n]*1e6))
+    
+    plt.xlabel("Scattering angle")
+    plt.ylabel("Scattering cross section (m^2)/(sr)")
+    plt.legend(loc=3)
+    
+    plt.yscale('log')
+    plt.grid(True, which="both", axis="both")
+    plt.show()
