@@ -22,6 +22,7 @@ import Primitives
 from scipy.special import erf
 from scipy.interpolate import RectBivariateSpline
 import warnings
+import gdal
 import Core
 
 MEMSIZE     = 1e6
@@ -89,7 +90,7 @@ class Sensor(Primitives.Plane):
         self.quantumEfficiency      = 0.5
         self.bitDepth               = 14
         self.backgroundMeanLevel    = 100
-        self.backgroundNoiseStd     = 10
+        self.backgroundNoiseStd     = 20
         self.rawData                = None
         self.saturationData         = None
         self.deadPixels             = None
@@ -117,7 +118,8 @@ class Sensor(Primitives.Plane):
     
     def display(self,colormap='jet'):
         plt.figure(facecolor = [1,1,1])
-        imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
+        #imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
+        imgplot = plt.imshow(self.readSensor())
         imgplot.set_cmap(colormap)
         imgplot.set_interpolation('none')
         plt.colorbar()
@@ -165,7 +167,28 @@ class Sensor(Primitives.Plane):
         # Corrects saturations
         s = s - (s-1)*(s > 1)
         # Return result as counts:
-        return np.round(s*(-1+2**self.bitDepth)) 
+        return  np.round(s*(-1+2**self.bitDepth))
+    
+    def save(self, filename):
+        """
+        Writes the sensor data in a 16-bit TIFF file (which is compatible
+        with some mainstream PIV software)
+        
+        Parameters
+        ----------
+        filename : string
+            The file name and path (including the extension)
+        """
+        data = self.readSensor().astype(np.uint16)
+        dr = gdal.GetDriverByName("GTiff")
+        outDs = dr.Create(filename, 1600, 1200, 1, gdal.GDT_Int16) 
+        outBand = outDs.GetRasterBand(1)
+        outBand.WriteArray(data)
+        outBand.FlushCache()
+        outBand.SetNoDataValue(-99)
+        dr      = None
+        outDs   = None
+        outBand = None
     
     def physicalToPixel(self,coords):   
         """
@@ -261,8 +284,6 @@ class Sensor(Primitives.Plane):
                         ((totalPhotons / (sX * sY)) > 1))
 
         killist      = np.nonzero(killist)[0]
-        
-        print np.size(killist)
         
         if np.size(killist) < 1:
             return
@@ -1695,8 +1716,8 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 0.99 #0.9725
-    c.lens.aperture                 = 2
+    c.lens.focusingDistance         = 1 #0.9725
+    c.lens.aperture                 = 5.6
     c.mappingResolution             = [2,2]
     # Put the sensor at the position [0,0,0] to make verification easier
     c.translate(-c.x*c.sensorPosition)
@@ -1733,7 +1754,7 @@ if __name__=='__main__':
     v2.material                     = Library.IdealMaterial()
     v2.material.value               = 1
     v2.translate(np.array([0.5,0,0]))
-    v2.rotate(-1.01*np.pi/4,v2.z)
+    v2.rotate(-np.pi/4,v2.z)
 
     environment = Primitives.Assembly()
     environment += c
@@ -1755,19 +1776,19 @@ if __name__=='__main__':
     
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
     
-#    pts = np.ones((100,3))
-#    pts[:,2] = 0.0*pts[0:,2]
-#    pts[:,1] = 0.5*pts[0:,1]
-#    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
-#    pts = np.array([0.5,0.5,0])+((np.random.rand(10000,3)-0.5)*2*
-#                                 np.array([0.04,0.0025,0.05]))
-#    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
+    pts = np.ones((100,3))
+    pts[:,2] = 0.0*pts[0:,2]
+    pts[:,1] = 0.5*pts[0:,1]
+    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
+    pts = np.array([0.5,0.5,0])+((np.random.rand(100000,3)-0.5)*2*
+                                 np.array([0.01,0.01,0.01]))
+    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
     
-    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
-                        np.linspace(-0.05,0.05,100))
-    Y     = 0.50*np.ones(np.size(X))
-    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
-    diameter = 2.2e-6*np.ones(np.size(X))#+0.05e-6*np.random.randn(np.size(X))
+#    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
+#                        np.linspace(-0.05,0.05,100))
+#    Y     = 0.50*np.ones(np.size(X))
+#    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+#    diameter = 2.2e-6*np.ones(np.size(X))#+0.05e-6*np.random.randn(np.size(X))
 
     
     
@@ -1805,10 +1826,9 @@ if __name__=='__main__':
                                       scs,
                                       kx = 1, ky = 1)
 
-    angle       = 0*angle + np.mean(angle)
     scs         = interpolant.ev(angle, diameter)
 
-    """Calculate the diameter of the image"""
+    """Calculate the diameter of the geometric image"""
     pts_sensor  = c.sensor.parametricToPhysical(uv)
     
     HpS         = np.sum((c.lens.H_aft - pts_sensor) * c.lens.x,1)
@@ -1816,7 +1836,8 @@ if __name__=='__main__':
     
     dist_dlt   += c.lens.E_scalar - c.lens.H_fore_scalar
     p           = (c.lens.F * dist_dlt) / (dist_dlt - c.lens.F)
-    imdim       = c.lens.Xdim * (p - HpS) / (p - HpX) 
+    imdim       = c.lens.Xdim * (p - HpS) / (p - HpX)
+    # Diffraction-limited part 
     imdim      += 2.44*532e-9*c.lens.aperture
 
     
@@ -1825,40 +1846,18 @@ if __name__=='__main__':
 #                                      angle[n]*180/np.pi, 
 #                                      scs[n],
 #                                      lightintensity[n])
-    print imdim[:5]
-    print np.min(imdim), np.median(imdim), np.max(imdim)
-    for n in range(200,10000,200):
-        print n, uv[n-1]
+
+    """ Calculate the angle of lens acceptance """
+    sldangle = c.virtualApertureArea / dist_dlt**2
+
     c.sensor.recordParticles(uv, 
-                             scs*lightintensity*1.18e-3*0.8/2.1, 
+                             scs*lightintensity*sldangle*0.8/2.1, 
                              532e-9, 
                              np.abs(imdim))
 
-    c.sensor.display("jet")
+    c.sensor.display("gray")
 
-
-#    for n in range(len(res)):
-#        print pts[n], res[n]
-#    mag = Utils.norm(res)
-#    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],mag)
-#    plt.colorbar()
-#    l.display()
-
+    mag = Utils.norm(res)
+    l.display()
     
-#    for r in res:
-#        print r[5]
-
-#    c._findFocusingPoint(c.x*c.lens.focusingDistance,wavelength=532e-9)
-#    print c.lens.focusingDistance - c.lens.E_scalar - c.lens.origin[0]
-
-#    c.sensor.recordParticles(coords = np.array([[0,0],[0.1,0],[0.05,0.05]]), 
-#                             energy = 1e-10, 
-#                             wavelength = 532e-9, 
-#                             diameter = 0.0001)
-#    c.sensor.displaySensor()
-
-#    System.save(environment, "test.dat")
-#    
-#    ambient = System.load("test.dat")
-#
     System.plot(environment)
