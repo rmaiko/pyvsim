@@ -40,12 +40,12 @@ part.color = np.array([1,1,1])
 
 # Create a camera
 c = Camera()
-# This offset is because we're using a lens with Canon mount in a C-mount camera
-c.lens.translate(np.array([0.026474,0,0]))
+## This offset is because we're using a lens with Canon mount in a C-mount camera
+#c.lens.translate(np.array([0.026474,0,0]))
 # This is to rotate the lens with respect to the camera axis, so we can have
 # Scheimpflug condition
-c.lens.rotate(-0.05, c.z)
-c.lens.aperture = 2
+c.setScheimpflugAngle(-0.05, c.z)
+c.lens.aperture = 5.6
 # These positions are taken from CATIA
 windowCenter = np.array([1.711, -3.275, 0.75])
 wingTarget   = np.array([7, -0.921, -1.404])
@@ -71,11 +71,8 @@ a.insert(c)
 c.mappingResolution = [10, 10]
 # This is the focus setting as written on the lens
 c.lens.focusingDistance = 5.2
-# This is used to create a mapping for the camera, not useful here, but just
-# demonstrated
-c.calculateMapping(part)
-# This makes the camera calculate (and display) its depth of field
-c.depthOfField()
+# This is makes the camera calculate its depth of field and mapping
+c.doall()
 # Stop timing
 tic.toc()
 # This is to display the scenario
