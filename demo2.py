@@ -44,11 +44,11 @@ if __name__ == '__main__':
     p = np.array([-0.5,0.1,0.05])
     v = np.tile(v,(n,1))
     w = np.linspace(380e-9, 780e-9, n) #all the visible spectrum
-    r.insert(v, p, w)
+    r.append(v, p, w)
     
     a = Assembly()
-    a.insert(vol)
-    a.insert(r)
+    a.append(vol)
+    a.append(r)
     
     r.maximumRayTrace = 2
     r.trace()

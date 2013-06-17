@@ -379,13 +379,13 @@ class Assembly(Component):
     
     def __iadd__(self,other):
         """
-        Overloads the "+=" operator to act as an insert element, or a list 
+        Overloads the "+=" operator to act as an append element, or a list 
         extension
         """
         if not issubclass(type(other), Component):
             raise TypeError("Operations are only allowed between \
                              pyvsim components")       
-        self.insert(other)       
+        self.append(other)       
         return self
     
     def __isub__(self,other):
@@ -425,14 +425,20 @@ class Assembly(Component):
         This overloading is provided so that the assembly can be referenced by
         index, as in an array
         """
-        return self._items[k]
+        if type(k) is str:
+            for item in self._items:
+                if item.name == k:
+                    return item
+            raise KeyError("Element ", k, "is not available")
+        else:
+            return self._items[k]
     
     def __setitem__(self, k, value):
         """
         This overloading is provided so that the assembly can be referenced by
         index, as in an array
         """        
-        self.insert(value, k)      
+        self.append(value, k)      
         
     def __delitem__(self,k):
         """
@@ -516,7 +522,7 @@ class Assembly(Component):
     def items(self):
         del self._items  
         
-    def insert(self, component, n = None):
+    def append(self, component, n = None):
         """
         Adds element at the component list. 
         
@@ -536,10 +542,10 @@ class Assembly(Component):
         """
         if n is None:
             n = len(self._items)
-            self._items    = np.insert(self._items,
+            self._items    = np.append(self._items,
                                        n, 
                                        None)             
-    
+
         self._items[n] = component
             
         component.parent = self
@@ -1557,9 +1563,9 @@ class RayBundle(Assembly):
     @property
     def bounds(self):           return None
         
-    def insert(self, initialVector, initialPosition = None, wavelength = 532e-9):
+    def append(self, initialVector, initialPosition = None, wavelength = 532e-9):
         """
-        This method is used to insert new rays in the bundle. 
+        This method is used to append new rays in the bundle. 
         
         Parameters
         ----------
@@ -1582,7 +1588,7 @@ class RayBundle(Assembly):
             departs from the origin of the bundle
             
         *   This method was not made to be efficient in a loop (there are many
-            checks), so it should be used ideally only once to insert all rays
+            checks), so it should be used ideally only once to append all rays
             
         *   This method destroys data that was already ray-traced, if any
         
@@ -1591,16 +1597,16 @@ class RayBundle(Assembly):
         1) A single ray is inserted::
         
         >>> bundle = RayBundle()
-        >>> bundle.insert(np.array([1,0,0]), np.array([0,0,0]))
+        >>> bundle.append(np.array([1,0,0]), np.array([0,0,0]))
         
         2) Several rays are inserted, each with a starting point::
         
-        >>> bundle.insert(np.array([[1,0,0],[1,0,0]]), 
+        >>> bundle.append(np.array([[1,0,0],[1,0,0]]), 
         ...               np.array([[0,0,0],[0,0,1]]))
         
         3) Several rays are inserted, with a common starting point::
         
-        >>> bundle.insert(np.array([[1,0,0],[0,1,0]], 
+        >>> bundle.append(np.array([[1,0,0],[0,1,0]], 
         ...               np.array([0,0,0]))
         """
         # clear data, as it would be really difficult to manage rays with 
@@ -2119,7 +2125,7 @@ if __name__=="__main__":
     
     bundle = RayBundle()
     bundle.translate(np.array([0.5,0.5,0.5]))
-    bundle.insert(np.array([[1,0,0],[0,1,0],[0,0,1]]))
+    bundle.append(np.array([[1,0,0],[0,1,0],[0,0,1]]))
     assembly += bundle
     
     print "Tracing ray bundle"

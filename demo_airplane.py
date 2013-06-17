@@ -63,8 +63,8 @@ c.translate(windowCenter - c.origin)
 # properly
 a = Assembly()
 # Insert the airplane and the camera
-a.insert(part)
-a.insert(c)
+a.append(part)
+a.append(c)
 # The mapping resolution must be more than [2, 2] if there is refraction in 
 # the way (because it could distort the field of view), in this case we put
 # [10, 10] just to check performance

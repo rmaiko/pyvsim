@@ -21,15 +21,12 @@ may look somewhat arbitrary, e.g. Volume is in Primitives, not in Toolbox)
 The down side is that one needs to register the classes here when the user
 has to have access
 """
-from Primitives import Assembly
-from Primitives import Volume
-from Primitives import RayBundle
-from Toolbox import Mirror
-from Toolbox import Dump
-from Toolbox import Camera
-from Toolbox import Laser
-from System import save
-from System import load
-from System import plot
-from Library import *
-from Utils import readSTL
+import Core
+import Primitives
+import Toolbox
+import Utils
+import System
+import Library
+
+scenario = Primitives.Assembly()
+cameras  = []

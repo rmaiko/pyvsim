@@ -34,9 +34,9 @@ if __name__=="__main__":
     
     # All parts must be contained in a "main" assembly. Assemblies can contain
     # sub-assemblies, no problem though
-    assembly.insert(part)
-    assembly.insert(bundle)
-    assembly.insert(part2)
+    assembly.append(part)
+    assembly.append(bundle)
+    assembly.append(part2)
     
     # Define the characteristics of the parts (default is opaque):
     part.surfaceProperty  = part.TRANSPARENT
@@ -72,7 +72,7 @@ if __name__=="__main__":
     
     # Let's ask for the bundle to initialize the rays
     # Note the "None", it means that the rays start from the bundle origin
-    bundle.insert(vec, None, wavelength)
+    bundle.append(vec, None, wavelength)
     
     # These coefficients are used in the sellmeier equation
     # (this makes the index of refraction vary with wavelength)

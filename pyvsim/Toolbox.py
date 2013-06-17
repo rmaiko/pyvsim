@@ -793,9 +793,9 @@ class Camera(Primitives.Assembly):
         self.body.opacity   = self.opacity
         self.body.translate(-self.x*self.dimension[0])
         
-        self.insert(self.lens)
-        self.insert(self.sensor)
-        self.insert(self.body)
+        self.append(self.lens)
+        self.append(self.sensor)
+        self.append(self.body)
         
         # Adaptation in case lens is not compatible with camera (different
         # flange focal distances)
@@ -921,7 +921,7 @@ class Camera(Primitives.Assembly):
             initialVectors = self.lens.rayVector(sensorCoords)
             bundle         = Primitives.RayBundle()
             bundle.name    = self.name + "RayTracingBundle"
-            bundle.insert(initialVectors, 
+            bundle.append(initialVectors, 
                           self.lens.PinholeFore, 
                           self.referenceWavelength)
             try:
@@ -929,7 +929,7 @@ class Camera(Primitives.Assembly):
             except IndexError:
                 pass
             
-            self.insert(bundle)               
+            self.append(bundle)               
 
         bundle.maximumRayTrace   = maximumRayTrace
         bundle.stepRayTrace      = np.mean(maximumRayTrace) / 2
@@ -1167,7 +1167,7 @@ class Camera(Primitives.Assembly):
         volume_vert.opacity         = 0.25
         volume_vert.points          = np.vstack([p_aft_vert,p_fore_vert])
         volume_vert.data            = vv_angles
-        self.insert(volume_vert)
+        self.append(volume_vert)
         
         volume_horz                 = Primitives.Volume()
         volume_horz.surfaceProperty = volume_horz.TRANSPARENT
@@ -1176,7 +1176,7 @@ class Camera(Primitives.Assembly):
         volume_horz.opacity         = 0.25
         volume_horz.points          = np.vstack([p_aft_horz,p_fore_horz])
         volume_horz.data            = vh_angles
-        self.insert(volume_horz)        
+        self.append(volume_horz)        
         return (volume_vert, volume_horz)
     
     def _findFocusingPoint(self, 
@@ -1239,8 +1239,8 @@ class Camera(Primitives.Assembly):
 #        print "Vecnorms\n", np.sqrt(np.sum(vectors*vectors,1))
         """ Create the bundle for ray tracing """
         rays                 = Primitives.RayBundle()
-        n                    = self.insert(rays)
-        rays.insert(vectors, pupilPoints, self.referenceWavelength)
+        n                    = self.append(rays)
+        rays.append(vectors, pupilPoints, self.referenceWavelength)
         rays.maximumRayTrace = 1.5 * Utils.norm(theoreticalPoint - self.lens.E)
         rays.stepRayTrace    = rays.maximumRayTrace
         rays.trace()
@@ -1349,7 +1349,7 @@ class Camera(Primitives.Assembly):
                 phantom.mapping = M
                 phantom.alignTo(Qm[0],-Qm[1],None,
                                 phantom.lens.PinholeFore, 1e-3) 
-                phantomAssembly.insert(phantom)
+                phantomAssembly.append(phantom)
         
         return phantomAssembly
     
@@ -1493,13 +1493,13 @@ class Laser(Primitives.Assembly):
         """
         if self.body is None:
             self.body           = Primitives.Volume(self.dimension)
-            self.insert(self.body)
+            self.append(self.body)
             self.body.translate(-self.x*self.dimension[0])
             self.body.color     = self.color
             self.body.opacity   = self.opacity
             
         self.rays           = Primitives.RayBundle()
-        self.insert(self.rays)
+        self.append(self.rays)
         
         vectors             = np.tile(self.x,(4,1))
         # Divergence in the xz plane
@@ -1527,7 +1527,7 @@ class Laser(Primitives.Assembly):
                                                +self.y +self.z,
                                                -self.y +self.z]))
 
-        self.rays.insert(vectors, positions, self.wavelength)
+        self.rays.append(vectors, positions, self.wavelength)
 
 
     def trace(self):
@@ -1556,7 +1556,7 @@ class Laser(Primitives.Assembly):
         end   = np.size(self.rays.rayPaths,0)
         
         self.volume = Primitives.Assembly()
-        self.insert(self.volume)
+        self.append(self.volume)
         pts = np.array([[-1,-1],
                         [+1,-1],
                         [+1,+1],
@@ -1639,10 +1639,10 @@ class Laser(Primitives.Assembly):
         vectors = Utils.normalize(vectors)
         
         bundle = Primitives.RayBundle()
-        bundle.insert(vectors, 
+        bundle.append(vectors, 
                       physicalPoints, 
                       self.wavelength)
-        self.insert(bundle)        
+        self.append(bundle)        
         bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,)
         
         energy =  self.pulseEnergy / (nres)**2
@@ -1691,13 +1691,13 @@ class Laser(Primitives.Assembly):
                         vol.color = Utils.jet(currentEnergy[j,i], 
                                               self.safeEnergy, 
                                               self.safeEnergy*100)
-                        volumeCollection.insert(vol)
+                        volumeCollection.append(vol)
             pts1 = pts2
             bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,
                          restart = True)
             
         self.volume = volumeCollection
-        self.insert(volumeCollection)
+        self.append(volumeCollection)
 #        print self.volume.bounds
 #        print bundle.steps
         
@@ -1787,7 +1787,7 @@ if __name__=='__main__':
 
     print "\nCamera parameter determination"
     tic.tic()
-    c.doall()
+    c()
     tic.toc()
     
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)

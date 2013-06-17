@@ -57,6 +57,69 @@ import threading
 
 import threading
 import thread, time
+
+class dumm(object):
+    def __init__(self, name):
+        self.name = name
+
+class ov(object):
+    def __init__(self):
+        self._items = []
+        
+    def __iadd__(self,other):
+        if not issubclass(type(other), dumm):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")       
+        self._items.append(other)       
+        return self
+    
+    def __isub__(self,other):
+        if not issubclass(type(other), dumm):
+            raise TypeError("Operations are only allowed between \
+                             pyvsim components")
+        self.remove(other)        
+        return self       
+        
+    def __eq__(self, other):
+        answer = np.zeros_like(other)
+        
+        answer += (other is self)
+
+        for item in self._items:
+            answer += (item == other)
+            
+        return answer
+    
+    def __neq__(self, other):
+        return 1 - (self == other) 
+        
+    def __getitem__(self, k):
+        if type(k) is str:
+            for item in self._items:
+                if item.name == k:
+                    return item
+        else:
+            return self._items[k]
+    
+    def __setitem__(self, k, value):     
+        self.append(value, k)      
+        
+    def __delitem__(self,k):      
+        self.remove(k)
+        
+    def __len__(self):
+        return len(self._items)
+    
+    def __contains__(self, other):  
+        return other in self._items
+    
+d1 = dumm("a")
+d2 = dumm("b")
+l  = ov()
+l += d1
+l += d2
+
+print "Finished loading POC module"
 #
 #class timeoutWrapper():
 #    def __init__(self, function, timeout = 10, forgiving = True):
@@ -121,14 +184,11 @@ import thread, time
 #    db["foo"] = {1: 2}
 #    print db["foo"]
 
-
-print "blah"
-
 #env = Core.Assembly()
 #c = Toolbox.Camera()
 #v = Core.Volume()
-#env.insert(c)
-#env.insert(v)
+#env.append(c)
+#env.append(v)
 #
 #c.lens.translate(np.array([0.026474,0,0]))
 #c.lens.focusingDistance = 1
