@@ -51,9 +51,9 @@ import pprint
 import json
 import threading
 
-mat = Library.Glass()
-mat.fetchFromDB("Schott N-BK7")
-print mat.listDB()
+#mat = Library.Glass()
+#mat.fetchFromDB("Schott N-BK7")
+#print mat.listDB()
 
 import threading
 import thread, time
@@ -122,7 +122,7 @@ import thread, time
 #    print db["foo"]
 
 
-
+print "blah"
 
 #env = Core.Assembly()
 #c = Toolbox.Camera()

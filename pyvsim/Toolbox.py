@@ -89,8 +89,8 @@ class Sensor(Primitives.Plane):
         self.fullWellCapacity       = 40e3
         self.quantumEfficiency      = 0.5
         self.bitDepth               = 14
-        self.backgroundMeanLevel    = 100
-        self.backgroundNoiseStd     = 20
+        self.backgroundMeanLevel    = 244
+        self.backgroundNoiseStd     = 50
         self.rawData                = None
         self.saturationData         = None
         self.deadPixels             = None
@@ -186,6 +186,7 @@ class Sensor(Primitives.Plane):
         outBand.WriteArray(data)
         outBand.FlushCache()
         outBand.SetNoDataValue(-99)
+        # This seems to be the wonderful way of gdal to close files, sorry
         dr      = None
         outDs   = None
         outBand = None
@@ -449,12 +450,12 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
     def __init__(self):
         Primitives.Part.__init__(self)
         Core.PyvsimDatabasable.__init__(self)
-        self.name                   = 'Lens '+str(self._id)
-        self.dbName             = "Lenses"
-        self.dbParameters           = ["color", "opacity", "diameter", "length",
-                                       "flangeFocalDistance", "F", "H_fore_scalar",
-                                       "H_aft_scalar", "E_scalar", "X_scalar",
-                                       "_Edim", "_Xdim", "distortionParameters"]
+        self.name            = 'Lens '+str(self._id)
+        self.dbName          = "Lenses"
+        self.dbParameters    = ["color", "opacity", "diameter", "length",
+                                "flangeFocalDistance", "F", "H_fore_scalar",
+                                "H_aft_scalar", "E_scalar", "X_scalar",
+                                "_Edim", "_Xdim", "distortionParameters"]
         # Plotting parameters
         self.color                        = [0.2,0.2,0.2]
         self.opacity                      = 0.8
@@ -862,13 +863,13 @@ class Camera(Primitives.Assembly):
         # Calculate DLT
         uvw  = np.einsum('ijk,ik->ij',self.mapping[i,j], 
                             np.hstack([pts,np.ones((npts,1))]))
+        w           = uvw[:,2] 
         uv          = np.einsum("ij,i->ij", uvw[:,:2], 1/uvw[:,2])
-        w           = uvw[:,2]        
 #        print i,j
 #        print self.dmapping[i,j].shape 
 #        print result.shape                           
         duvw = np.einsum('ijk,ik->ij',self.dmapping[i,j],uvw)
-        duvw = np.einsum("ij,i->ij", duvw, w**2)
+        duvw = np.einsum("ij,i->ij", duvw, 1/w**2)
         dudx    = duvw[:,:3]
         dvdx    = duvw[:,3:]
 #        print dudx
@@ -884,8 +885,8 @@ class Camera(Primitives.Assembly):
         HpS         = np.sum((self.lens.H_aft - pts_sensor) * self.lens.x,1)
         HpX         = self.lens.X_scalar - self.lens.H_aft_scalar
         
-        w          += self.lens.E_scalar - self.lens.H_fore_scalar
-        p           = (self.lens.F * w) / (w - self.lens.F)
+        pprime      = w + self.lens.E_scalar - self.lens.H_fore_scalar
+        p           = (self.lens.F * pprime) / (pprime - self.lens.F)
         imdim       = self.lens.Xdim * (p - HpS) / (p - HpX)
         # Diffraction-limited part 
         imdim      += 2.44*self.referenceWavelength*self.lens.aperture
@@ -1051,7 +1052,7 @@ class Camera(Primitives.Assembly):
         self._calculateMappings(vv)
         self.parent.remove(vv)
         
-        (uv, w, duvw, lineofsight, imdim) = self.mapPoints(vh.points)
+        w = self.mapPoints(vh.points)[1]
         self.virtualApertureArea = np.mean(vh.data * w**2)
         
     
@@ -1708,7 +1709,7 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 0.97 #0.9725
+    c.lens.focusingDistance         = .995 #0.9725
     c.lens.aperture                 = 2
     c.mappingResolution             = [2,2]
     # Put the sensor at the position [0,0,0] to make verification easier
@@ -1721,7 +1722,7 @@ if __name__=='__main__':
 
     l                               = Laser()
     l.beamDivergence                = np.array([0.0005, 0.25])
-    l.pulseEnergy                   = 10.5
+    l.pulseEnergy                   = 0.1
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
@@ -1759,31 +1760,37 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/0.1314, c.x)
 #    environment.rotate(np.pi/27, c.y)
 #    environment.rotate(np.pi/2.1, c.z)
+
     
+    pts = np.ones((100,3))
+    pts[:,2] = 0.0*pts[0:,2]
+    pts[:,1] = 0.5*pts[0:,1]
+    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
+    pts = np.array([0.5,0.5,0])+((np.random.rand(100000,3)-0.5)*2*
+                                 np.array([0.01,0.01,0.01]))
+    #diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
+    diameter = 0.7e-6*(1 + 2*np.random.randn(np.size(pts,0)))
+    diameter[diameter < 0.1e-6] = 0.7e-6
+    
+#    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
+#                        np.linspace(-0.05,0.05,100))
+#    Y     = 0.50*np.ones(np.size(X))
+#    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
+#    diameter = 2.2e-6*np.ones(np.size(X))#+0.05e-6*np.random.randn(np.size(X))
+
+    npts = np.size(pts,0)
+    
+    print "Laser sheet tracing"
     tic.tic()
     l.trace()
     tic.toc() 
 
+    print "\nCamera parameter determination"
+    tic.tic()
     c.doall()
+    tic.toc()
     
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
-    
-#    pts = np.ones((100,3))
-#    pts[:,2] = 0.0*pts[0:,2]
-#    pts[:,1] = 0.5*pts[0:,1]
-#    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
-#    pts = np.array([0.5,0.5,0])+((np.random.rand(1000,3)-0.5)*2*
-#                                 np.array([0.01,0.01,0.01]))
-#    diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
-    
-    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
-                        np.linspace(-0.05,0.05,100))
-    Y     = 0.50*np.ones(np.size(X))
-    pts = np.vstack((X.ravel(),Y,Z.ravel())).T
-    diameter = 2.2e-6*np.ones(np.size(X))#+0.05e-6*np.random.randn(np.size(X))
-
-    
-    
     
     
     import miecalculations
@@ -1793,6 +1800,7 @@ if __name__=='__main__':
     (uv, w, duvw, lineofsight, imdim) = c.mapPoints(pts)
     
     """Calculate the incoming light"""
+    print "\nIllumination phase"
     tic.tic()
     res = l.illuminate(pts)
     tic.toc(np.size(pts,0))
@@ -1802,6 +1810,8 @@ if __name__=='__main__':
 #    plt.colorbar()
 #    plt.show()
     """Calculate scattering cross section for all particles"""
+    print "\nMie calculation phase"
+    tic.tic()
     angle = np.arccos(np.sum(lineofsight*res,1)/lightintensity)
     angle[lightintensity == 0] = 0
     
@@ -1810,13 +1820,14 @@ if __name__=='__main__':
                                                      np.linspace(0.5e-6,3e-6,300), 
                                                      532e-9, 
                                                      np.linspace(np.min(angle),np.max(angle),20))[0]
-
+    
     interpolant = RectBivariateSpline(np.linspace(np.min(angle),np.max(angle),20),
                                       np.linspace(0.5e-6,3e-6,300),
                                       scs,
                                       kx = 1, ky = 1)
-
+#    angle = 0*angle + np.pi/2   
     scs         = interpolant.ev(angle, diameter)
+    tic.toc(npts)
    
 #    for n in range(len(scs)):
 #        print "%.1f %i %0.1e %.1f" % (diameter[n]*1e6, 
@@ -1827,11 +1838,17 @@ if __name__=='__main__':
     """ Calculate the angle of lens acceptance """
     sldangle = c.virtualApertureArea / w**2
 
+    tic.tic()
     c.sensor.recordParticles(uv, 
                              scs*lightintensity*sldangle*0.8/2.1, 
                              532e-9, 
                              np.abs(imdim))
+    tic.toc(npts)
+    
+    print "\nSaving image"
+    tic.tic()
     c.sensor.save("test.tif")
+    tic.toc()
     c.sensor.display("jet")
 
     mag = Utils.norm(res)
