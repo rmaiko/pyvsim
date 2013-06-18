@@ -1865,7 +1865,7 @@ if __name__=='__main__':
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
-    seed                            = Seeding()
+    seed                            = CalibrationPlate()
     seed.points                     = (np.array([0.5,0.5,0]) + 
                                        0.02*Primitives.Volume.PARAMETRIC_COORDS)
     seed.density                    = 1e11 / 80*3
@@ -1922,47 +1922,45 @@ if __name__=='__main__':
     print "\nCamera parameter determination"
     tic.tic()
     c.doall()
-    cams = c.virtualCameras()
-    environment += cams
     tic.toc()
     
-#    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
-#    
-#    
-#    import MieUtils
-#    
-#    
-#    """Calculate the position of each point in the sensor"""
-#    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(pts)
-#    
-#    """Calculate the incoming light"""
-#    print "\nIllumination phase"
-#    tic.tic()
-#    lightvector = l.illuminate(pts)
-#    tic.toc(np.size(pts,0))
-#
-#
-#    tic.tic()
-#    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
-#                                  lightvector  = lightvector, 
-#                                  solidangle   = sldangle, 
-#                                  wavelength   = 532e-9, 
-#                                  polarization = 0)
-#    tic.toc(npts)
-#
-#    tic.tic()
-#    c.sensor.recordParticles(uv, 
-#                             energy, 
-#                             532e-9, 
-#                             np.abs(imdim))
-#    tic.toc(npts)
-#    
-#    print "\nSaving image"
-#    tic.tic()
-#    c.sensor.save("test.tif")
-#    tic.toc()
-#    c.sensor.display("jet")
+    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
     
-#    l.display()
+    
+    import MieUtils
+    
+    
+    """Calculate the position of each point in the sensor"""
+    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(pts)
+    
+    """Calculate the incoming light"""
+    print "\nIllumination phase"
+    tic.tic()
+    lightvector = l.illuminate(pts)
+    tic.toc(np.size(pts,0))
+
+
+    tic.tic()
+    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
+                                  lightvector  = lightvector, 
+                                  solidangle   = sldangle, 
+                                  wavelength   = 532e-9, 
+                                  polarization = 0)
+    tic.toc(npts)
+
+    tic.tic()
+    c.sensor.recordParticles(uv, 
+                             energy, 
+                             532e-9, 
+                             np.abs(imdim))
+    tic.toc(npts)
+    
+    print "\nSaving image"
+    tic.tic()
+    c.sensor.save("test.tif")
+    tic.toc()
+    c.sensor.display("jet")
+    
+    l.display()
     
     System.plot(environment)
