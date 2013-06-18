@@ -180,7 +180,11 @@ class VTKPlotter(Visitor):
         if not hasattr(obj, 'connectivity'):
             self.actorList.append(self.lineActor(obj))
         else:
-            self.actorList.append(self.polyActor(obj))
+            if obj.connectivity is not None:
+                self.actorList.append(self.polyActor(obj))
+            else:
+                if obj.points is not None:
+                    self.actorList.append(self.pointsActor(obj))
             
             
     def display(self,displayAxes=True):
@@ -201,6 +205,30 @@ class VTKPlotter(Visitor):
         window.start()
         return window
 
+    def pointsActor(self, obj):
+        npts = np.size(obj.points, 0)
+         
+        vertices = vtk.vtkCellArray()
+        ptsource = vtk.vtkPoints()
+        
+        ptsource.SetNumberOfPoints(npts)
+        
+        for n,p in enumerate(obj.points):
+            ptsource.SetPoint(n,p)
+            vertices.InsertNextCell(1)
+            vertices.InsertCellPoint(n)
+            
+        point = vtk.vtkPolyData()
+        point.SetPoints(ptsource)
+        point.SetVerts(vertices)   
+        
+        mapper = vtk.vtkPolyDataMapper()
+        mapper.SetInput(point) 
+        
+        actor = vtk.vtkLODActor()
+        actor.SetMapper(mapper)
+        actor.GetProperty().SetPointSize(1)
+        return actor
         
     def lineActor(self,obj):
         """
@@ -321,7 +349,7 @@ class VTKPlotter(Visitor):
             self.legend.SetInput(self.footText)
             self.rend.AddActor(self.legend)                  
         
-        def addActors(self,actorlist):
+        def addActors(self,actorlist):            
             self.actorlist = actorlist
             for actor in actorlist:
                 self.rend.AddActor(actor)
