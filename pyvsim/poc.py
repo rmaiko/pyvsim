@@ -94,6 +94,7 @@ class ov(object):
         return 1 - (self == other) 
         
     def __getitem__(self, k):
+        print "gotitem"
         if type(k) is str:
             for item in self._items:
                 if item.name == k:
@@ -102,6 +103,7 @@ class ov(object):
             return self._items[k]
     
     def __setitem__(self, k, value):     
+        print "setitem"
         self.append(value, k)      
         
     def __delitem__(self,k):      
@@ -112,12 +114,13 @@ class ov(object):
     
     def __contains__(self, other):  
         return other in self._items
+        
     
 d1 = dumm("a")
 d2 = dumm("b")
-l  = ov()
-l += d1
-l += d2
+poc  = ov()
+poc += d1
+poc += d2
 
 print "Finished loading POC module"
 #

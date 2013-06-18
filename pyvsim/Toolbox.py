@@ -890,8 +890,10 @@ class Camera(Primitives.Assembly):
         imdim       = self.lens.Xdim * (p - HpS) / (p - HpX)
         # Diffraction-limited part 
         imdim      += 2.44*self.referenceWavelength*self.lens.aperture
+        # Calculates the solid angle "seen" by the points
+        solidangle = self.virtualApertureArea / w**2
         
-        return (uv, w, duvw, lineofsight, imdim)
+        return (uv, w, duvw, lineofsight, solidangle, imdim)
         
     def _shootRays(self, 
                   sensorParamCoords,
@@ -1137,7 +1139,6 @@ class Camera(Primitives.Assembly):
         
         for n in range(np.size(p_fore,0)):
             (pts, ang) = self._findFocusingPoint(p_fore[n])
-#                                                 angles = [0, 90, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170])
             p_fore_vert[n] = pts[0]
             p_fore_horz[n] = pts[1] 
             vv_angles[n] = ang[0]
@@ -1163,7 +1164,7 @@ class Camera(Primitives.Assembly):
         volume_vert                 = Primitives.Volume()
         volume_vert.surfaceProperty = volume_vert.TRANSPARENT
         volume_vert.name            = "In-focus-vertical"
-        volume_vert.color           = np.array([1,0,0])#np.array(Utils.metersToRGB(referenceWavelength))
+        volume_vert.color           = np.array([1,0,0])
         volume_vert.opacity         = 0.25
         volume_vert.points          = np.vstack([p_aft_vert,p_fore_vert])
         volume_vert.data            = vv_angles

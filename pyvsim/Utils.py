@@ -683,6 +683,7 @@ def readSTL(filename):
     obj                 = pyvsim.Primitives.Part()
     obj.points          = np.array(pts)
     obj.connectivity    = np.array(cts)
+    obj.name            = filename
     
     print "Read %i triangles" % np.size(cts,0)
     
