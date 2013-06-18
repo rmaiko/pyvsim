@@ -50,6 +50,7 @@ class Component(Core.PyvsimObject):
     TRANSPARENT               = np.array([False,  True, False, False])
     OPAQUE                    = np.array([False, False,  True, False])
     DUMP                      = np.array([False, False, False,  True])
+    PLOTDIMS                  = -1
     
     def __init__(self):
         Core.PyvsimObject.__init__(self)
@@ -355,6 +356,8 @@ class Assembly(Component):
     the consistency all along the code, making all lists instances of
     numpy.ndarray.
     """
+    PLOTDIMS                  = -1
+    
     def __init__(self):
         self._items                     = np.array([], dtype = object)
         self._bounds                    = None
@@ -791,6 +794,65 @@ class Assembly(Component):
         for part in self._items:
             part.clearData()
 
+class Points(Component):
+    """
+    This class is used for representation of 0D elements, i.e. points
+    in the 3D space.
+    
+    *Warning* - do not change the self.bounds 
+    This is an indication
+    that this class does not take part in ray tracing activities
+    """
+    PLOTDIMS                  = 0
+    
+    def __init__(self):
+        Component.__init__(self)
+        self.name                       = 'Line '+str(self._id)
+        self.points                     = np.array([])
+        self.connectivity               = None
+        self.color                      = None
+        self.opacity                    = 0.5
+        self.visible                    = True
+                
+    def translateImplementation(self, vector):
+        """
+        This method is in charge of updating the position of the point cloud
+        (provided it exists) when the Line is translated.
+        
+        There is an exception handling because there is the possibility that 
+        the line is translated before the points are defined. This is extremely
+        unlikely, but should not stop the program execution.
+        """
+        try:
+            self.points = self.points + vector
+        except TypeError:
+            # There is no problem if a translation is executed before the points
+            # are defined
+            pass
+            
+    def rotateImplementation(self, angle, axis, pivotPoint):
+        """
+        This method is in charge of updating the position of the point cloud
+        (provided it exists) when the Line is rotated.
+        
+        There is an exception handling because there is the possibility that 
+        the line is translated before the points are defined. This is extremely
+        unlikely, but should not stop the program execution.
+        """
+        try:
+            self.points = Utils.rotatePoints(self.points,angle,axis,pivotPoint)
+        except TypeError:
+            # There is no problem if a rotation is executed before the points
+            # are defined
+            pass
+     
+    def clearData(self):
+        """
+        In the pure implementation of the line, there are no features to be 
+        deleted when a geometrical operation is executed
+        """
+        pass
+
 
 class Line(Component):
     """
@@ -800,6 +862,7 @@ class Line(Component):
     *Warning* - do not change the self.bounds property value. This is an indication
     that this class does not take part in ray tracing activities
     """
+    PLOTDIMS                  = 1
     def __init__(self):
         Component.__init__(self)
         self.name                       = 'Line '+str(self._id)
@@ -859,6 +922,8 @@ class Part(Component):
     Another benefit is the possibility of directly reading this topology from a
     STL file, that can be exported from a CAD program.
     """
+    PLOTDIMS                  = 3
+    
     def __init__(self):
         Component.__init__(self)
         self.name                       = 'Part ' + str(self.id)
@@ -1302,6 +1367,7 @@ class Plane(Part):
                                   [+0,+0.5,-0.5],
                                   [+0,+0.5,+0.5],
                                   [+0,-0.5,+0.5]])
+    PLOTDIMS                  = 3
     def __init__(self, dimension = np.array([0,1,1]), fastInit=False):
         Part.__init__(self)
         self.name           = 'Plane '+str(self._id)
@@ -1393,6 +1459,7 @@ class Volume(Part):
     `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>` for more
     information)
     """
+    PLOTDIMS                  = 3
     PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
                                   [+0,-0.5,+0.5],
                                   [+0,-0.5,-0.5],
@@ -1540,7 +1607,7 @@ class RayBundle(Assembly):
     """
     TRACING_FOV               = 1
     TRACING_LASER_REFLECTION  = 0
-    
+    PLOTDIMS                  = -1
     def __init__(self):
         Assembly.__init__(self)
         self.name                       = 'Bundle ' + str(self._id)

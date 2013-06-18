@@ -169,23 +169,17 @@ class VTKPlotter(Visitor):
         Visitor.__init__(self)
         self.actorList = []
         
-    def visit(self, obj):       
-        # Will not plot something without points
-        if not hasattr(obj, 'points'):
+    def visit(self, obj):  
+        if obj.PLOTDIMS == -1:
             return None
-        elif obj.points is None:
-            return None
-        
-        # If has no connectivity, it is probably a line
-        if not hasattr(obj, 'connectivity'):
+        elif obj.PLOTDIMS == 0:
+            self.actorList.append(self.pointsActor(obj))
+        elif obj.PLOTDIMS == 1:
             self.actorList.append(self.lineActor(obj))
+        elif obj.PLOTDIMS == 3:
+            self.actorList.append(self.polyActor(obj))
         else:
-            if obj.connectivity is not None:
-                self.actorList.append(self.polyActor(obj))
-            else:
-                if obj.points is not None:
-                    self.actorList.append(self.pointsActor(obj))
-            
+            raise ValueError("Attempted to plot a non pyvsim object")                 
             
     def display(self,displayAxes=True):
         """

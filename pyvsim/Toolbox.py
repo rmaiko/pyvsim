@@ -19,8 +19,8 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import Utils
 import Primitives
-from scipy.special import erf
-from scipy.interpolate import RectBivariateSpline
+from scipy.special import erf, gammainc
+from scipy.interpolate import RectBivariateSpline, interp1d
 import warnings
 import gdal
 import Core
@@ -1374,32 +1374,63 @@ class Camera(Primitives.Assembly):
         
         return phantomAssembly
     
-class Seeding(Primitives.Volume):
+class Seeding(Primitives.Assembly):
     def __init__(self):
-        Primitives.Volume.__init__(self)
-        self.name           = 'Seeding ' + str(self._id)
-        self._particles      = None
-        self._diameters      = None
-        self.color           = [0.9,0.9,0.9]
-        self.opacity         = 0.300        
-        self.surfaceProperty = self.TRANSPARENT
+        Primitives.Assembly.__init__(self)
+        self.name                   = 'Seeding ' + str(self._id)
+        self.volume                 = Primitives.Volume()
+        self.cloud                  = Primitives.Points()
+        self                       += self.volume
+        self                       += self.cloud
+        
+        self.density                = 1e11
+        
+        self._particles             = None
+        self._diameters             = None
+        self.volume.color           = [0.9,0.9,0.9]
+        self.volume.surfaceProperty = self.volume.TRANSPARENT
+        
+    def refractiveIndex(self, wavelength = 532e-9):
+        """
+        Returns the index of refraction of the material given the wavelength
+        (or a list of them)
+        
+        Parameters
+        ----------
+        wavelength : scalar or numpy.array
+            The wavelength of the incoming light given in *meters*
+        
+        Returns
+        -------
+        refractiveIndex : same dimension as wavelength
+            The index of refraction
+        """       
+        return 1.45386 #self.material.refractiveIndex(wavelength)
         
     @property
-    def particles(self): return self._particles
-    @particles.setter
-    def particles(self, particles):
-        self._particles = particles
+    def bounds(self):
+        """
+        This signals the ray tracing implementation that no attempt should be
+        made to intersect rays with the seeding (it's mapped differently)
+        """
+        return None
+            
+    @property
+    def points(self): return self.cloud.points
+    @points.setter
+    def points(self, particles):
+        self.cloud.points  = particles
         [xmin, ymin, zmin] = np.min(particles,0)
         [xmax, ymax, zmax] = np.max(particles,0)
-        self.points = np.array([[xmin,ymax,zmax],
-                                [xmin,ymin,zmax],
-                                [xmin,ymin,zmin],
-                                [xmin,ymax,zmin],
-                                [xmax,ymax,zmax],
-                                [xmax,ymin,zmax],
-                                [xmax,ymin,zmin],
-                                [xmax,ymax,zmin]])
-        
+        self.volume.points = np.array([[xmin,ymax,zmax],
+                                       [xmin,ymin,zmax],
+                                       [xmin,ymin,zmin],
+                                       [xmin,ymax,zmin],
+                                       [xmax,ymax,zmax],
+                                       [xmax,ymin,zmax],
+                                       [xmax,ymin,zmin],
+                                       [xmax,ymax,zmin]])
+                
     @property
     def diameters(self): return self._diameters
     @diameters.setter
@@ -1407,7 +1438,58 @@ class Seeding(Primitives.Volume):
         if np.size(diams) != np.size(self._particles,0):
             raise ValueError("The diameter array must be the same size than"+
                              " the particle position array.")
-         
+            
+    def seed(self):
+        o  = self.volume.points[0]
+        v1 = self.volume.points[1] - self.volume.points[0]
+        v2 = self.volume.points[3] - self.volume.points[0]
+        v3 = self.volume.points[4] - self.volume.points[0] 
+        volume = np.linalg.norm(np.dot(v1,np.cross(v2,v3)))
+        npts   = volume * self.density
+        pts    = np.random.rand(npts,3)
+        pts    = o + (np.einsum("i,j->ij",pts[:,0],v1) +   
+                      np.einsum("i,j->ij",pts[:,1],v2) +
+                      np.einsum("i,j->ij",pts[:,2],v3))
+        diams  = np.random.rand(npts)
+        diams  = self._sizeDistribution(diams)
+        self.cloud.points    = pts
+        self._diameters      = diams
+        
+    def _sizeDistribution(self, seeds):
+        diam = np.linspace(0,4,100)
+        pdf  = gammainc(13.9043,10.9078*diam)**0.2079
+        interpolator = interp1d(pdf, diam)
+        return interpolator(seeds)*1e-6  
+    
+    def scatteredEnergy(self, lineofsight, lightvector, solidangle, 
+             wavelength = 532e-9, polarization = 0):
+        lightintensity = Utils.norm(lightvector) 
+#        lightvecnorm   = np.einsum("ij,i->ij", lightvector, 1/lightintensity)
+        
+        angle = np.arccos(np.sum(lineofsight*lightvector,1)/lightintensity)
+        angle[lightintensity == 0] = 0
+        
+        diams  = np.linspace(np.min(self.diameters),
+                             np.max(self.diameters),
+                             500)
+        angles = np.linspace(np.min(angle),
+                             np.max(angle),
+                             30)
+        
+        (s1,s2) = MieUtils.mieScatteringCrossSections(self.refractiveIndex(wavelength), 
+                                                      diams, 
+                                                      wavelength, 
+                                                      angles)
+        scs = (s1 * (np.cos(polarization)**2) + 
+               s2 * (1 - np.cos(polarization)**2))
+        
+        interpolant = RectBivariateSpline(angles,
+                                          diams,
+                                          scs,
+                                          kx = 1, ky = 1)
+        
+        scs         = interpolant.ev(angle, diameter)
+        return scs*lightintensity*sldangle
         
 class Laser(Primitives.Assembly):
     def __init__(self):
@@ -1770,7 +1852,15 @@ if __name__=='__main__':
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
+    seed                            = Seeding()
+    seed.points                     = (np.array([0.5,0.5,0]) + 
+                                       0.02*Primitives.Volume.PARAMETRIC_COORDS)
+    seed.density                    = 1e11 / 8*3
+    seed.seed()
+    
+
     environment = Primitives.Assembly()
+    environment += seed
     environment += c
 #    environment += v
     environment += v2
@@ -1783,15 +1873,21 @@ if __name__=='__main__':
 #    environment.rotate(np.pi/2.1, c.z)
 
     
-    pts = np.ones((100,3))
-    pts[:,2] = 0.0*pts[0:,2]
-    pts[:,1] = 0.5*pts[0:,1]
-    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
-    pts = np.array([0.5,0.5,0])+((np.random.rand(1000,3)-0.5)*2*
-                                 np.array([0.01,0.01,0.01]))
-    #diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
-    diameter = 0.7e-6*(1 + 2*np.random.randn(np.size(pts,0)))
-    diameter[diameter < 0.1e-6] = 0.7e-6
+#    pts = np.ones((100,3))
+#    pts[:,2] = 0.0*pts[0:,2]
+#    pts[:,1] = 0.5*pts[0:,1]
+#    pts[:,0] = np.linspace(0.35,0.65,np.size(pts,0))
+    
+#    pts = np.array([0.5,0.5,0])+((np.random.randn(300000,3)*#-0.5)*2*
+#                                 np.array([0.01,0.005,0.01])))
+#    #diameter = 3e-6 - 2.5e-6*np.random.rand(np.size(pts,0))
+#    diameter = 0.7e-6*(1 + 2*np.random.randn(np.size(pts,0)))
+#    diameter[diameter < 0.1e-6] = 0.7e-6
+
+    pts      = seed.points
+    diameter = seed.diameters
+    print pts.shape
+    print diameter.shape
     
 #    [X,Z] = np.meshgrid(np.linspace(0.45,0.55,100),
 #                        np.linspace(-0.05,0.05,100))
@@ -1823,36 +1919,21 @@ if __name__=='__main__':
     """Calculate the incoming light"""
     print "\nIllumination phase"
     tic.tic()
-    res = l.illuminate(pts)
+    lightvector = l.illuminate(pts)
     tic.toc(np.size(pts,0))
-    lightintensity = Utils.norm(res)                  # Light intensity
 
-#    plt.quiver(pts[:,0],pts[:,2],res[:,0],res[:,2],lightintensity)
-#    plt.colorbar()
-#    plt.show()
-    """Calculate scattering cross section for all particles"""
-    print "\nMie calculation phase"
+
     tic.tic()
-    angle = np.arccos(np.sum(lineofsight*res,1)/lightintensity)
-    angle[lightintensity == 0] = 0
-    
-    
-    scs = MieUtils.mieScatteringCrossSections(1.45386, 
-                                              np.linspace(0.5e-6,3e-6,300), 
-                                              532e-9, 
-                                              np.linspace(np.min(angle),np.max(angle),20))[0]
-    
-    interpolant = RectBivariateSpline(np.linspace(np.min(angle),np.max(angle),20),
-                                      np.linspace(0.5e-6,3e-6,300),
-                                      scs,
-                                      kx = 1, ky = 1)
-#    angle = 0*angle + np.pi/2   
-    scs         = interpolant.ev(angle, diameter)
+    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
+                                  lightvector  = lightvector, 
+                                  solidangle   = sldangle, 
+                                  wavelength   = 532e-9, 
+                                  polarization = 0)
     tic.toc(npts)
 
     tic.tic()
     c.sensor.recordParticles(uv, 
-                             scs*lightintensity*sldangle*0.8, 
+                             energy, 
                              532e-9, 
                              np.abs(imdim))
     tic.toc(npts)
@@ -1862,10 +1943,7 @@ if __name__=='__main__':
     c.sensor.save("test.tif")
     tic.toc()
     c.sensor.display("jet")
-
-    mag = Utils.norm(res)
+    
 #    l.display()
-
-    v2.connectivity = None
     
     System.plot(environment)
