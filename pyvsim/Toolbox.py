@@ -1435,7 +1435,7 @@ class Seeding(Primitives.Assembly):
     def diameters(self): return self._diameters
     @diameters.setter
     def diameters(self, diams):
-        if np.size(diams) != np.size(self._particles,0):
+        if np.size(diams) != np.size(self.cloud.points,0):
             raise ValueError("The diameter array must be the same size than"+
                              " the particle position array.")
             
@@ -1490,6 +1490,19 @@ class Seeding(Primitives.Assembly):
         
         scs         = interpolant.ev(angle, diameter)
         return scs*lightintensity*sldangle
+    
+class CalibrationPlate(Seeding):
+    def __init__(self):
+        Seeding.__init__(self)
+        [X,Y] = np.meshgrid(np.linspace(-0.1,0.1,200),
+                            np.linspace(-0.1,0.1,200))
+        Z     = 0*np.ones(np.size(X))
+        self.points    = np.vstack((X.ravel(),Y.ravel(),Z)).T
+#        self.points    = np.vstack([self.points, 
+#                                    self.points + np.array([5e-4,5e-4,0.01])])
+        print X.shape, Y.shape, Z.shape, self.points.shape
+        self.diameters = 2.2e-6*np.ones(np.size(Z))
+        
         
 class Laser(Primitives.Assembly):
     def __init__(self):
@@ -1855,13 +1868,17 @@ if __name__=='__main__':
     seed                            = Seeding()
     seed.points                     = (np.array([0.5,0.5,0]) + 
                                        0.02*Primitives.Volume.PARAMETRIC_COORDS)
-    seed.density                    = 1e11 / 8*3
+    seed.density                    = 1e11 / 80*3
     seed.seed()
+    
+    calib = CalibrationPlate()
+    calib.translate(np.array([0.5,0.5,0]))
     
 
     environment = Primitives.Assembly()
     environment += seed
     environment += c
+    environment += calib
 #    environment += v
     environment += v2
     environment += l
@@ -1905,44 +1922,46 @@ if __name__=='__main__':
     print "\nCamera parameter determination"
     tic.tic()
     c.doall()
+    cams = c.virtualCameras()
+    environment += cams
     tic.toc()
     
-    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
-    
-    
-    import MieUtils
-    
-    
-    """Calculate the position of each point in the sensor"""
-    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(pts)
-    
-    """Calculate the incoming light"""
-    print "\nIllumination phase"
-    tic.tic()
-    lightvector = l.illuminate(pts)
-    tic.toc(np.size(pts,0))
-
-
-    tic.tic()
-    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
-                                  lightvector  = lightvector, 
-                                  solidangle   = sldangle, 
-                                  wavelength   = 532e-9, 
-                                  polarization = 0)
-    tic.toc(npts)
-
-    tic.tic()
-    c.sensor.recordParticles(uv, 
-                             energy, 
-                             532e-9, 
-                             np.abs(imdim))
-    tic.toc(npts)
-    
-    print "\nSaving image"
-    tic.tic()
-    c.sensor.save("test.tif")
-    tic.toc()
-    c.sensor.display("jet")
+#    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)
+#    
+#    
+#    import MieUtils
+#    
+#    
+#    """Calculate the position of each point in the sensor"""
+#    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(pts)
+#    
+#    """Calculate the incoming light"""
+#    print "\nIllumination phase"
+#    tic.tic()
+#    lightvector = l.illuminate(pts)
+#    tic.toc(np.size(pts,0))
+#
+#
+#    tic.tic()
+#    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
+#                                  lightvector  = lightvector, 
+#                                  solidangle   = sldangle, 
+#                                  wavelength   = 532e-9, 
+#                                  polarization = 0)
+#    tic.toc(npts)
+#
+#    tic.tic()
+#    c.sensor.recordParticles(uv, 
+#                             energy, 
+#                             532e-9, 
+#                             np.abs(imdim))
+#    tic.toc(npts)
+#    
+#    print "\nSaving image"
+#    tic.tic()
+#    c.sensor.save("test.tif")
+#    tic.toc()
+#    c.sensor.display("jet")
     
 #    l.display()
     
