@@ -170,10 +170,13 @@ def jet(value, minval, maxval):
     Returns the RGB values to emulate a "jet" colormap from matlab
     """
     val = 4 * (value - minval)/(maxval-minval)
-    r   = min(val - 1.5, -val + 4.5)
-    g   = min(val - 0.5, -val + 3.5)
-    b   = min(val + 0.5, -val + 2.5)
-    return np.clip(np.array([r,g,b]), 0, 1);
+    rmask = val - 1.5 < -val + 4.5
+    gmask = val - 0.5 < -val + 3.5
+    bmask = val + 0.5 < -val + 2.5
+    r   = (val - 1.5)*rmask + (-val + 4.5)*(1-rmask)
+    g   = (val - 0.5)*gmask + (-val + 3.5)*(1-gmask)
+    b   = (val + 0.5)*bmask + (-val + 2.5)*(1-bmask)
+    return np.clip(np.vstack([r,g,b]).T, 0, 1)
 
 def metersToRGB(wl):
     """
