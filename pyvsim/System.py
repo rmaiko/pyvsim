@@ -392,18 +392,16 @@ class PythonPlotter(Visitor):
         Takes a snapshot of the object and creates a elements in a Matplotlib
         window.
         """     
-        # Will not plot something without points
-        if not hasattr(obj, 'points'):
+        if obj.PLOTDIMS == -1:
             return None
-        elif obj.points is None:
-            return None
-        
-        # If has no connectivity, it is probably a line
-        if not hasattr(obj, 'connectivity'):
+        elif obj.PLOTDIMS == 0:
+            self.pointsActor(obj)
+        elif obj.PLOTDIMS == 1:
             self.lineActor(obj)
-        else:
+        elif obj.PLOTDIMS == 3:
             self.polyActor(obj)
-            
+        else:
+            raise ValueError("Attempted to plot a non pyvsim object")              
             
     def display(self,displayAxes=True):
         """
@@ -419,6 +417,9 @@ class PythonPlotter(Visitor):
         """
         _ = displayAxes
         plt.show()
+        
+    def pointsActor(self, obj):
+        self.ax.scatter3D(obj.points[:,0],obj.points[:,1],obj.points[:,2])
  
     def lineActor(self,obj):
         """
