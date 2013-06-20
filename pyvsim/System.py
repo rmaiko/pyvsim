@@ -253,9 +253,19 @@ class VTKPlotter(Visitor):
         dataActor.SetMapper(dataMapper)
         
         if obj.color is not None:
-            dataActor.GetProperty().SetColor(obj.color[0],
-                                             obj.color[1],
-                                             obj.color[2])
+            if np.size(obj.color) == 3:
+                dataActor.GetProperty().SetColor(obj.color[0],
+                                                 obj.color[1],
+                                                 obj.color[2])
+            else:
+                carray = vtk.vtkUnsignedCharArray()
+                carray.SetNumberOfComponents(3)
+                carray.SetName("Colors")
+                color = (obj.color*255).astype(int)
+                for c in obj.color:
+                    carray.InsertNextTupleValue(c)
+                me.GetCellData().SetScalars(color)
+
         if obj.opacity is not None:
             dataActor.GetProperty().SetOpacity(obj.opacity)
             
