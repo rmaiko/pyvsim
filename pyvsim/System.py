@@ -262,12 +262,15 @@ class VTKPlotter(Visitor):
                 carray.SetNumberOfComponents(3)
                 carray.SetName("Colors")
                 color = (obj.color*255).astype(int)
-                for c in obj.color:
+                for c in color:
                     carray.InsertNextTupleValue(c)
-                me.GetCellData().SetScalars(color)
+                me.GetCellData().SetScalars(carray)
 
         if obj.opacity is not None:
             dataActor.GetProperty().SetOpacity(obj.opacity)
+            
+        if obj.width is not None:
+            dataActor.GetProperty().SetLineWidth(obj.width)
             
         return dataActor
     

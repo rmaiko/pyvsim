@@ -868,6 +868,7 @@ class Line(Component):
         self.name                       = 'Line '+str(self._id)
         self.points                     = np.array([])
         self.color                      = None
+        self.width                      = None
         self.opacity                    = 0.5
         self.visible                    = True
                 

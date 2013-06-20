@@ -50,6 +50,7 @@ import Library
 import pprint
 import json
 import threading
+import Primitives
 
 #mat = Library.Glass()
 #mat.fetchFromDB("Schott N-BK7")
@@ -58,71 +59,71 @@ import threading
 import threading
 import thread, time
 
-class dumm(object):
-    def __init__(self, name):
-        self.name = name
+#class dumm(object):
+#    def __init__(self, name):
+#        self.name = name
+#
+#class ov(object):
+#    def __init__(self):
+#        self._items = []
+#        
+#    def __iadd__(self,other):
+#        if not issubclass(type(other), dumm):
+#            raise TypeError("Operations are only allowed between \
+#                             pyvsim components")       
+#        self._items.append(other)       
+#        return self
+#    
+#    def __isub__(self,other):
+#        if not issubclass(type(other), dumm):
+#            raise TypeError("Operations are only allowed between \
+#                             pyvsim components")
+#        self.remove(other)        
+#        return self       
+#        
+#    def __eq__(self, other):
+#        answer = np.zeros_like(other)
+#        
+#        answer += (other is self)
+#
+#        for item in self._items:
+#            answer += (item == other)
+#            
+#        return answer
+#    
+#    def __neq__(self, other):
+#        return 1 - (self == other) 
+#        
+#    def __getitem__(self, k):
+#        print "gotitem"
+#        if type(k) is str:
+#            for item in self._items:
+#                if item.name == k:
+#                    return item
+#        else:
+#            return self._items[k]
+#    
+#    def __setitem__(self, k, value):     
+#        print "setitem"
+#        self.append(value, k)      
+#        
+#    def __delitem__(self,k):      
+#        self.remove(k)
+#        
+#    def __len__(self):
+#        return len(self._items)
+#    
+#    def __contains__(self, other):  
+#        return other in self._items
+#        
+#    
+#d1 = dumm("a")
+#d2 = dumm("b")
+#poc  = ov()
+#poc += d1
+#poc += d2
 
-class ov(object):
-    def __init__(self):
-        self._items = []
-        
-    def __iadd__(self,other):
-        if not issubclass(type(other), dumm):
-            raise TypeError("Operations are only allowed between \
-                             pyvsim components")       
-        self._items.append(other)       
-        return self
-    
-    def __isub__(self,other):
-        if not issubclass(type(other), dumm):
-            raise TypeError("Operations are only allowed between \
-                             pyvsim components")
-        self.remove(other)        
-        return self       
-        
-    def __eq__(self, other):
-        answer = np.zeros_like(other)
-        
-        answer += (other is self)
-
-        for item in self._items:
-            answer += (item == other)
-            
-        return answer
-    
-    def __neq__(self, other):
-        return 1 - (self == other) 
-        
-    def __getitem__(self, k):
-        print "gotitem"
-        if type(k) is str:
-            for item in self._items:
-                if item.name == k:
-                    return item
-        else:
-            return self._items[k]
-    
-    def __setitem__(self, k, value):     
-        print "setitem"
-        self.append(value, k)      
-        
-    def __delitem__(self,k):      
-        self.remove(k)
-        
-    def __len__(self):
-        return len(self._items)
-    
-    def __contains__(self, other):  
-        return other in self._items
-        
-    
-d1 = dumm("a")
-d2 = dumm("b")
-poc  = ov()
-poc += d1
-poc += d2
-
-print "Finished loading POC module"
+#print "Finished loading POC module"
 #
 #class timeoutWrapper():
 #    def __init__(self, function, timeout = 10, forgiving = True):
@@ -206,3 +207,32 @@ print "Finished loading POC module"
 #c.depthOfField()
 #
 #System.plot(env)
+
+import numpy as np
+import Primitives
+import Utils
+import System
+
+nsteps      = 2e3
+dt          = 1e-3
+velocity    = np.zeros((nsteps,3))
+position    = np.zeros((nsteps,3))
+accel       = np.array([0,-10,0])
+velocity[0] = np.random.rand(3)
+position[0] = np.random.rand(3)
+
+for t in np.arange(nsteps-1):
+    velocity[t+1] = velocity[t] + accel*dt
+    if velocity[t+1,1] < 0 and position[t,1] < 0:
+        velocity[t+1,1] = -0.8*velocity[t+1,1]
+    position[t+1] = position[t] + velocity[t]*dt     
+    
+line            = Primitives.Line()
+line.points     = position
+vmag            = np.sqrt(np.sum(velocity*velocity,1))
+line.color      = Utils.jet(vmag, np.min(vmag), np.max(vmag))
+line.width      = 2
+
+env             = Primitives.Assembly()
+env.append(line)
+System.plot(env)
