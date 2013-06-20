@@ -232,7 +232,4 @@ line.points     = position
 vmag            = np.sqrt(np.sum(velocity*velocity,1))
 line.color      = Utils.jet(vmag, np.min(vmag), np.max(vmag))
 line.width      = 2
-
-env             = Primitives.Assembly()
-env.append(line)
-System.plot(env)
+System.plot(line)

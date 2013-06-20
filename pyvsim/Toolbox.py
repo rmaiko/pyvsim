@@ -1542,9 +1542,9 @@ class Laser(Primitives.Assembly):
         self.profile                    = np.exp(-0.15*(X**2+Y**2))
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
-        self.sheetDiscretization        = 0.1
-        self.safeEnergy                 = 1e-3
-        self.safetyTracingResolution    = 20
+        self.usefulLengthDiscretization = 0.1
+        self.safeEnergy                 = 5e-3 #1e-3
+        self.safetyTracingRays          = 25
         self._positionComponents()
         
     @property    
@@ -1669,7 +1669,7 @@ class Laser(Primitives.Assembly):
         
         Important parameters
             - Laser.usefulLength : the useful region of the laser sheet
-            - Laser.sheetDiscretization : the length of the discretization 
+            - Laser.usefulLengthDiscretization : the length of the discretization 
             volume. Shorter elements provide better interpolation, but make
             computation extremely costly.
         """
@@ -1680,7 +1680,7 @@ class Laser(Primitives.Assembly):
         start = np.size(self.rays.rayPaths,0) - 1
         
         self.rays.maximumRayTrace   = self.usefulLength[1]
-        self.rays.stepRayTrace      = self.sheetDiscretization
+        self.rays.stepRayTrace      = self.usefulLengthDiscretization
         self.rays.trace(tracingRule = self.rays.TRACING_FOV, restart= True)
         
         end   = np.size(self.rays.rayPaths,0)
@@ -1745,20 +1745,24 @@ class Laser(Primitives.Assembly):
         """
         POC implementation of a calculation of laser safety distances
         """
-        npts = self.safetyTracingResolution**2
-        nres = self.safetyTracingResolution
-        x = np.linspace(-1, +1, nres)
+        # Calculate how many rays will be generated
+        nside  = np.round(self.safetyTracingRays**0.5)
+        nrays  = nside **2 
+        
+        # Create a grid of positions for the rays to start
+        x = np.linspace(-1, +1, nside)
         [X,Y] = np.meshgrid(x,x)
         points = np.vstack([X.ravel(), 
                             Y.ravel(), 
-                            np.zeros(npts)]).T
-        physicalPoints = (np.reshape(X.ravel(),(npts,1,1))*self.y +
-                          np.reshape(Y.ravel(),(npts,1,1))*self.z).squeeze()
+                            np.zeros(nrays)]).T
+                            
+        # Calculate where these rays should be in the laser output
+        physicalPoints = (np.einsum("i,j->ij",points[:,0],self.y) +
+                          np.einsum("i,j->ij",points[:,1],self.z)).squeeze()
         physicalPoints = physicalPoints * self.beamDiameter / 2
         physicalPoints = physicalPoints + self.origin
         
-        pts1 = physicalPoints
-        
+        # For each ray, calculate their corresponding initial propagation vector
         vectors = Utils.quadInterpolation(points, 
                                           np.array([[-1,-1,0],
                                                     [+1,-1,0],
@@ -1773,63 +1777,13 @@ class Laser(Primitives.Assembly):
                       physicalPoints, 
                       self.wavelength)
         self.append(bundle)        
-        bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,)
+        bundle.maximumRayTrace = 1000
+        bundle.stepRayTrace = 0.1
+        tic = Utils.Tictoc()
+        bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION)
         
-        energy =  self.pulseEnergy / (nres)**2
-#        initdensity = energy / (self.beamDiameter / nres)**2
-#        print np.log10(initdensity)
-#        print np.log10(self.safeEnergy)
+        energy =  self.pulseEnergy / (nside)**2
 
-        # Lay points at the reference area and rearrange them into the
-        # convention to create hexas
-        [I,J] = np.meshgrid(range(nres),range(nres))
-        I0    = np.vstack([I[ :-1,  :-1].ravel(), J[ :-1,  :-1].ravel()]).T
-        I1    = np.vstack([I[1:  ,  :-1].ravel(), J[1:  ,  :-1].ravel()]).T
-        I2    = np.vstack([I[1:  , 1:  ].ravel(), J[1:  , 1:  ].ravel()]).T
-        I3    = np.vstack([I[ :-1, 1:  ].ravel(), J[ :-1, 1:  ].ravel()]).T
-
-        currentEnergy = 10
-        volumeCollection = Primitives.Assembly()
-        
-        while(np.max(currentEnergy) > self.safeEnergy):
-#            print "PREPARING TO CONTINUE"
-            bundle.maximumRayTrace = bundle.maximumRayTrace + 1000
-            bundle.stepRayTrace    = bundle.maximumRayTrace
-            pts2 = bundle.rayPaths[-1]
-            pts1 = np.reshape(pts1,(nres,nres,3))
-            pts2 = np.reshape(pts2,(nres,nres,3))
-
-            currentEnergy = (energy / 
-                             np.reshape(Utils.quadArea(pts2[I0[:,0],I0[:,1]],
-                                                       pts2[I1[:,0],I1[:,1]],
-                                                       pts2[I2[:,0],I2[:,1]],
-                                                       pts2[I3[:,0],I3[:,1]]),
-                                        (nres-1,nres-1)))
-
-            for i in range(nres-1):
-                for j in range(nres-1):
-                    if currentEnergy[j,i] > self.safeEnergy:
-                        vol        = Primitives.Volume(fastInit = True)
-                        vol.points = np.vstack([pts1[i  ,j  ],
-                                                pts1[i+1,j  ],
-                                                pts1[i+1,j+1],
-                                                pts1[i  ,j+1],
-                                                pts2[i  ,j  ],
-                                                pts2[i+1,j  ],
-                                                pts2[i+1,j+1],
-                                                pts2[i  ,j+1]])
-                        vol.color = Utils.jet(currentEnergy[j,i], 
-                                              self.safeEnergy, 
-                                              self.safeEnergy*100)
-                        volumeCollection.append(vol)
-            pts1 = pts2
-            bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION,
-                         restart = True)
-            
-        self.volume = volumeCollection
-        self.append(volumeCollection)
-#        print self.volume.bounds
-#        print bundle.steps
         
     
 if __name__=='__main__':
@@ -1851,13 +1805,13 @@ if __name__=='__main__':
 #    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
-    l.beamDivergence                = np.array([0.0005, 0.25])
+    l.beamDivergence                = np.array([0.5e-3, 0.25])
     l.pulseEnergy                   = 0.1
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
     l.usefulLength                  = np.array([0.55, 0.8])
-    l.sheetDiscretization           = 0.1
+    l.usefulLengthDiscretization           = 0.1
     
     
     
@@ -1896,56 +1850,59 @@ if __name__=='__main__':
     environment += v
     environment += v2
     environment += l
-
-#    Some geometrical transformations to make the problem more interesting
-    c.rotate(90*np.pi/180,c.lens.x)    
-#    environment.rotate(np.pi/0.1314, c.x)
-#    environment.rotate(np.pi/27, c.y)
-#    environment.rotate(np.pi/2.1, c.z)
-
-    npts = np.size(seed.points,0)
     
-    print "Laser sheet tracing"
-    tic.tic()
-    l.trace()
-    tic.toc() 
+    l.traceReflections()
 
-    print "\nCamera parameter determination"
-    tic.tic()
-    c.doall()
-    tic.toc()
-    
-    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)   
-    
-    """Calculate the position of each point in the sensor"""
-    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(seed.points)
-    
-    """Calculate the incoming light"""
-    print "\nIllumination phase"
-    tic.tic()
-    lightvector = l.illuminate(seed.points)
-    tic.toc(np.size(seed.points,0))
-
-
-    tic.tic()
-    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
-                                  lightvector  = lightvector, 
-                                  solidangle   = sldangle, 
-                                  wavelength   = 532e-9, 
-                                  polarization = 0)
-    tic.toc(npts)
-
+##    Some geometrical transformations to make the problem more interesting
+#    c.rotate(90*np.pi/180,c.lens.x)    
+##    environment.rotate(np.pi/0.1314, c.x)
+##    environment.rotate(np.pi/27, c.y)
+##    environment.rotate(np.pi/2.1, c.z)
+#
+#    npts = np.size(seed.points,0)
+#    
+#    print "Laser sheet tracing"
 #    tic.tic()
-#    c.sensor.recordParticles(uv, 
-#                             energy, 
-#                             532e-9, 
-#                             np.abs(imdim))
-#    tic.toc(npts)
-    
-#    print "\nSaving image"
+#    l.trace()
+#    tic.toc() 
+#
+#    print "\nCamera parameter determination"
 #    tic.tic()
-#    c.sensor.save("test.tif")
+#    c.doall()
 #    tic.toc()
-#    c.sensor.display("jet")
-    
+#    
+#    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)   
+#    
+#    """Calculate the position of each point in the sensor"""
+#    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(seed.points)
+#    
+#    """Calculate the incoming light"""
+#    print "\nIllumination phase"
+#    tic.tic()
+#    lightvector = l.illuminate(seed.points)
+#    tic.toc(np.size(seed.points,0))
+#
+#
+#    tic.tic()
+#    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
+#                                  lightvector  = lightvector, 
+#                                  solidangle   = sldangle, 
+#                                  wavelength   = 532e-9, 
+#                                  polarization = 0)
+#    tic.toc(npts)
+#
+##    tic.tic()
+##    c.sensor.recordParticles(uv, 
+##                             energy, 
+##                             532e-9, 
+##                             np.abs(imdim))
+##    tic.toc(npts)
+#    
+##    print "\nSaving image"
+##    tic.tic()
+##    c.sensor.save("test.tif")
+##    tic.toc()
+##    c.sensor.display("jet")
+#    
+
     System.plot(environment)
