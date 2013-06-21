@@ -1536,7 +1536,7 @@ class Laser(Primitives.Assembly):
         self.profileInterpolator        = None
         self._pulseEnergy               = 0.500
         self._beamDivergence            = np.array([0.0005, 0.25])
-        self._beamDiameter              = 0.018
+        self._beamDiameter              = 0.01#0.018
         [X,Y] = np.meshgrid(np.arange(-6,7), 
                             np.arange(-6,7))
         self.profile                    = np.exp(-0.15*(X**2+Y**2))
@@ -1544,7 +1544,10 @@ class Laser(Primitives.Assembly):
         self.usefulLength               = np.array([1, 3])
         self.usefulLengthDiscretization = 0.1
         self.safeEnergy                 = 5e-3 #1e-3
-        self.safetyTracingRays          = 25
+        self.safetyTracingRays          = [7,5]
+        self.safetyTracingStrategy      = [[7,7],
+                                           [15,0.05],
+                                           [100,100]]
         self._positionComponents()
         
     @property    
@@ -1746,20 +1749,26 @@ class Laser(Primitives.Assembly):
         POC implementation of a calculation of laser safety distances
         """
         # Calculate how many rays will be generated
-        nside  = np.round(self.safetyTracingRays**0.5)
-        nrays  = nside **2 
+        n1 = self.safetyTracingRays[0]
+        n2 = self.safetyTracingRays[1]
+        nrays  = n1*n2 
         
         # Create a grid of positions for the rays to start
-        x = np.linspace(-1, +1, nside)
-        [X,Y] = np.meshgrid(x,x)
+        x = np.linspace(-1, +1, n1)
+        y = np.linspace(-1, +1, n2)
+        [X,Y] = np.meshgrid(x,y)
         points = np.vstack([X.ravel(), 
                             Y.ravel(), 
                             np.zeros(nrays)]).T
                             
         # Calculate where these rays should be in the laser output
-        physicalPoints = (np.einsum("i,j->ij",points[:,0],self.y) +
-                          np.einsum("i,j->ij",points[:,1],self.z)).squeeze()
-        physicalPoints = physicalPoints * self.beamDiameter / 2
+        physicalPoints = (np.einsum("i,j->ij",points[:,0],self.y*
+                          self.beamDiameter*0.5*(n1-1)/(n1-2)) +
+                          np.einsum("i,j->ij",points[:,1],self.z*
+                          self.beamDiameter*0.5*(n2-1)/(n2-2))).squeeze()
+
+#        physicalPoints = physicalPoints * (self.beamDiameter * (nside-1) / 
+#                                           (2*(nside-2)))
         physicalPoints = physicalPoints + self.origin
         
         # For each ray, calculate their corresponding initial propagation vector
@@ -1776,15 +1785,70 @@ class Laser(Primitives.Assembly):
         bundle.append(vectors, 
                       physicalPoints, 
                       self.wavelength)
-        self.append(bundle)        
-        bundle.maximumRayTrace = 1000
-        bundle.stepRayTrace = 0.1
-        tic = Utils.Tictoc()
-        bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION)
+        self.append(bundle)       
+         
+        restart = False
         
-        energy =  self.pulseEnergy / (nside)**2
+        for length, step in self.safetyTracingStrategy:
+            bundle.maximumRayTrace  = length
+            bundle.stepRayTrace     = step
+            tic = Utils.Tictoc()
+            bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION, 
+                         restart = restart)
+            restart = True
+            tic.toc()
+        
+        initial_density =  self.pulseEnergy / (self.beamDiameter**2/
+                                               ((n1-1)*(n2-1)))
+        initial_energy  =  self.pulseEnergy / ((n1-2)*(n2-2))
+        energyDensity   =  np.zeros((n1,n2))
+        print initial_density
 
+        # We will create a connectivity map for a rectangle with side n-1, as
+        # we will take the centerpoint for each 4 rays
+        n = np.arange((n1-1)*(n2-1))
+        n = np.reshape(n,(n1-1,n2-1))
+        cts = np.empty(((n1-2)*(n2-2),4))
+        k = 0
+        for i in np.arange(n1-2):
+            for j in np.arange(n2-2):
+                cts[k] = [n[i,j], n[i,j+1], n[i+1,j+1], n[i+1,j]]
+                k += 1
+        cts = cts.astype(int)
+                
+        color = np.empty((bundle.steps+1,nrays,3))
+#        print bundle.steps
+#        print color.shape
+                
+        for n in range(np.size(bundle.rayPaths,0)):
+            # arrange the rays in the grid they originally were
+            pts = np.reshape(bundle.rayPaths[n],(n1,n2,3))
+            # find the mean points of each 4 rays
+            pts = 0.25*(pts[1:,:-1] + pts[:-1,:-1] + pts[1:,1:] + pts[:-1,1:])
+            # reshape in a list of points
+            pts = np.reshape(pts,(-1,3))
+            # calculate the area of each of the new quads (using our nice
+            # connectivity list)
+            area = Utils.quadArea(pts[cts[:,0]], 
+                                  pts[cts[:,1]],
+                                  pts[cts[:,2]],
+                                  pts[cts[:,3]])
+            energyDensity[1:-1,1:-1] = np.reshape(initial_energy / area,
+                                                  (n1-2,n2-2))
+            e = energyDensity.ravel()
+            color[n] = Utils.jet(np.log10(e+1e-5),
+                                 np.log10(5e-3),
+                                 np.log10(1e3))
+#            plt.imshow(energyDensity,interpolation="None")
+#            plt.colorbar()
+#            plt.show()
         
+#        print bundle[0].points.shape
+#        print color[:,0].shape
+        
+        for n,line in enumerate(bundle):
+            line.color = color[:,n]
+            line.width = 2
     
 if __name__=='__main__':
     import System
@@ -1805,13 +1869,15 @@ if __name__=='__main__':
 #    c.lens.rotate(scheimpflug, c.y, c.x*c.sensorPosition)
 
     l                               = Laser()
-    l.beamDivergence                = np.array([0.5e-3, 0.25])
-    l.pulseEnergy                   = 0.1
+#    l.beamDivergence                = np.array([0.5e-3, 0.25])
+    l.beamDivergence                = np.array([-1e-3, 4.596e-2])
+    l.pulseEnergy                   = 0.5# 0.1
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
     l.usefulLength                  = np.array([0.55, 0.8])
-    l.usefulLengthDiscretization           = 0.1
+    l.usefulLengthDiscretization    = 0.1
+    l.safetyTracingRays             = [7,5]
     
     
     
@@ -1845,10 +1911,10 @@ if __name__=='__main__':
     
 
     environment = Primitives.Assembly()
-    environment += seed
-    environment += c
-    environment += v
-    environment += v2
+#    environment += seed
+#    environment += c
+#    environment += v
+#    environment += v2
     environment += l
     
     l.traceReflections()
