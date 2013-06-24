@@ -1802,8 +1802,12 @@ class Laser(Primitives.Assembly):
         
 #        initial_density =  self.pulseEnergy / (self.beamDiameter**2/
 #                                               ((n1-1)*(n2-1)))
-        initial_energy  =  self.pulseEnergy / ((n1-2)*(n2-2))
+#        initial_energy  =  self.pulseEnergy / ((n1-2)*(n2-2))
         energyDensity   =  np.zeros((n1,n2))
+        initialEnergyDensity   = self.profileInterpolator.ev(points[:,0], 
+                                                      points[:,1])
+        initialEnergyDensity   = np.reshape(initialEnergyDensity,(n1,n2))
+        referenceArea   = self.beamDiameter**2
 
 
         # We will create a connectivity map for a rectangle with side n-1, as
@@ -1841,8 +1845,10 @@ class Laser(Primitives.Assembly):
                                   pts[cts[:,1]],
                                   pts[cts[:,2]],
                                   pts[cts[:,3]])
-            energyDensity[1:-1,1:-1] = np.reshape(initial_energy / area,
-                                                  (n1-2,n2-2))
+            area = np.reshape(area,(n1-2,n2-2))
+            energyDensity[1:-1,1:-1] = (initialEnergyDensity[1:-1,1:-1] *
+                                        referenceArea / area)
+            print np.min(energyDensity), np.mean(energyDensity), np.max(energyDensity)
             e = energyDensity.ravel()
             color[n] = Utils.jet(np.log10(e+1e-5),
                                  np.log10(self.safeEnergyDensity),
@@ -1856,8 +1862,9 @@ class Laser(Primitives.Assembly):
         # The rays at the margin (that receive density zero) are then "erased"
         toerase = np.reshape(np.arange(n1*n2),(n1,n2))
         toerase[1:-1,1:-1] = 0 
-        toerase = np.nonzero(toerase.ravel())[0] # This trick does not work for
-                                                 # ray[0,0], so:
+        toerase = np.nonzero(toerase.ravel())[0] 
+        # This trick does not work for
+        # ray[0,0], so:
         bundle[0].opacity = 0                                         
         for i in toerase:
             bundle[i].opacity = 0
