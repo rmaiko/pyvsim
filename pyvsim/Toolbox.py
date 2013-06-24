@@ -907,13 +907,13 @@ class Camera(Primitives.Assembly):
         else:
             pupilSolidAngle = self.virtualApertureArea / w**2
         
-        print "W", np.min(w), np.median(w), np.mean(w), np.max(w)
-        print "imdim", np.min(imdim), np.median(imdim), np.mean(imdim), np.max(imdim)
-        print "F", self.lens.F
-        print "p'", np.min(pprime), np.median(pprime), np.mean(pprime), np.max(pprime)
-        print "p", np.min(p), np.median(p), np.mean(p), np.max(p)
-        print "H'S", HpS
-        print "H'X", HpX 
+#        print "W", np.min(w), np.median(w), np.mean(w), np.max(w)
+#        print "imdim", np.min(imdim), np.median(imdim), np.mean(imdim), np.max(imdim)
+#        print "F", self.lens.F
+#        print "p'", np.min(pprime), np.median(pprime), np.mean(pprime), np.max(pprime)
+#        print "p", np.min(p), np.median(p), np.mean(p), np.max(p)
+#        print "H'S", HpS
+#        print "H'X", HpX 
         
         return (uv, w, duvw, lineofsight, imdim, pupilSolidAngle)    
         
@@ -1335,12 +1335,12 @@ class Camera(Primitives.Assembly):
         phantomPrototype.body.opacity       = 0.2
         phantomPrototype.lens.color         = [0.5,0.5,0.5]
         phantomPrototype.lens.opacity       = 0.2
-        print phantomPrototype.x
-        print phantomPrototype.y
-        print phantomPrototype.z
-        print phantomPrototype.lens.x
-        print phantomPrototype.lens.y
-        print phantomPrototype.lens.z
+#        print phantomPrototype.x
+#        print phantomPrototype.y
+#        print phantomPrototype.z
+#        print phantomPrototype.lens.x
+#        print phantomPrototype.lens.y
+#        print phantomPrototype.lens.z
         phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
 
         phantomAssembly                     = Primitives.Assembly()
@@ -1502,7 +1502,7 @@ class Seeding(Primitives.Assembly):
                                           kx = 1, ky = 1)
         
         scs         = interpolant.ev(scatterangle, self.diameters)
-        return scs*lightintensity*sldangle
+        return scs*lightintensity*solidangle
     
 class CalibrationPlate(Seeding):
     def __init__(self):
@@ -1543,7 +1543,7 @@ class Laser(Primitives.Assembly):
         # Ray tracing characteristics
         self.usefulLength               = np.array([1, 3])
         self.usefulLengthDiscretization = 0.1
-        self.safeEnergy                 = 5e-3 #1e-3
+        self.safeEnergyDensity                 = 5e-3 #1e-3
         self.safetyTracingRays          = [7,5]
         self.safetyTracingStrategy      = [[7,7],
                                            [15,0.05],
@@ -1754,11 +1754,11 @@ class Laser(Primitives.Assembly):
         nrays  = n1*n2 
         
         # Create a grid of positions for the rays to start
-        x = np.linspace(-1, +1, n1)
-        y = np.linspace(-1, +1, n2)
+        x = np.linspace(-1, +1, n2)
+        y = np.linspace(-1, +1, n1)
         [X,Y] = np.meshgrid(x,y)
-        points = np.vstack([X.ravel(), 
-                            Y.ravel(), 
+        points = np.vstack([Y.ravel(), 
+                            X.ravel(), 
                             np.zeros(nrays)]).T
                             
         # Calculate where these rays should be in the laser output
@@ -1788,38 +1788,46 @@ class Laser(Primitives.Assembly):
         self.append(bundle)       
          
         restart = False
+        tic = Utils.Tictoc()
         
         for length, step in self.safetyTracingStrategy:
+            print "Tracing up to length %f with step %f" % (length, step)
             bundle.maximumRayTrace  = length
             bundle.stepRayTrace     = step
-            tic = Utils.Tictoc()
+            tic.tic()
             bundle.trace(tracingRule = bundle.TRACING_LASER_REFLECTION, 
                          restart = restart)
             restart = True
             tic.toc()
         
-        initial_density =  self.pulseEnergy / (self.beamDiameter**2/
-                                               ((n1-1)*(n2-1)))
+#        initial_density =  self.pulseEnergy / (self.beamDiameter**2/
+#                                               ((n1-1)*(n2-1)))
         initial_energy  =  self.pulseEnergy / ((n1-2)*(n2-2))
         energyDensity   =  np.zeros((n1,n2))
-        print initial_density
+
 
         # We will create a connectivity map for a rectangle with side n-1, as
         # we will take the centerpoint for each 4 rays
         n = np.arange((n1-1)*(n2-1))
         n = np.reshape(n,(n1-1,n2-1))
-        cts = np.empty(((n1-2)*(n2-2),4))
+
+        cts = np.empty(((n2-2)*(n1-2),4))
         k = 0
+
         for i in np.arange(n1-2):
             for j in np.arange(n2-2):
                 cts[k] = [n[i,j], n[i,j+1], n[i+1,j+1], n[i+1,j]]
                 k += 1
+
         cts = cts.astype(int)
                 
         color = np.empty((bundle.steps+1,nrays,3))
 #        print bundle.steps
 #        print color.shape
                 
+        maxEnergyDensity = self.pulseEnergy / (self.beamDiameter**2/
+                                               ((n1-2)*(n2-2)))
+        
         for n in range(np.size(bundle.rayPaths,0)):
             # arrange the rays in the grid they originally were
             pts = np.reshape(bundle.rayPaths[n],(n1,n2,3))
@@ -1837,18 +1845,23 @@ class Laser(Primitives.Assembly):
                                                   (n1-2,n2-2))
             e = energyDensity.ravel()
             color[n] = Utils.jet(np.log10(e+1e-5),
-                                 np.log10(5e-3),
-                                 np.log10(1e3))
-#            plt.imshow(energyDensity,interpolation="None")
-#            plt.colorbar()
-#            plt.show()
-        
-#        print bundle[0].points.shape
-#        print color[:,0].shape
+                                 np.log10(self.safeEnergyDensity),
+                                 np.log10(maxEnergyDensity),
+                                 saturationIndicator = True)
         
         for n,line in enumerate(bundle):
             line.color = color[:,n]
             line.width = 2
+        
+        # The rays at the margin (that receive density zero) are then "erased"
+        toerase = np.reshape(np.arange(n1*n2),(n1,n2))
+        toerase[1:-1,1:-1] = 0 
+        toerase = np.nonzero(toerase.ravel())[0] # This trick does not work for
+                                                 # ray[0,0], so:
+        bundle[0].opacity = 0                                         
+        for i in toerase:
+            bundle[i].opacity = 0
+            
     
 if __name__=='__main__':
     import System
@@ -1877,7 +1890,8 @@ if __name__=='__main__':
     l.translate(np.array([0,0.5,0]))
     l.usefulLength                  = np.array([0.55, 0.8])
     l.usefulLengthDiscretization    = 0.1
-    l.safetyTracingRays             = [7,5]
+    l.safetyTracingRays             = [10,100]
+    l.safetyTracingStrategy         = [[2,.1]]
     
     
     
@@ -1911,64 +1925,67 @@ if __name__=='__main__':
     
 
     environment = Primitives.Assembly()
-#    environment += seed
-#    environment += c
+    environment += seed
+    environment += c
 #    environment += v
-#    environment += v2
+    environment += v2
     environment += l
-    
-    l.traceReflections()
 
-##    Some geometrical transformations to make the problem more interesting
-#    c.rotate(90*np.pi/180,c.lens.x)    
-##    environment.rotate(np.pi/0.1314, c.x)
-##    environment.rotate(np.pi/27, c.y)
-##    environment.rotate(np.pi/2.1, c.z)
-#
-#    npts = np.size(seed.points,0)
-#    
-#    print "Laser sheet tracing"
+#    Some geometrical transformations to make the problem more interesting
+    c.rotate(90*np.pi/180,c.lens.x)    
+#    environment.rotate(np.pi/0.1314, c.x)
+#    environment.rotate(np.pi/27, c.y)
+#    environment.rotate(np.pi/2.1, c.z)
+
+    npts = np.size(seed.points,0)
+    
+    print "Laser sheet tracing"
+    tic.tic()
+    l.trace()
+    tic.toc() 
+    
+    print "Laser sheet safety tracing"
+    tic.tic()
+    l.traceReflections()
+    tic.toc()     
+
+    print "\nCamera parameter determination"
+    tic.tic()
+    c.doall()
+    tic.toc()
+    
+    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)   
+    
+    """Calculate the position of each point in the sensor"""
+    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(seed.points)
+    
+    """Calculate the incoming light"""
+    print "\nIllumination phase"
+    tic.tic()
+    lightvector = l.illuminate(seed.points)
+    tic.toc(np.size(seed.points,0))
+
+
+    tic.tic()
+    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
+                                  lightvector  = lightvector, 
+                                  solidangle   = sldangle, 
+                                  wavelength   = 532e-9, 
+                                  polarization = 0)
+    tic.toc(npts)
+
+    tic.tic()
+    c.sensor.recordParticles(uv, 
+                             energy, 
+                             532e-9, 
+                             np.abs(imdim))
+    tic.toc(npts)
+    
+#    print "\nSaving image"
 #    tic.tic()
-#    l.trace()
-#    tic.toc() 
-#
-#    print "\nCamera parameter determination"
-#    tic.tic()
-#    c.doall()
+#    c.sensor.save("test.tif")
 #    tic.toc()
-#    
-#    print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)   
-#    
-#    """Calculate the position of each point in the sensor"""
-#    (uv, w, duvw, lineofsight, imdim, sldangle) = c.mapPoints(seed.points)
-#    
-#    """Calculate the incoming light"""
-#    print "\nIllumination phase"
-#    tic.tic()
-#    lightvector = l.illuminate(seed.points)
-#    tic.toc(np.size(seed.points,0))
-#
-#
-#    tic.tic()
-#    energy = seed.scatteredEnergy(lineofsight  = lineofsight, 
-#                                  lightvector  = lightvector, 
-#                                  solidangle   = sldangle, 
-#                                  wavelength   = 532e-9, 
-#                                  polarization = 0)
-#    tic.toc(npts)
-#
-##    tic.tic()
-##    c.sensor.recordParticles(uv, 
-##                             energy, 
-##                             532e-9, 
-##                             np.abs(imdim))
-##    tic.toc(npts)
-#    
-##    print "\nSaving image"
-##    tic.tic()
-##    c.sensor.save("test.tif")
-##    tic.toc()
-##    c.sensor.display("jet")
+    c.sensor.display("jet")
 #    
 
     System.plot(environment)

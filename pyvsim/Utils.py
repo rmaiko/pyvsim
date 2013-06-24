@@ -165,7 +165,7 @@ def tetraVolume(p1,p2,p3,p4):
                              vecs[0,:,0]*vecs[2,:,1]*vecs[1,:,2] -
                              vecs[1,:,0]*vecs[0,:,1]*vecs[2,:,2]) 
 
-def jet(value, minval, maxval):
+def jet(value, minval, maxval, saturationIndicator = False):
     """
     Returns the RGB values to emulate a "jet" colormap from matlab
     """
@@ -176,7 +176,13 @@ def jet(value, minval, maxval):
     r     = (val - 1.5)*rmask + (-val + 4.5)*(1-rmask)
     g     = (val - 0.5)*gmask + (-val + 3.5)*(1-gmask)
     b     = (val + 0.5)*bmask + (-val + 2.5)*(1-bmask)
-    return np.clip(np.vstack([r,g,b]).T, 0, 1)
+    
+    result = np.clip(np.vstack([r,g,b]).T, 0, 1)
+    
+    if saturationIndicator:
+        result = (np.einsum("i,ij->ij",((val <= 4) * (val >= 0)),result)+
+                  np.einsum("i,j->ij", ((val  > 4) + (val  < 0)),[1,1,1]))
+    return result 
 
 def metersToRGB(wl):
     """
