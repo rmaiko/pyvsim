@@ -183,7 +183,9 @@ class Sensor(Primitives.Plane):
         """
         data = self.readSensor().astype(np.uint16)
         dr = gdal.GetDriverByName("GTiff")
-        outDs = dr.Create(filename, 1600, 1200, 1, gdal.GDT_Int16) 
+        outDs = dr.Create(filename, 
+                          self.resolution[1], 
+                          self.resolution[0], 1, gdal.GDT_Int16) 
         outBand = outDs.GetRasterBand(1)
         outBand.WriteArray(data)
         outBand.FlushCache()
@@ -1600,8 +1602,8 @@ class Laser(Primitives.Assembly):
         plt.show()
         
     def clearData(self):
-        energy = np.sum(self.profile) * (self.beamDiameter**2 / 
-                                         np.size(self.profile))
+        energy = np.sum(self._profile) * (self.beamDiameter**2 / 
+                                          np.size(self._profile))
 #        print "Energy", energy
         multiplier = self.pulseEnergy / energy
 #        print "Multiplier", multiplier
@@ -1609,7 +1611,7 @@ class Laser(Primitives.Assembly):
         self.profileInterpolator  = RectBivariateSpline(
                                     np.linspace(-1,1,np.size(self._profile,1)),
                                     np.linspace(-1,1,np.size(self._profile,1)),
-                                    self.profile,
+                                    self._profile,
                                     kx = 1,
                                     ky = 1)
         if self.volume is not None:
@@ -1803,12 +1805,13 @@ class Laser(Primitives.Assembly):
 #        initial_density =  self.pulseEnergy / (self.beamDiameter**2/
 #                                               ((n1-1)*(n2-1)))
 #        initial_energy  =  self.pulseEnergy / ((n1-2)*(n2-2))
-        energyDensity   =  np.zeros((n1,n2))
-        initialEnergyDensity   = self.profileInterpolator.ev(points[:,0], 
-                                                      points[:,1])
-        initialEnergyDensity   = np.reshape(initialEnergyDensity,(n1,n2))
-        referenceArea   = self.beamDiameter**2
-
+        energyDensity           = np.zeros((n1,n2))
+        initialEnergyDensity    = self.profileInterpolator.ev(points[:,0], 
+                                                              points[:,1])
+        initialEnergyDensity    = np.reshape(initialEnergyDensity,(n1,n2))
+        referenceArea           = self.beamDiameter**2 / ((n1-2)*(n2-2))
+        maxEnergyDensity        = np.max(initialEnergyDensity)
+#        print "maxEd %s" % maxEnergyDensity
 
         # We will create a connectivity map for a rectangle with side n-1, as
         # we will take the centerpoint for each 4 rays
@@ -1829,8 +1832,7 @@ class Laser(Primitives.Assembly):
 #        print bundle.steps
 #        print color.shape
                 
-        maxEnergyDensity = self.pulseEnergy / (self.beamDiameter**2/
-                                               ((n1-2)*(n2-2)))
+
         
         for n in range(np.size(bundle.rayPaths,0)):
             # arrange the rays in the grid they originally were
@@ -1848,8 +1850,8 @@ class Laser(Primitives.Assembly):
             area = np.reshape(area,(n1-2,n2-2))
             energyDensity[1:-1,1:-1] = (initialEnergyDensity[1:-1,1:-1] *
                                         referenceArea / area)
-            print np.min(energyDensity), np.mean(energyDensity), np.max(energyDensity)
             e = energyDensity.ravel()
+#            print "E %s" % np.max(e)
             color[n] = Utils.jet(np.log10(e+1e-5),
                                  np.log10(self.safeEnergyDensity),
                                  np.log10(maxEnergyDensity),
@@ -1877,7 +1879,7 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 0.9625 #.995 #0.9725
+    c.lens.focusingDistance         = 0.99#.9695 #0.9725
     c.lens.aperture                 = 2
     c.mappingResolution             = [2,2]
     # Put the sensor at the position [0,0,0] to make verification easier
@@ -1890,15 +1892,15 @@ if __name__=='__main__':
 
     l                               = Laser()
 #    l.beamDivergence                = np.array([0.5e-3, 0.25])
-    l.beamDivergence                = np.array([-1e-3, 4.596e-2])
-    l.pulseEnergy                   = 0.5# 0.1
+    l.beamDivergence                = np.array([-7e-3, 4.596e-2])
+    l.pulseEnergy                   = 0.005# 0.1
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
     l.usefulLength                  = np.array([0.55, 0.8])
     l.usefulLengthDiscretization    = 0.1
     l.safetyTracingRays             = [10,100]
-    l.safetyTracingStrategy         = [[2,.1]]
+    l.safetyTracingStrategy         = [[4,.01]]
     
     
     
@@ -1920,16 +1922,16 @@ if __name__=='__main__':
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
-#    seed                            = CalibrationPlate()
-#    seed.points                     = (np.array([0.5,0.5,0]) + 
-#                                       0.02*Primitives.Volume.PARAMETRIC_COORDS)
-#    seed.density                    = 1e11 / 80*3
-#    seed.seed()
+    seed                            = Seeding()
+    seed.points                     = (np.array([0.5,0.5,0]) + 
+                                       0.02*Primitives.Volume.PARAMETRIC_COORDS)
+    seed.density                    = 1e11 / 80*3
+    seed.seed()
     
-    seed = CalibrationPlate()
-    seed.translate(np.array([0.5,0.5,0]))
-    seed.rotate(1.570796327,np.array([1,0,0]))    
-    
+#    seed = CalibrationPlate()
+#    seed.translate(np.array([0.5,0.5,0]))
+#    seed.rotate(1.570796327,np.array([1,0,0]))    
+
 
     environment = Primitives.Assembly()
     environment += seed
@@ -1988,10 +1990,10 @@ if __name__=='__main__':
                              np.abs(imdim))
     tic.toc(npts)
     
-#    print "\nSaving image"
-#    tic.tic()
-#    c.sensor.save("test.tif")
-#    tic.toc()
+    print "\nSaving image"
+    tic.tic()
+    c.sensor.save("test01.tif")
+    tic.toc()
     c.sensor.display("jet")
 #    
 
