@@ -20,6 +20,7 @@ import copy
 import Utils
 import Library
 import Core
+import weakref
 
 # Global constants
 GLOBAL_NDIM  = 3
@@ -551,7 +552,7 @@ class Assembly(Component):
 
         self._items[n] = component
             
-        component.parent = self
+        component.parent = weakref.proxy(self)
         self._bounds = None
         return len(self._items)
         
@@ -587,9 +588,9 @@ class Assembly(Component):
         if index is None:
             raise IndexError("index out of bounds")
         
-        self._items[index].parent = None            
-        element = self._items[index]
-        self._items = np.delete(self._items, index)
+        element             = self._items[index]
+        element.parent      = None
+        self._items         = np.delete(self._items, index)
         return element
         
     def acceptVisitor(self, visitor):
@@ -1123,6 +1124,8 @@ class Part(Component):
         #
         # Start dumb search, step 1 - determine if line intercept triangle plane
         #
+        # Retrieve data about the triangles (either pre-existing or will be 
+        # calculated once)
         Ptriangles                  = self.trianglePoints
         [V1,V2]                     = self.triangleVectors
         [UU,UV,VV,UVden]            = self.triVectorsDots

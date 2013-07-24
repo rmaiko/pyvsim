@@ -184,8 +184,10 @@ class Sensor(Primitives.Plane):
         data = self.readSensor().astype(np.uint16)
         dr = gdal.GetDriverByName("GTiff")
         outDs = dr.Create(filename, 
-                          self.resolution[1], 
-                          self.resolution[0], 1, gdal.GDT_Int16) 
+                          int(self.resolution[1]), 
+                          int(self.resolution[0]), 
+                          1, 
+                          gdal.GDT_Int16) 
         outBand = outDs.GetRasterBand(1)
         outBand.WriteArray(data)
         outBand.FlushCache()
@@ -740,7 +742,7 @@ class Camera(Primitives.Assembly):
         self.rawPupilSolidAngle         = None
         self.sensorSamplingCenters      = None
         self.physicalSamplingCenters    = None
-        while len(self.items) > 3:
+        while len(self._items) > 3:
             self.remove(3)
         
     @property
@@ -1012,6 +1014,8 @@ class Camera(Primitives.Assembly):
             lastInts[intersections[n] == 1] =  \
                         bundle.rayPaths[n,intersections[n] == 1]
         
+        bundle = None
+        
         firstInts = np.reshape(firstInts, 
                                (np.size(U,0),np.size(U,1),GLOBAL_NDIM))
         lastInts  = np.reshape(lastInts, 
@@ -1070,7 +1074,7 @@ class Camera(Primitives.Assembly):
         cond = cond / (np.size(self.sensorSamplingCenters)/3)
         return cond
     
-    def doall(self):
+    def initialize(self):
         vv,vh = self._depthOfField()
         # Make sure rays intersect volume by expanding it a little
         vv.expand(0.005)
@@ -1301,7 +1305,7 @@ class Camera(Primitives.Assembly):
 #                    print "Angle %3.4f, angle %3.4f, solid angle %1.4e" % (angles[n], 
 #                                                                           planar_angle*180/np.pi, 
 #                                                                           pupil_angle[n])
-
+        rays = None
         return (pts, pupil_angle)
     
     def virtualCameras(self, centeronly = True):
@@ -1960,7 +1964,7 @@ if __name__=='__main__':
 
     print "\nCamera parameter determination"
     tic.tic()
-    c.doall()
+    c.initialize()
     tic.toc()
     
     print c.virtualApertureArea / (np.pi*(0.05/c.lens.aperture)**2)   
