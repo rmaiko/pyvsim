@@ -78,7 +78,7 @@ class Sensor(Primitives.Plane):
         Primitives.Plane.__init__(self)
         self.name                   = 'Sensor '+str(self._id)
         # self.heigth = 0.024                   x      y        z
-        self.dimension              = np.array([0,  0.0089,  0.0118])
+        self.dimension              = np.array([0,  0.0090,  0.0122])
 #        self.dimension              = np.array([0,  0.024,  0.036])
 
         
@@ -480,7 +480,9 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         # Adjustable parameters
         self._focusingDistance            =  10
         self.aperture                     =  2
-        self.distortionParameters         = np.array([0,0,0,1])
+        self.distortionParameters         = np.array([0,0,0,0,
+                                                      0,0,0,0,
+                                                      0,0,0,0])
         #Calculated parameters
         self.focusingOffset               = 0
         self.PinholeFore                  = None
@@ -694,8 +696,35 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         """
         TODO - Implementation of radial distortion model
         """ 
-        return vectors 
-    
+#        return vectors 
+        angler = np.arccos(np.einsum("ij,j->i",vectors,self.x))
+        angler = np.reshape(angler,(-1,1))
+        angley = np.arccos(np.einsum("ij,j->i",vectors,self.y))-np.pi/2
+        angley = np.reshape(angley,(-1,1))
+        anglez = np.arccos(np.einsum("ij,j->i",vectors,self.z))-np.pi/2
+        anglez = np.reshape(anglez,(-1,1))
+        
+        raxis  = Utils.normalize(np.cross(self.x,vectors))
+        yaxis  = np.einsum("j,ij->ij",self.z,np.sign(angley))
+        zaxis  = np.einsum("j,ij->ij",self.y,np.sign(anglez))
+#        print "BLAH blah"
+#        print self.distortionParameters[0:4]
+#        print 
+#        print np.hstack([angler,angler**2,angler**3,angler**4])
+#        print np.hstack([angley,angley**2,angley**3,angley**4])
+        d_angler = np.einsum("j,ij->i",
+                             self.distortionParameters[0:4],
+                             np.hstack([angler,angler**2,angler**3,angler**4]))
+        d_angley = np.einsum("j,ij->i",
+                             self.distortionParameters[4:8],
+                             np.hstack([angley,angley**2,angley**3,angley**4]))  
+        d_anglez = np.einsum("j,ij->i",
+                             self.distortionParameters[8:12],
+                             np.hstack([anglez,anglez**2,anglez**3,anglez**4]))   
+        vectors = Utils.rotateVector(vectors, d_angler, raxis)
+        vectors = Utils.rotateVector(vectors, d_angley, yaxis)
+        vectors = Utils.rotateVector(vectors, d_anglez, zaxis)     
+        return vectors      
 #        npts = np.size(vectors,0)
 #        # Gets the angle between v and the optical axis
 #        Ti = np.arccos(np.sum(self.x * \
@@ -1389,6 +1418,16 @@ class Camera(Primitives.Assembly):
         
         return phantomAssembly
     
+#    def scheimpflugPlane(self, point, v1, v2):
+#        SHp = self.lens.H_aft - self.sensor.origin
+#        HHp = self.lens.H_fore - self.lens.H_aft
+#        # normal to the plane
+#        n = np.cross(v1,v2)
+#        # line-plane intersection
+#        d = np.dot(point - self.lens.H_fore,n)/np.dot(HHp,n)
+#        P_int = self.lens.H_aft + d*HHp
+#        HP = P_int - 
+         
 class Seeding(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
@@ -1885,7 +1924,10 @@ if __name__=='__main__':
     c                               = Camera()
     c.lens.focusingDistance         = 0.99#.9695 #0.9725
     c.lens.aperture                 = 2
-    c.mappingResolution             = [2,2]
+    c.mappingResolution             = [10,10]
+    c.lens.distortionParameters     = np.array([0,0,0,0,
+                                                0,0,0,0,
+                                                0,0,0,0])
     # Put the sensor at the position [0,0,0] to make verification easier
     c.translate(-c.x*c.sensorPosition)
     
@@ -1929,7 +1971,7 @@ if __name__=='__main__':
     seed                            = Seeding()
     seed.points                     = (np.array([0.5,0.5,0]) + 
                                        0.02*Primitives.Volume.PARAMETRIC_COORDS)
-    seed.density                    = 1e11 / 80*3
+    seed.density                    = 1e11 / 800*3
     seed.seed()
     
 #    seed = CalibrationPlate()

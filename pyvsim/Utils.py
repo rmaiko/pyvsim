@@ -297,8 +297,12 @@ def rotateVector(x,angle,axis):
     True
     """
     a = np.cos(angle/2)
-    w = axis*np.sin(angle/2)
-    return x + 2*a*np.cross(w,x) + 2*np.cross(w,np.cross(w,x))
+    if (axis.ndim == 2):
+        w = np.einsum("ij,i->ij",axis,np.sin(angle/2))
+        return x + np.einsum("i,ij->ij",2*a,np.cross(w,x)) + 2*np.cross(w,np.cross(w,x))
+    else:
+        w = axis*np.sin(angle/2)
+        return x + 2*a*np.cross(w,x) + 2*np.cross(w,np.cross(w,x))
     
 def rotatePoints(points,angle,axis,origin):
     """
