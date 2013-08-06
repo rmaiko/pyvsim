@@ -329,6 +329,7 @@ class Sensor(Primitives.Plane):
         masksize[0] = np.max(np.round(2.25*diameter2/self.pixelSize[0]))
         masksize[1] = np.max(np.round(2.25*diameter2/self.pixelSize[1])) 
         masksize[masksize < 3] = 3
+        masksize[masksize > np.min(self.resolution)] = np.min(self.resolution) 
 
         # Defines the anchor position (cf. documentation above)
         anchor   = np.round(pixels - masksize/2)
@@ -366,7 +367,12 @@ class Sensor(Primitives.Plane):
         for (n, (ax,ay)) in enumerate(anchor):
             self.rawData[ax:ax+masksize[0],ay:ay+masksize[1]] += level[n]
 
-    def recordParticles(self,coords,energy,wavelength,diameter):
+    def recordParticles(self,
+                        coords,
+                        energy,
+                        wavelength,
+                        diameter,
+                        ignoreLarge = 0.2):
         """
         coords     - [y,z] parametric coordinates of the recorded point
         energy     - J -   energy which is captured by the lenses
@@ -398,6 +404,25 @@ class Sensor(Primitives.Plane):
         
         MEM_SAFETY - factor of safety
         """
+        # filter out too large particles
+        if ignoreLarge > 0:
+            threshold = ignoreLarge*np.max(self.dimension)
+            if np.size(diameter) == 1 and diameter > threshold:
+                return
+            
+            smallparticles = diameter < threshold
+            
+            diameter = diameter[smallparticles]
+            coords = coords[smallparticles,:] 
+            
+            if np.size(wavelength) > 1:
+                wavelength = wavelength[smallparticles]
+            if np.size(energy) > 1:
+                energy = energy[smallparticles]     
+                      
+                
+        print "There are %i particles to be recorded" % np.size(coords,0)
+                
         meanDiameter = np.mean(diameter)
         meanDiameter = meanDiameter     / np.mean(self.pixelSize)
         stepMax      = np.round(MEMSIZE / (MEM_SAFETY * meanDiameter**2))
@@ -705,8 +730,8 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         anglez = np.reshape(anglez,(-1,1))
         
         raxis  = Utils.normalize(np.cross(self.x,vectors))
-        yaxis  = np.einsum("j,ij->ij",self.z,np.sign(angley))
-        zaxis  = np.einsum("j,ij->ij",self.y,np.sign(anglez))
+        yaxis  = np.einsum("j,ij->ij",self.z,np.ones_like(angley))
+        zaxis  = np.einsum("j,ij->ij",self.y,np.ones_like(anglez))
 #        print "BLAH blah"
 #        print self.distortionParameters[0:4]
 #        print 
@@ -1923,7 +1948,7 @@ if __name__=='__main__':
     
     c                               = Camera()
     c.lens.focusingDistance         = 0.99#.9695 #0.9725
-    c.lens.aperture                 = 2
+    c.lens.aperture                 = 22
     c.mappingResolution             = [10,10]
     c.lens.distortionParameters     = np.array([0,0,0,0,
                                                 0,0,0,0,
@@ -1939,7 +1964,7 @@ if __name__=='__main__':
     l                               = Laser()
 #    l.beamDivergence                = np.array([0.5e-3, 0.25])
     l.beamDivergence                = np.array([-7e-3, 4.596e-2])
-    l.pulseEnergy                   = 0.005# 0.1
+    l.pulseEnergy                   = 5.005# 0.1
     l._positionComponents()
     l.alignTo(-l.x, l.y, -l.z, np.array([0.6,0,0]))
     l.translate(np.array([0,0.5,0]))
@@ -1968,15 +1993,15 @@ if __name__=='__main__':
     v2.translate(np.array([0.5,0,0]))
     v2.rotate(-np.pi/4,v2.z)
 
-    seed                            = Seeding()
-    seed.points                     = (np.array([0.5,0.5,0]) + 
-                                       0.02*Primitives.Volume.PARAMETRIC_COORDS)
-    seed.density                    = 1e11 / 800*3
-    seed.seed()
+#    seed                            = Seeding()
+#    seed.points                     = (np.array([0.5,0.5,0]) + 
+#                                       0.02*Primitives.Volume.PARAMETRIC_COORDS)
+#    seed.density                    = 1e11 / 800*3
+#    seed.seed()
     
-#    seed = CalibrationPlate()
-#    seed.translate(np.array([0.5,0.5,0]))
-#    seed.rotate(1.570796327,np.array([1,0,0]))    
+    seed = CalibrationPlate()
+    seed.translate(np.array([0.5,0.5,0]))
+    seed.rotate(1.570796327,np.array([1,0,0]))    
 
 
     environment = Primitives.Assembly()
