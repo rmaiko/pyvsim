@@ -1,23 +1,47 @@
 """
-PyVSim v.1
-Copyright 2013 Ricardo Entz
+.. module :: Core
+    :platform: Unix, Windows
+    :synopsis: Base classes for making pyvsim work
+    
+This module exists only to store the two classes that are used everywhere in
+the program to define standard behaviors such as:
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+* Visitor pattern (for traversing object tree)
+* Serialization (to files and to databases)
+* Identification of objects (required by serializer)
+    
+.. moduleauthor :: Ricardo Entz <maiko at thebigheads.net>
 
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+.. license::
+    PyVSim v.1
+    Copyright 2013 Ricardo Entz
+    
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    
+        http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 import Utils
+_todoc = ["PyvsimObject", "PyvsimDatabasable"]
 
 class PyvsimObject(object):
+    """
+    This is the base class of the program. It is used to implement the following
+    behaviors:
+    
+    * Serialization (via the __getstate__ method)
+    * Visitor pattern 
+    * Identification and naming of objects
+    """
     instanceCounter          = 0
+    _todoc = ["acceptVisitor", "__repr__","__getstate__"]
 
     def __init__(self):
         self._id                           = PyvsimObject.instanceCounter
@@ -71,10 +95,17 @@ class PyvsimObject(object):
 
     
 class PyvsimDatabasable(PyvsimObject):
-    DB_OBJ  = Utils.readConfig("Database","databaseType")
-    DB_URL  = Utils.readConfig("Database","databaseAddress")
-    DB_USER = Utils.readConfig("Database","databaseUsername")
-    DB_PASS = Utils.readConfig("Database","databasePassword")
+    """
+    This class provides another serialization method for some objects  - in a
+    database.
+    """
+    _todoc = ["fetchFromDB", 
+               "listDB",
+               "contributeToDB"]
+#    DB_OBJ  = Utils.readConfig("Database","databaseType")
+#    DB_URL  = Utils.readConfig("Database","databaseAddress")
+#    DB_USER = Utils.readConfig("Database","databaseUsername")
+#    DB_PASS = Utils.readConfig("Database","databasePassword")
 
     def __init__(self):
         self.dbParameters       = None

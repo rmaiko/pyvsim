@@ -1,18 +1,29 @@
 """
-PyVSim v.1
-Copyright 2013 Ricardo Entz
+.. module :: Primitives
+    :platform: Unix, Windows
+    :synopsis: Classes representing geometric entities or basic building blocks
+    
+The classes contained in this module represent the basics of geometric modelling
+in pyvsim. It also contains the ray tracing engine and its models (reflection,
+refraction, etc)
+    
+.. moduleauthor :: Ricardo Entz <maiko at thebigheads.net>
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
+.. license::
+    PyVSim v.1
+    Copyright 2013 Ricardo Entz
+    
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+    
+        http://www.apache.org/licenses/LICENSE-2.0
+    
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
 """
 from __future__ import division
 import numpy as np
