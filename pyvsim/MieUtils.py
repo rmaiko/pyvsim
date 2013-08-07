@@ -5,6 +5,11 @@
     
 This module contains the Mie scattering mathematics. This was separated because
 many different functions were needed to model that.
+
+The functions were adapter from `Maetzler (Maetzler, C. Matlab functions for Mie 
+scattering and absorption 
+Institute of Applied Physics, University of Bern, 2002) 
+<http://arrc.ou.edu/~rockee/NRA_2007_website/Mie-scattering-Matlab.pdf>`_
     
 .. moduleauthor :: Ricardo Entz <maiko at thebigheads.net>
 
@@ -30,17 +35,19 @@ import scipy.special
 
 def Tau(pi, costheta):
     """
-    Returns the value of the function \Tau, as defined by Maetzler (Maetzler, C. 
-    Matlab functions for Mie scattering and absorption Institute of Applied 
-    Physics, University of Bern, 2002), as a function of the cosine of the
-    scattering angle (theta) and the \Pi  function:
+    Returns the value of the function :math:`\\tau`, as defined by 
+    `Maetzler (Maetzler, C. Matlab functions for Mie scattering and absorption 
+    Institute of Applied Physics, University of Bern, 2002) 
+    <http://arrc.ou.edu/~rockee/NRA_2007_website/Mie-scattering-Matlab.pdf>`_, 
+    as a function of the cosine of the
+    scattering angle (:math:`\\theta`) and the :math:`\\Pi`  function:
     
-    \Tau(n, cos(\theta)) = n cos(\theta) \Pi(n) - (n+1) \Pi(n-1)
+    :math:`{\\tau}_n, cos(\\theta)) = n cos(\\theta) \\Pi(n) - (n+1) \\Pi(n-1)`
     
     Parameters
     ----------
     pi : numpy.array (n)
-        An array containing the values of the \Pi function
+        An array containing the values of the :math:`\\Pi` function
     costheta : double
         The co-sine of the scattering angle
         
@@ -60,7 +67,9 @@ def Header(nmax):
     Generates an array with the "header", i.e. a factor to be used in the Mie
     scattering calculations. Its value is:
     
-    header(n) = \over {2n+1} {n(n+1)}
+    .. math::
+    
+        header(n) = {{2n+1} \\over  {n(n+1)}}
     
     Parameters
     ----------
@@ -82,23 +91,32 @@ def Pi(nmax, costheta):
     Mechanical and Aeorospace Engineering, University of Florida, 2009", which
     is:
     
-    \Pi_n(cos \theta) = P_n^{(1)} (cos \theta) / sin(theta)
+    .. math::
+    
+        \\Pi_n(cos \\theta) = {P_n^{(1)} (cos \\theta) \\over sin(\\theta)}
     
     Where:
     
-    P_n^{(1)} is a Legendre polynomial
+    .. math::
     
-    Or, in the recursive form, as shown in Maetzler (Maetzler, C. Matlab 
-    functions for Mie scattering and absorption Institute of Applied Physics, 
-    University of Bern, 2002):
+        P_n^{(1)} 
+        
+    is a Legendre polynomial
     
-    \Pi_n = \over {2n-1} {n-1} cos(\theta) P_{n-1} - \over n {n-1} \Pi_{n-2}
+    Or, in the recursive form, as shown in `Maetzler (Maetzler, C. Matlab 
+    functions for Mie scattering and absorption 
+    Institute of Applied Physics, University of Bern, 2002) 
+    <http://arrc.ou.edu/~rockee/NRA_2007_website/Mie-scattering-Matlab.pdf>`_:
+    
+    .. math::
+        \\Pi_n = {{2n-1} \\over {n-1}} cos(\\theta) P_{n-1} - {n \\over {n-1}} \\Pi_{n-2}
     
     With:
     
-    \Pi_{0} = 0
-    
-    \Pi_{1} = 1  
+    .. math::
+        \\Pi_{0} = 0
+        
+        \\Pi_{1} = 1  
     
     Parameters
     ----------
@@ -111,8 +129,9 @@ def Pi(nmax, costheta):
     Returns
     -------
     Pi : generator
-        A generator capable of creating an (N+1)-sized array with the values
-        of the \Pi function
+        A generator capable of creating an :math:`(N+1)`-sized array with the 
+        values
+        of the :math:`\\Pi` function
 
     """
     n = 2
@@ -129,17 +148,27 @@ def Pi(nmax, costheta):
         
 def mie_abcd(m, x):
     """
-    Computes a matrix of Mie coefficients, a_n, b_n, c_n, d_n, 
-    of orders n=1 to nmax, complex refractive index m=m'+im", 
-    and size parameter x=k0*r, where k0= wave number 
-    in the ambient medium, r=sphere radius; 
-    p. 100, 477 in Bohren and Huffman (1983) BEWI:TDD122
-    C. Matzler, June 2002
+    Computes a matrix of Mie coefficients:
     
-    There is a limitation for the maximum allowable x for this
+    .. math::
+        a_n, b_n, c_n, d_n
+        
+    of orders :math:`n=1` to :math:`n_{max}`, complex refractive index 
+    :math:`m=m^\\prime + im^{\\prime\\prime}`, 
+    and size parameter 
+    :math:`x=k_0\\cdot r`, 
+    where 
+    :math:`k_0` is the wave number in the ambient medium, 
+    :math:`r` sphere radius; 
+    
+    Reference: `p. 100, 477 in Bohren and Huffman (1983) BEWI:TDD122
+    <http://books.google.de/books/about/Absorption_and_scattering_of_light_by_sm.html?id=S1RCZ8BjgN0C&redir_esc=y>`_
+    
+    
+    There is a limitation for the maximum allowable :math:`x` for this
     function. I have not yet verified from where it comes from
-    (limit: x = 180, which yields a maximum particle size of 
-    about 30 microns in air)
+    (limit: :math:`x = 180`, which yields a maximum particle size of 
+    about :math:`30\\mu m` in air)
     
     Adapted from Matlab code (Dec 2012)
     Vectorized (Apr 2013)
@@ -149,20 +178,23 @@ def mie_abcd(m, x):
     m : real or complex
         The particle refractive index.
     x : numpy.array (M)
-        The Mie parameter, defined as x = k0 * r = 2 * pi * r / lambda (where
-        r is the particle radius and lambda is the light wavelength)
+        The Mie parameter, defined as 
+        :math:`x = k_0 r = {{2  \\pi r} \\over \\lambda}`
+        (where :math:`r` is the particle radius and :math:`\\lambda` is the 
+        light wavelength)
         
     Returns
     -------
-    (an, bn) : numpy.array (nmax, M)
-        The Mie a and b parameters calculated for nmax factors, used to 
+    (an, bn) : numpy.array (:math:`n_{max}`, M)
+        The Mie :math:`a` and :math:`b` parameters calculated for :math:`n_{max}`
+        factors, used to 
         calculate an approximation of the scattered light far field.
         
     Raises
     ------
     ValueError
         If the particle diameter which is being calculated forces the creation
-        of too big matrices (happens when x is higher than approximately 180)
+        of too big matrices (happens when :math:`x` is higher than approximately 180)
     """
     #
     # Parameter calculation
@@ -342,8 +374,8 @@ def distributedSCS(refractiveIndex,
     ------
     ValueError
         If the particle diameter which is being calculated forces the creation
-        of too big matrices (happens when the Mie parameter (2*pi*radius / 
-        lightWavelength) is higher than approximately 180)        
+        of too big matrices (happens when the Mie parameter 
+        (:math:`2\\pi r \\over \\lambda) is higher than approximately 180)
     """
     scs = mieScatteringCrossSections(refractiveIndex   = refractiveIndex,
                                      particleDiameters = diameters,
