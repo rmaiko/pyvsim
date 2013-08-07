@@ -75,7 +75,7 @@ def hexaInterpolation(p, hexapoints, values):
     defined by the hexa faces and the point, and its behavior is approximately
     linear.
     
-    *Warning* - there is no verification whether the points are inside the 
+    **Warning** - there is no verification whether the points are inside the 
     hexahedron. One must check it using other methods.
     
     Parameters
@@ -147,11 +147,23 @@ def hexaInterpolation(p, hexapoints, values):
 def tetraVolume(p1,p2,p3,p4):
     """
     Calculates the volume of a tetrahedron. This is simply the unrolled
-    determinant::
+    determinant:
     
-    | Vx1  Vy1  Vz1 |     1
-    | Vx2  Vy2  Vz2 | * -----
-    | Vx3  Vy3  Vz3 |     6
+    .. math::
+    
+        \\left [ \\begin{array}{ccc}
+        V_{x,1} & V_{y,1} &  V_{z,1} \\\\
+        V_{x,2} & V_{y,2} &  V_{z,2} \\\\
+        V_{x,3} & V_{y,3} &  V_{z,3} \\end{array} \\right ] \\cdot {1 \\over 6}
+        
+    With:
+    
+    .. math::
+        \\vec{V}_1 = \\vec{P}_1 - \\vec{P}_4
+        
+        \\vec{V}_2 = \\vec{P}_2 - \\vec{P}_4
+        
+        \\vec{V}_3 = \\vec{P}_3 - \\vec{P}_4
     
     
     This function works only for list of vectors, for performance reasons
@@ -177,7 +189,7 @@ def tetraVolume(p1,p2,p3,p4):
 
 def jet(value, minval, maxval, saturationIndicator = False):
     """
-    Returns the RGB values to emulate a "jet" colormap from matlab
+    Returns the RGB values to emulate a "jet" colormap from Matlab
     """
     val   = 4 * (value - minval)/(maxval-minval)
     rmask = val - 1.5 < -val + 4.5
@@ -197,7 +209,7 @@ def jet(value, minval, maxval, saturationIndicator = False):
 def metersToRGB(wl):
     """
     Converts light wavelength to a RGB vector, the algorithm comes from:
-    `This blog <http://codingmess.blogspot.de/2009/05/conversion-of-wavelength-in-nanometers.html>`
+    `This blog <http://codingmess.blogspot.de/2009/05/conversion-of-wavelength-in-nanometers.html>`_
     
     Parameters
     ----------
@@ -227,8 +239,8 @@ def metersToRGB(wl):
 
 def aeq(a,b,tol=1e-8):
     """
-    A tool for comparing numpy nparrays and checking if all their values
-    are *A*lmost *EQ*ual up to a given tolerance.
+    A tool for comparing numpy ndarrays and checking if all their values
+    are Almost EQual up to a given tolerance.
     
     Parameters
     ----------
@@ -436,7 +448,7 @@ def barycentricCoordinates(p,p1,p2,p3):
     they belong. 
     
     For more information on barycentric coordinates, see `Wikipedia 
-    <http://en.wikipedia.org/wiki/Barycentric_coordinate_system>`
+    <http://en.wikipedia.org/wiki/Barycentric_coordinate_system>`_
     
     Assumes::
     1) points are given as numpy arrays (crashes if not met)
@@ -493,16 +505,19 @@ def triangleArea(p1,p2,p3):
     """
     Given three points in 3D space, returns the triangle area. 
     
-    Assumes::
+    Assumes:
     
     1. points are given as numpy arrays (crashes if not met)
     2. if points lists are given, this will still work
     
     Algorithm
     ---------
-    v1 = p2 - p1
-    v2 = p3 - p1
-    return 0.5*norm(np.cross(v1,v2))
+    .. math::
+        \\vec{V}_1 = \\vec{P}_2 - \\vec{P}_1
+        
+        \\vec{V}_2 = \\vec{P}_3 - \\vec{P}_1
+        
+        A = {1 \\over 2} \\overline{\\vec{V}_1 \\times \\vec{V}_2}
         
     Parameters
     ----------
@@ -524,22 +539,21 @@ def KQ(A):
     """
     This decomposition is proposed in the book "Multiple View Geometry in
     computer vision" by Hartley and Zisserman. It is basically a RQ 
-    decomposition (which takes a matrix M and finds a right, upper diagonal
-    camera matrix K and a orthogonal matrix Q so that M = a*K*Q (a is a 
-    normalizing factor (R[-1,-1])).
+    decomposition (which takes a matrix :math:`M` and finds a right, upper diagonal
+    camera matrix :math:`K` and a orthogonal matrix :math:`Q` so that :math:`M = aKQ` (:math:`a` 
+    is a normalizing factor (:math:`R[-1,-1]`)).
     
     This specific function has the following extra steps: 
     
-    1) it defines a diagonal matrix D which, when post-multiplied by K makes 
+    1) it defines a diagonal matrix :math:`D` which, when post-multiplied by 
+    :math:`K` makes 
     its diagonal elements positive.
      
-    2) it normalizes K by its [-1,-1] element.
+    2) it normalizes :math:`K` by its :math:`[-1,-1]` element.
     
-    The use of these steps is that when the matrix M is a DLT matrix, K is a 
-    camera matrix, and Q is the orientation of the camera (its rows are the
-    front, down and left vectors, respectively).
-    
-    Attention : a check is performed to verify that the 
+    The use of these steps is that when the matrix :math:`M` is a DLT matrix, 
+    :math:`K` is a camera matrix, and :math:`Q` is the orientation of the 
+    camera (its rows are the front, down and left vectors, respectively).
     
     Parameters
     ----------
@@ -550,7 +564,7 @@ def KQ(A):
     Returns
     -------
     K : numpy.array
-        The camera matrix, normalized by its [-1,-1] element.
+        The camera matrix, normalized by its :math:`[-1,-1]` element.
     Q : numpy.array
         The camera orientation matrix
     """
@@ -716,7 +730,7 @@ def DLT(uvlist, xyzlist):
     """
     This function calculates the direct linear transform matrix, which is the
     transform executed by a pinhole camera. This procedure was suggested in
-    `Wikipedia <http://en.wikipedia.org/wiki/Direct_linear_transformation>` 
+    `Wikipedia <http://en.wikipedia.org/wiki/Direct_linear_transformation>`_ 
     and some refinements are discussed in the book "Multiple View Geometry in
     computer vision" by Hartley and Zisserman.
     
@@ -738,11 +752,19 @@ def DLT(uvlist, xyzlist):
         A matrix containing the factors to calculate the partial derivatives
         of the UV coordinates with respect to the XYZ coordinates. By 
         multiplying dMdX * M * XYZ1, one gets the derivatives in the following
-        order [du/dx du/dy du/dz dv/dx dv/dy dv/dz] multiplied by w^2 (which,
-        for the normalized matrix M, is the depth of the points)
+        order 
+        :math:`\\left [ {\\partial u \\over \\partial x} 
+        {\\partial u \\over \\partial y}
+        {\\partial u \\over \\partial z}
+        {\\partial v \\over \\partial x}
+        {\\partial v \\over \\partial y}
+        {\\partial v \\over \\partial z} \\right ]` 
+        multiplied by :math:`w^2` (which,
+        for the normalized matrix :math:`M`, is the depth of the points)
     detM : scalar
-        The determinant of the matrix formed by the first three columns of M,
-        if det(M[:,:3]) < 0, it indicates that the mapping is done from a
+        The determinant of the matrix formed by the first three columns of 
+        :math:`M`,
+        if :math:`det(M[:,:3]) < 0`, it indicates that the mapping is done from a
         right-handed coordinate system to a left-handed one (or vice versa). 
         This case happens when doing a mapping with a odd number of mirrors
         between camera and mapped region, and some derived quantities must be
@@ -751,14 +773,15 @@ def DLT(uvlist, xyzlist):
         The condition number stated in page 108 of Hartley and Zisseman, which
         is the ratio of the first and the second-last singular value (because
         the last should be zero, if the transform is perfect. According to
-        `Wikipedia <http://en.wikipedia.org/wiki/Condition_number>`, the 
-        log10 of the condition number gives roughly how many digits of 
+        `Wikipedia <http://en.wikipedia.org/wiki/Condition_number>`_, the 
+        :math:`log_{10}` of the condition number gives roughly how many digits of 
         accuracy are lost by transforming using the given matrix.
     last_singular_value: double
         The smallest singular value. The finding of the DLT matrix is a 
-        minimization of the problem abs(A*x) with abs(x) = 1. 
+        minimization of the problem 
+        :math:`\\left | Ax \\right |` with :math:`\\left | x \\right | = 1`. 
         last_condition_number is exactly abs(A*x), and gives an idea of the
-        precision of the matrix found (with 0 being perfect)
+        precision of the matrix found (with :math:`0` being perfect)
     """
     assert np.size(uvlist,0)  == np.size(xyzlist,0)
     assert np.size(uvlist,1)  == 2
@@ -1051,8 +1074,9 @@ def quadArea(p1,p2,p3,p4):
     """
     Returns the area of a quadrilateral defined by its edge points. The 
     following assumptions are made:
-        - All points lie in the same plane        
-        - The quadrilateral is convex
+    
+    * All points lie in the same plane        
+    * The quadrilateral is convex
         
     Parameters
     ----------
