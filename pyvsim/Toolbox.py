@@ -111,23 +111,7 @@ class Sensor(Primitives.Plane):
         self.color                  = [1,0,0]
         self.clear()
         
-    def parametricToPixel(self,coordinates):
-        """
-        coords = [u,v] (in parametric -1..1 space)
-        
-        There is an inversion of the UV columns because of the unfortunate 
-        parametric coordinate system that maps:
-         
-        u -> sensor.z
-        v -> sensor.y
-        
-        returns:
-        [row column] - fractional position in sensor pixels
-        
-        DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
-        """
-        return 0.5*(coordinates[:,::-1]+1)*self.resolution
-    
+   
     def display(self,colormap='jet'):
         plt.figure(facecolor = [1,1,1])
         #imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
@@ -207,12 +191,129 @@ class Sensor(Primitives.Plane):
         outDs   = None
         outBand = None
     
+    def parametricToSensor(self, param_coords):
+        """
+        From the parametric coordinates :math:`\\\overline{U,V}`,
+        which range is :math:`[-1..1]`, calculates the sensor coordinates in
+        meters, so the algorithm is basically multiplying by the sensor size.
+        
+        Parameters
+        ----------
+        param_coords : numpy.ndarray (N,2)
+            The parametric coordinates in the range -1..1. 
+            
+        Returns
+        -------
+        sensor_coords : numpy.ndarray (N,2)
+            The sensor coordinates in meters
+        """
+        dim_uv  = self.dimension[1:][::-1]/2
+        uvlist  = np.einsum("ij,j->ij",param_coords,dim_uv)
+        return uvlist
+        
+    def sensorToParametric(self, sensor_coords):
+        """
+        Transform sensor coordinates :math:`(U,V)` in meters to parametric 
+        coordinates,
+        :math:`(\\\overline{U},\\\overline{V})`.
+
+        
+        Parameters
+        ----------
+        param_coords : numpy.ndarray (N,2)
+            The parametric coordinates in the range -1..1. 
+            
+        Returns
+        -------
+        sensor_coords : numpy.ndarray (N,2)
+            The sensor coordinates in meters
+        """
+        dim_uv  = 2/self.dimension[1:][::-1]
+        uvlist  = np.einsum("ij,j->ij",sensor_coords,dim_uv)
+        return uvlist
+    
+    def sensorToPhysical(self, sensor_coords):
+        """
+        Transform sensor coordinates :math:`(U,V)` in meters to world coordinates
+
+        
+        Parameters
+        ----------
+        param_coords : numpy.ndarray (N,2)
+            The parametric coordinates in the range -1..1. 
+            
+        Returns
+        -------
+        sensor_coords : numpy.ndarray (N,3)
+            The sensor coordinates in meters
+        """
+        return self.parametricToPhysical(self.sensorToParametric(sensor_coords))
+    
+    def sensorToPixel(self, coords):
+        """
+        Transforms (normalized) parametric coordinates into pixel position on the
+        sensor.
+        
+        There is an inversion of the UV columns because of the unfortunate 
+        parametric coordinate system that maps:
+         
+        u -> sensor.z
+        v -> sensor.y
+        
+        Parameters
+        ----------
+        coords : numpy.ndarray (N,3)
+            The position in the sensor in normalized coordinates (range -1..1)
+        
+        Returns
+        -------
+        pixels : numpy.ndarray (N,2)
+            The fractional position in sensor pixels in the format [row column] 
+        
+        DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
+        """
+        return self.parametricToPixel(self.sensorToParametric(coords))
+    
+    
+    def parametricToPixel(self,coordinates):
+        """
+        Transforms (normalized) parametric coordinates into pixel position on the
+        sensor.
+        
+        There is an inversion of the UV columns because of the unfortunate 
+        parametric coordinate system that maps:
+         
+        u -> sensor.z
+        v -> sensor.y
+        
+        Parameters
+        ----------
+        coords : numpy.ndarray (N,3)
+            The position in the sensor in normalized coordinates (range -1..1)
+        
+        Returns
+        -------
+        pixels : numpy.ndarray (N,2)
+            The fractional position in sensor pixels in the format [row column] 
+        
+        DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
+        """
+        return 0.5*(coordinates[:,::-1]+1)*self.resolution    
+    
     def physicalToPixel(self,coords):   
         """
-        coords = [x,y,z] (in real space)
+        Transforms world coordinates into a position in the sensor, given in
+        pixels
         
-        returns:
-        [row column] - fractional position in sensor pixels
+        Parameters
+        ----------
+        coords : numpy.ndarray (N,3)
+            The position in world coordinates
+        
+        Returns
+        -------
+        pixels : numpy.ndarray (N,2)
+            The fractional position in sensor pixels in the format [row column] 
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
         """
@@ -220,7 +321,7 @@ class Sensor(Primitives.Plane):
     
     def _recordParticles(self,coords,energy,wavelength,diameter):
         """
-        coords     - [y,z] parametric coordinates of the recorded point
+        coords     - [u,v] sensor coordinates of the recorded point
         energy     - J -   energy which is captured by the lenses
         wavelength - m -   illumination wavelength
         diameter   - m -   particle image diameter
@@ -315,12 +416,12 @@ class Sensor(Primitives.Plane):
             diameter2    = diameter
             coords2      = coords
 
-        pixels   = self.parametricToPixel(coords2) 
+        pixels   = self.sensorToPixel(coords2) 
 
         #
         # Auxiliary variables for vectorization
         #
-        npts        = np.size(coords2,0)
+        npts            = np.size(coords2,0)
         
         totalPhotons    = np.reshape(totalPhotons,(npts,1,1))
         pixelX          = np.reshape(pixels[:,0],(npts,1,1))
@@ -384,13 +485,13 @@ class Sensor(Primitives.Plane):
                         diameter,
                         ignoreLarge = 0.2):
         """
-        coords     - [y,z] parametric coordinates of the recorded point
+        coords     - [u,v] sensor coordinates of the recorded point
         energy     - J -   energy which is captured by the lenses
         wavelength - m -   illumination wavelength
         diameter   - m -   particle image diameter
         
         This is the front-end of the _recordParticle method, its main input
-        is an array of parametric coordinates, representing the particle image
+        is an array of sensor coordinates, representing the particle image
         centers.
         
         The other inputs can be either arrays (e.g. for particle with 
@@ -903,7 +1004,7 @@ class Camera(Primitives.Assembly):
         Returns
         -------
         uv : numpy.array (N,3)
-            The points (in normalized homogeneous coordinates) mapped to the
+            The points (in sensor homogeneous coordinates) mapped to the
             sensor
         w  : numpy.array (N)
             The distance from the center of projection, as calculated by the
@@ -959,13 +1060,14 @@ class Camera(Primitives.Assembly):
         lineofsight  = -lineofsight / np.tile(lineofsightnorm,(3,1)).T
         
         """Calculate the diameter of the geometric image"""
-        pts_sensor  = self.sensor.parametricToPhysical(uv)
+        pts_sensor  = self.sensor.sensorToPhysical(uv)
         
         HpS         = np.sum((self.lens.H_aft - pts_sensor) * self.lens.x,1)
         HpX         = self.lens.X_scalar - self.lens.H_aft_scalar
         
         pprime      = w + self.lens.E_scalar - self.lens.H_fore_scalar
         p           = (self.lens.F * pprime) / (pprime - self.lens.F)
+
         imdim       = self.lens.Xdim * (p - HpS) / (p - HpX)
         # Diffraction-limited part 
         imdim      += 2.44*self.referenceWavelength*self.lens.aperture
@@ -1114,6 +1216,9 @@ class Camera(Primitives.Assembly):
                                     UV[i+1,j  ],
                                     UV[i+1,j+1],
                                     UV[i  ,j+1]])
+                # We want the DLT to be from meters to meters:
+                uvlist = self.sensor.parametricToSensor(uvlist)
+                
                 xyzlist = np.array([firstInts[i  ,j  ],
                                     firstInts[i+1,j  ],
                                     firstInts[i+1,j+1],
@@ -1401,6 +1506,8 @@ class Camera(Primitives.Assembly):
                               "could not create virtual cameras")
             return None
         phantomPrototype                    = copy.deepcopy(self)
+        phantomPrototype.clearData()
+        phantomPrototype.parent             = None
         phantomPrototype.body.color         = [0.5,0,0]
         phantomPrototype.body.opacity       = 0.2
         phantomPrototype.lens.color         = [0.5,0.5,0.5]
@@ -1412,18 +1519,20 @@ class Camera(Primitives.Assembly):
 #        print phantomPrototype.lens.y
 #        print phantomPrototype.lens.z
         phantomPrototype.lens.alignTo(phantomPrototype.x, phantomPrototype.y)
+        for item in phantomPrototype:
+            item.parent = phantomPrototype
 
         phantomAssembly                     = Primitives.Assembly()
-        sy                                  = self.sensor.dimension[1]
-        sz                                  = self.sensor.dimension[2]
-        # Matrix to go from sensor parametric coordinates to sensor
+#        sy                                  = self.sensor.dimension[1]
+#        sz                                  = self.sensor.dimension[2]
+        # Matrix to go from sensor coordinates to sensor
         # local coordinates
-        #   [Sx]    [  0  ,  0   ,  1][u] 
-        #   [Sy] =  [  0  , sy/2 ,  0][v] u = Zcamera
-        #   [Sz]    [sz/2 ,  0   ,  0][1] v = Ycamera
+        #   [Sx]    [  0  ,  0  ,  1][u] 
+        #   [Sy] =  [  0  ,  1  ,  0][v] u = Zcamera
+        #   [Sz]    [  1 ,  0   ,  0][1] v = Ycamera
         MT                                  = np.array([[ 0  ,   0,  1],
-                                                        [ 0  ,sy/2,  0],
-                                                        [sz/2,   0,  0]])
+                                                        [ 0  ,   1,  0],
+                                                        [ 1  ,   0,  0]])
 
         if centeronly:
             rangei = [np.round(np.size(self.mapping,0)/2)]
@@ -1442,7 +1551,7 @@ class Camera(Primitives.Assembly):
                                   phantom.lens.PinholeFore)
 
                 # Transform the DLT matrix (that originally goes from global
-                # coordinates to sensor parametric) to local sensor coordinates
+                # coordinates to sensor coords) to local sensor coordinates
                 MTM = np.dot(MT, M[:,:-1])
                 [_,Qm] = Utils.KQ(MTM)
                     
@@ -1560,11 +1669,11 @@ class Seeding(Primitives.Assembly):
                                  lightintensity)
         scatterangle[lightintensity == 0] = 0
         
-        print self.diameters
+#        print self.diameters
         diams  = np.linspace(np.min(self.diameters),
                              np.max(self.diameters),
                              500)
-        print np.min(scatterangle), np.max(scatterangle)
+#        print np.min(scatterangle), np.max(scatterangle)
         angles = np.linspace(np.min(scatterangle),
                              np.max(scatterangle),
                              30)
@@ -1602,7 +1711,7 @@ class Laser(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Laser '+str(self._id)
-        self.transientFields            = ["profileInterpolator"]
+        self.transientFields.extend(["profileInterpolator"])
         self.body                       = None
         self.rays                       = None
         self.volume                     = None
@@ -2076,6 +2185,9 @@ if __name__=='__main__':
     c.sensor.save("test01.tif")
     tic.toc()
     c.sensor.display("jet")
+    
+    vc = c.virtualCameras(True)
+    environment += vc
 #    
 
     System.plot(environment)

@@ -378,7 +378,7 @@ class Assembly(Component):
         self.name                       = 'Assembly '+str(self._id)
         # Ray tracing properties
         self.material                   = Library.IdealMaterial(1)
-        self.surfaceProperty            = Component.TRANSPARENT
+        self.surfaceProperty            = Component.TRANSPARENT     
         
     def __repr__(self):
         """
@@ -1354,27 +1354,14 @@ class Plane(Part):
     This is a convenience class that inherits from Part and represents
     a rectangle. There are also convenience methods to  make coordinate
     transformation.
+             
+    To navigate in the plane, one can use the following coordinate system:
+    :math:`\\left[u,v\\right]` , where 
+    :math:`-1 <= u,v <=1`
     
-    As a default, the plane is defined as::
+    As a default, the :math:`\\vec{x}` vector is the normal for the triangles.
     
-    y (first coordinate)
-    ^  
-    |--------------+
-    |              |h 
-    |              |e
-    |              |i
-    |              |g
-    |              |t
-    |              |h
-    +--------------+--> z (second coordinate)
-         length
-         
-    To navigate in the plane, one can use the following coordinate system::
-    [y',z'], where 0 <= y' <=1 and 0 <= z' <=1
-    
-    As a default, the X vector is the normal for the triangles.
-    
-    This class can represent *only* rectangles, so that most of its methods
+    This class can represent **only** rectangles, so that most of its methods
     are greatly simplified. If you need to represent a parallelogram, you
     would have to implement your own class.
     """
@@ -1413,7 +1400,7 @@ class Plane(Part):
     def parametricToPhysical(self,coordinates):
         """
         Transforms a 2-component vector in the range -1..1 in sensor coordinates
-        Normalized [u,v] -> [x,y,z] (global reference frame)
+        :math:`[u,v] \\rarrow [x,y,z]` (global reference frame)
         
         Vectorization for this method is implemented.
         """
@@ -1441,7 +1428,7 @@ class Plane(Part):
         """
         Transforms a 3-component coordinates vector to a 2-component vector
         which value falls in the range -1..1 in sensor coordinates
-        Normalized [y,z] -> [x,y,z] (global reference frame)
+        :math:`[x,y,z] \\rarrow [u,v]`
         
         Vectorization for this method is implemented.
         """
@@ -1471,10 +1458,10 @@ class Volume(Part):
     
     These methods can be safely ignored a set of points can be directly given,
     allowing quadrilaterally-faced hexas to be represented (check 
-    `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>` for more
+    `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>`_ for more
     information)
     """
-    PLOTDIMS                  = 3
+    PLOTDIMS          = 3
     PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
                                   [+0,-0.5,+0.5],
                                   [+0,-0.5,-0.5],
