@@ -566,7 +566,7 @@ class Sensor(Primitives.Plane):
             diameter = diameter * np.ones(nparts)
         
         if stepMax < nparts:  
-            print "Recording partials"             
+            print "Recording partials in steps of %i" % stepMax             
             k = 0
             nrec = 0
             
@@ -752,13 +752,27 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         # -----  =  ----------- + ----------------------------
         #   F          F + d'      focusingDistance - SH - d'
         #                                      
-        #             -(foc - F - H) - sqrt((foc-f-H)**2 + 4*F**2))
+        #             -(foc - F - H) +- sqrt((foc-f-H)**2 + 4*F**2))
         #  dprime =  ----------------------------------------------
         #                                  2
         aux     = self.focusingDistance - self.F - (self._H_fore_scalar + 
                                                     self.flangeFocalDistance)
         delta   = aux**2 - 4*(self.F**2)
-        d_line  = (aux - np.sqrt(delta))/2
+        d_line1  = (aux - np.sqrt(delta))/2
+        d_line2  = (aux + np.sqrt(delta))/2
+        
+        err1 = 1/(self.F + d_line1) + 1/(self.focusingDistance - 
+                                         (self._H_fore_scalar + 
+                                          self.flangeFocalDistance) -
+                                         d_line1)
+        err2 = 1/(self.F + d_line2) + 1/(self.focusingDistance - 
+                                         (self._H_fore_scalar + 
+                                          self.flangeFocalDistance) -
+                                         d_line2) 
+        if np.abs(1/self.F - err2) > np.abs(1/self.F - err1):
+            d_line =  d_line1
+        else:
+            d_line =  d_line2
         
 #        print "------ FOCUS CALCULATION ------------------------"
 #        print "foc          : ", self.focusingDistance
@@ -957,6 +971,11 @@ class Camera(Primitives.Assembly):
         there is a definition of the initial positioning of the sensor and the 
         lens.
         """
+        if self.lens is not None:
+            self.remove(self.lens)
+            self.remove(self.body)
+            self.remove(self.sensor)
+            
         self.lens           = Lens()
         self.sensor         = Sensor()
         self.body           = Primitives.Volume(self.dimension)
@@ -1068,7 +1087,7 @@ class Camera(Primitives.Assembly):
         pprime      = w + self.lens.E_scalar - self.lens.H_fore_scalar
         p           = (self.lens.F * pprime) / (pprime - self.lens.F)
 
-        imdim       = self.lens.Xdim * (p - HpS) / (p - HpX)
+        imdim       = 0*self.lens.Xdim * (p - HpS) / (p - HpX)
         # Diffraction-limited part 
         imdim      += 2.44*self.referenceWavelength*self.lens.aperture
         # Calculates the solid angle "seen" by the points
@@ -1161,7 +1180,10 @@ class Camera(Primitives.Assembly):
 #        print UV
         bundle = self._shootRays(parametricCoords,
                                 maximumRayTrace = self.lens.focusingDistance*2)
-        
+#        self += bundle
+#        self += target
+#        import System
+#        System.plot(self)
 
         # Finds the intersections that are important:
         intersections = (target == bundle.rayIntersections)
@@ -1250,6 +1272,10 @@ class Camera(Primitives.Assembly):
         self.parent += vv
         self._calculateMappings(vv)
         self.parent.remove(vv)
+        
+        print vv.points
+        print "blah"
+        print self.mapping
         
         # Determines the distance mapped by the DLT for the points, so that
         # the solid angle can be calculated individually for each particle.
@@ -1670,13 +1696,21 @@ class Seeding(Primitives.Assembly):
         scatterangle[lightintensity == 0] = 0
         
 #        print self.diameters
-        diams  = np.linspace(np.min(self.diameters),
-                             np.max(self.diameters),
-                             500)
+        if np.min(self.diameters) != np.max(self.diameters):
+            diams  = np.linspace(np.min(self.diameters),
+                                 np.max(self.diameters),
+                                 500)
+        else:
+            diams = np.array([np.min(self.diameters), 
+                              np.max(self.diameters)+1e-6])
 #        print np.min(scatterangle), np.max(scatterangle)
-        angles = np.linspace(np.min(scatterangle),
-                             np.max(scatterangle),
-                             30)
+        if np.min(scatterangle) != np.max(scatterangle):
+            angles = np.linspace(np.min(scatterangle),
+                                 np.max(scatterangle),
+                                 30)
+        else:
+            angles = np.array([np.min(scatterangle), 
+                               np.max(scatterangle)+1e-6])
         
         (s1,s2) = MieUtils.mieScatteringCrossSections(self.refractiveIndex(wavelength), 
                                                       diams, 
@@ -1684,7 +1718,7 @@ class Seeding(Primitives.Assembly):
                                                       angles)
         scs = (s1 * (np.cos(polarization)**2) + 
                s2 * (1 - np.cos(polarization)**2))
-        
+
         interpolant = RectBivariateSpline(angles,
                                           diams,
                                           scs,
@@ -1694,10 +1728,10 @@ class Seeding(Primitives.Assembly):
         return scs*lightintensity*solidangle
     
 class CalibrationPlate(Seeding):
-    def __init__(self):
+    def __init__(self, sidelength = 0.2):
         Seeding.__init__(self)
-        [X,Y] = np.meshgrid(np.linspace(-0.1,0.1,100),
-                            np.linspace(-0.1,0.1,100))
+        [X,Y] = np.meshgrid(np.linspace(-sidelength/2,sidelength/2,100),
+                            np.linspace(-sidelength/2,sidelength/2,100))
         Z     = 0*np.ones(np.size(X))
         self.points    = np.vstack((X.ravel(),Y.ravel(),Z)).T
         self.points    = np.vstack([self.points, 
@@ -1925,6 +1959,7 @@ class Laser(Primitives.Assembly):
         result = np.zeros((np.size(pts,0),np.size(self.volume[0].data,1)))
         for vol in self.volume:
             result += vol.interpolate(pts)
+
         [i,j] = result[:,:2].T
         vecs  = Utils.normalize(result[:,2:5])
         S     = result[:,5] 
@@ -2066,9 +2101,9 @@ if __name__=='__main__':
     tic = Utils.Tictoc()
     
     c                               = Camera()
-    c.lens.focusingDistance         = 0.99#.9695 #0.9725
-    c.lens.aperture                 = 22
-    c.mappingResolution             = [10,10]
+    c.lens.focusingDistance         = 1#.9695 #0.9725
+    c.lens.aperture                 = 2
+    c.mappingResolution             = [2,2]
     c.lens.distortionParameters     = np.array([0,0,0,0,
                                                 0,0,0,0,
                                                 0,0,0,0])
