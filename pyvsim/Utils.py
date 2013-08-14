@@ -290,7 +290,7 @@ def rotateVector(x,angle,axis):
     Parameters
     ----------
     x : numpy.array (N, 3)
-        A vector (size = 3) or a list of vectors (N rows, 3 columns) to be
+        A vector or a list of vectors (N rows, 3 columns) to be
         rotated
     angle : double
         scalar (in radians)
@@ -320,6 +320,9 @@ def rotateVector(x,angle,axis):
     """
     a = np.cos(angle/2)
     if (axis.ndim == 2):
+        if np.size(angle) != np.size(axis,0):
+            angle = angle * np.ones((np.size(axis,0)))
+            a     = a * np.ones_like(angle)
         w = np.einsum("ij,i->ij",axis,np.sin(angle/2))
         return x + np.einsum("i,ij->ij",2*a,np.cross(w,x)) + 2*np.cross(w,np.cross(w,x))
     else:
@@ -936,7 +939,15 @@ def pointInHexa(p,hexapoints):
     >>> pointInHexa(p, hexapoints)
     array([ 0.,  1.,  0.])
     """
-
+    # Fix the case of inverted volumes (may happen when mirrors are present)
+    v1 = hexapoints[1] - hexapoints[0]
+    v3 = hexapoints[3] - hexapoints[0]
+    v4 = hexapoints[4] - hexapoints[0]
+    if np.dot(np.cross(v1,v3),v4) < 0:
+        hexatemp     = np.zeros((8,3))
+        hexatemp[:4] = hexapoints[4:]
+        hexatemp[4:] = hexapoints[:4]
+        hexapoints   = hexatemp
    
     if p.ndim > 1:
         truthtable = np.ones(len(p))
