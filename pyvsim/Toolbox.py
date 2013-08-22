@@ -71,6 +71,23 @@ class Dump(Primitives.Plane):
         self.surfaceProperty    = self.DUMP
 
 class Sensor(Primitives.Plane):
+    """
+    This class describes a sensor. It is responsible for determining the size
+    of the camera field of view and also for recording particles.
+    
+    The particle recording behavior is similar to the one described by Lecordier
+    and Westerweel in their `synthetic image generator 
+    <http://link.springer.com/chapter/10.1007%2F978-3-642-18795-7_11>`_ .
+    
+    Some features can be easily implemented such as:
+    
+    * Quantum efficiency as a function of wavelength (as the recording function
+        receives the wavelength as a parameter)
+    * Light field measurement (the "virtualData" field can be used to store 
+        more data)
+        
+    But were not implemented until now.
+    """
     def __init__(self):
         """
         --|----------------------------------> 
@@ -113,6 +130,9 @@ class Sensor(Primitives.Plane):
         
    
     def display(self,colormap='jet'):
+        """
+        This function displays what is currently recorded in the camera sensor.
+        """
         plt.figure(facecolor = [1,1,1])
         #imgplot = plt.imshow(self.readSensor()/(-1+2**self.bitDepth))
         imgplot = plt.imshow(self.readSensor())
@@ -131,8 +151,8 @@ class Sensor(Primitives.Plane):
         
     def clear(self):
         """
-        Initializes CCD with gaussian noise, the distribution parameters are
-        given by::
+        Initializes sensor with gaussian noise, the distribution parameters are
+        given by:
         
         * backgroundMeanLevel - the mean value
         * backgroundNoiseVar - the variance of the distribution
@@ -589,6 +609,20 @@ class Sensor(Primitives.Plane):
             self._recordParticles(coords, energy, wavelength, diameter)
 
 class Lens(Primitives.Part, Core.PyvsimDatabasable):
+    """
+    This class represents an objective lens. The implemented model is a thick,
+    pupil-centric lens as described by `Aggarwal and Ahuja 
+    <http://link.springer.com/article/10.1023%2FA%3A1016324132583>`_ .
+    
+    This means that the center of projection is assumed to be at the center
+    of the entrance pupil.
+    
+    This class generates the starting vectors for the ray tracing procedure. One
+    caveat is that it is not possible to execute ray tracing from the back of the
+    lens (i.e. from the sensor to the lens), as the rays are assumed straight
+    between these two points. This can be a problem when modelling stacked lenses,
+    that have to be substituted by an equivalent one.
+    """
     def __init__(self):
         Primitives.Part.__init__(self)
         Core.PyvsimDatabasable.__init__(self)
@@ -887,6 +921,19 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
 #        return Utils.rotateVector(vectors,(To-Ti),axis)
             
 class Camera(Primitives.Assembly):
+    """
+    This class represents a camera composed of a body (used only for display),
+    a sensor and a lens, therefore it is an assembly.
+    
+    The main functions of this class are driving the sensor and the lens 
+    together, so that the user can call more logical functions (such as
+    initialize) instead of using a complicated series of internal functions.
+    
+    The camera creates a mapping of world coordinates into sensor coordinates
+    by using direct linear transformations (a pinhole model). Lens imperfections
+    and ambient influence can be modeled by using several DLTs (which is 
+    controlled by the parameter mappingResolution).
+    """ 
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Camera '+str(self._id)
@@ -1266,16 +1313,18 @@ class Camera(Primitives.Assembly):
         return cond
     
     def initialize(self):
+        """
+        This function calculates the camera field of view and its mapping
+        functions to relate world coordinates to sensor coordinates. This
+        should be called whenever the ambient is set up, so the camera can 
+        be used for synthetic image generation and displaying.
+        """
         vv,vh = self._depthOfField()
         # Make sure rays intersect volume by expanding it a little
         vv.expand(0.005)
         self.parent += vv
         self._calculateMappings(vv)
         self.parent.remove(vv)
-        
-        print vv.points
-        print "blah"
-        print self.mapping
         
         # Determines the distance mapped by the DLT for the points, so that
         # the solid angle can be calculated individually for each particle.

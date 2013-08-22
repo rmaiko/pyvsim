@@ -914,7 +914,8 @@ def pointInHexa(p,hexapoints):
         List of points to be tested
     hexapoints : numpy.array (8, 3)
         List of points defining an hexahedron, must obey the conventional order
-        of defining hexas
+        of defining hexas. Also works in the case hexa has negative volume
+        (this was made especifically for cases when laser sheet is reflected)
        
     Returns
     -------
