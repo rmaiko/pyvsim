@@ -649,6 +649,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         self._Xdim                        =  0.0802568218
         # Adjustable parameters
         self._focusingDistance            =  10
+        self.macro                        = False
         self.aperture                     =  2
         self.distortionParameters         = np.array([0,0,0,0,
                                                       0,0,0,0,
@@ -794,19 +795,34 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         delta   = aux**2 - 4*(self.F**2)
         d_line1  = (aux - np.sqrt(delta))/2
         d_line2  = (aux + np.sqrt(delta))/2
-        
-        err1 = 1/(self.F + d_line1) + 1/(self.focusingDistance - 
-                                         (self._H_fore_scalar + 
-                                          self.flangeFocalDistance) -
-                                         d_line1)
-        err2 = 1/(self.F + d_line2) + 1/(self.focusingDistance - 
-                                         (self._H_fore_scalar + 
-                                          self.flangeFocalDistance) -
-                                         d_line2) 
-        if np.abs(1/self.F - err2) > np.abs(1/self.F - err1):
-            d_line =  d_line1
-        else:
+#         
+#         err1 = 1/(self.F + d_line1) + 1/(self.focusingDistance - 
+#                                          (self._H_fore_scalar + 
+#                                           self.flangeFocalDistance) -
+#                                          d_line1)
+#         err2 = 1/(self.F + d_line2) + 1/(self.focusingDistance - 
+#                                          (self._H_fore_scalar + 
+#                                           self.flangeFocalDistance) -
+#                                          d_line2)
+#         
+#         try: print self.parent.name
+#         except AttributeError : pass
+#         print self.focusingDistance
+#         print "Focusing offsets", d_line1, d_line2
+#         print self.flangeFocalDistance + self.H_fore_scalar
+#         print np.abs(1/self.F - err2), np.abs(1/self.F - err1)
+#         print "d1", self.focusingDistance - 1/(1/self.F - 1/(self.focusingDistance - 
+#                                                             self._H_fore_scalar - 
+#                                                             self.flangeFocalDistance -
+#                                                             d_line1))
+#         print "d2", self.focusingDistance - 1/(1/self.F - 1/(self.focusingDistance - 
+#                                                             self._H_fore_scalar - 
+#                                                             self.flangeFocalDistance -
+#                                                             d_line2))
+        if self.macro:
             d_line =  d_line2
+        else:
+            d_line =  d_line1
         
 #        print "------ FOCUS CALCULATION ------------------------"
 #        print "foc          : ", self.focusingDistance
