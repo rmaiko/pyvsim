@@ -1830,8 +1830,9 @@ class RayBundle(Assembly):
                  
         stepsize              = np.ones(nrays) * self.stepRayTrace
         stepsize[distance + stepsize > 
-                 self.maximumRayTrace] = self.maximumRayTrace - distance[distance + stepsize > 
-                                                                         self.maximumRayTrace]
+                 self.maximumRayTrace] = (self.maximumRayTrace - 
+                                          distance[distance + stepsize > 
+                                                   self.maximumRayTrace])
         
         rayPoints[step+1,:,:] = (rayPoints[step,:,:] + 
                                  np.tile(stepsize,(GLOBAL_NDIM,1)).T*
