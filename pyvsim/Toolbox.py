@@ -795,30 +795,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
         delta   = aux**2 - 4*(self.F**2)
         d_line1  = (aux - np.sqrt(delta))/2
         d_line2  = (aux + np.sqrt(delta))/2
-#         
-#         err1 = 1/(self.F + d_line1) + 1/(self.focusingDistance - 
-#                                          (self._H_fore_scalar + 
-#                                           self.flangeFocalDistance) -
-#                                          d_line1)
-#         err2 = 1/(self.F + d_line2) + 1/(self.focusingDistance - 
-#                                          (self._H_fore_scalar + 
-#                                           self.flangeFocalDistance) -
-#                                          d_line2)
-#         
-#         try: print self.parent.name
-#         except AttributeError : pass
-#         print self.focusingDistance
-#         print "Focusing offsets", d_line1, d_line2
-#         print self.flangeFocalDistance + self.H_fore_scalar
-#         print np.abs(1/self.F - err2), np.abs(1/self.F - err1)
-#         print "d1", self.focusingDistance - 1/(1/self.F - 1/(self.focusingDistance - 
-#                                                             self._H_fore_scalar - 
-#                                                             self.flangeFocalDistance -
-#                                                             d_line1))
-#         print "d2", self.focusingDistance - 1/(1/self.F - 1/(self.focusingDistance - 
-#                                                             self._H_fore_scalar - 
-#                                                             self.flangeFocalDistance -
-#                                                             d_line2))
+
         if self.macro:
             d_line =  d_line2
         else:
@@ -1618,12 +1595,9 @@ class Camera(Primitives.Assembly):
 #        sz                                  = self.sensor.dimension[2]
         # Matrix to go from sensor coordinates to sensor
         # local coordinates
-        #   [Sx]    [  0  ,  0  ,  1][u] 
-        #   [Sy] =  [  0  ,  1  ,  0][v] u = Zcamera
-        #   [Sz]    [  1 ,  0   ,  0][1] v = Ycamera
-        MT                                  = np.array([[ 0  ,   0,  1],
-                                                        [ 0  ,   1,  0],
-                                                        [ 1  ,   0,  0]])
+        MT  = np.array([[ 0  ,   0,  1],
+                        [ 0  ,   1,  0],
+                        [ 1  ,   0,  0]])
 
         if centeronly:
             rangei = [np.round(np.size(self.mapping,0)/2)]
@@ -1652,16 +1626,6 @@ class Camera(Primitives.Assembly):
                 phantomAssembly.append(phantom)
         
         return phantomAssembly
-    
-#    def scheimpflugPlane(self, point, v1, v2):
-#        SHp = self.lens.H_aft - self.sensor.origin
-#        HHp = self.lens.H_fore - self.lens.H_aft
-#        # normal to the plane
-#        n = np.cross(v1,v2)
-#        # line-plane intersection
-#        d = np.dot(point - self.lens.H_fore,n)/np.dot(HHp,n)
-#        P_int = self.lens.H_aft + d*HHp
-#        HP = P_int - 
          
 class Seeding(Primitives.Assembly):
     def __init__(self):
@@ -2016,7 +1980,7 @@ class Laser(Primitives.Assembly):
     def illuminate(self, pts):
         """
         Given a set of points in space, this method calculates the light 
-        intensity (in J/m^2) and direction produced by the laser.
+        intensity (in :math:`J/m^2`) and direction produced by the laser.
         
         Parameters
         ----------
@@ -2026,7 +1990,7 @@ class Laser(Primitives.Assembly):
         Returns
         -------
         intensity : numpy.array (N,3)
-            A vector which norm is the light intensity (in J/m^2) pointing to
+            A vector which norm is the light intensity (in :math:`J/m^2`) pointing to
             the direction that the light emanating from the laser is
         """
         result = np.zeros((np.size(pts,0),np.size(self.volume[0].data,1)))
