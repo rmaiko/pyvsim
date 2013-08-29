@@ -58,10 +58,10 @@ class Component(Core.PyvsimObject):
     There is also a implementation of the visitor pattern using the 
     :meth:`~Core.Component.acceptVisitor` method
     """
-    MIRROR                    = np.array([True,  False, False, False])
-    TRANSPARENT               = np.array([False,  True, False, False])
-    OPAQUE                    = np.array([False, False,  True, False])
-    DUMP                      = np.array([False, False, False,  True])
+    MIRROR                    = 0
+    TRANSPARENT               = 1
+    OPAQUE                    = 2
+    DUMP                      = 3
     PLOTDIMS                  = -1
     
     def __init__(self):
@@ -1977,13 +1977,13 @@ class RayBundle(Assembly):
         Nparent         = np.zeros_like(surface)
         N1              = np.ones_like(surface)
         N2              = np.ones_like(surface)
-        surfaceProperty = np.zeros((len(surface),len(Component.MIRROR)),'bool')
+        surfaceProperty = np.zeros(len(surface))
         #cosTheta1       = -NdotV
 
         for n, surf in enumerate(surface):
             if surf is not None:
-                Nsurf[n]   = surf.refractiveIndex(self.wavelength[n])
-                Nparent[n] = surf.parent.refractiveIndex(self.wavelength[n])
+                Nsurf[n]           = surf.refractiveIndex(self.wavelength[n])
+                Nparent[n]         = surf.parent.refractiveIndex(self.wavelength[n])
                 surfaceProperty[n] = surf.surfaceProperty
                                                                       
         # If entering surface, N1 is the external index of refraction, N2 is
@@ -2012,19 +2012,24 @@ class RayBundle(Assembly):
         result = currVector
         # Then substitute those who were successfully refracted / pass through
         result[(cosTheta2 <= 1 + GLOBAL_TOL) * 
-               surfaceProperty[:,1]] = Utils.normalize(
-                                        refracted[(cosTheta2 <= 1 + GLOBAL_TOL)* 
-                                                  surfaceProperty[:,1]])
+               (surfaceProperty == Part.TRANSPARENT)] = Utils.normalize(
+                                                         refracted[(cosTheta2 <= 1 + GLOBAL_TOL)* 
+                                                                   (surfaceProperty == Part.TRANSPARENT)])
         # Then zero those rays who found a dump
         if tracingRule == RayBundle.TRACING_FOV:
-            result[surfaceProperty[:,2] + 
-                   surfaceProperty[:,3]] = (0 * result[surfaceProperty[:,2] + 
-                                                       surfaceProperty[:,3]])
+            result[(surfaceProperty == Part.OPAQUE) + 
+                   (surfaceProperty == Part.DUMP)] = 0 * result[(surfaceProperty == Part.OPAQUE) + 
+                                                                (surfaceProperty == Part.DUMP)]
         else:
-            result[surfaceProperty[:,3]] = 0 * result[surfaceProperty[:,3]]
+            result[(surfaceProperty == Part.DUMP)]   = 0 * result[(surfaceProperty == Part.DUMP)]
+            result[(surfaceProperty == Part.OPAQUE)] = reflected[(surfaceProperty == Part.OPAQUE)]
+            
         # Then put reflected rays
-        result[surfaceProperty[:,0]] = reflected[surfaceProperty[:,0]]
-        result[cosTheta2 < 0]        = reflected[cosTheta2 < 0]
+        result[(surfaceProperty == Part.MIRROR)] = reflected[(surfaceProperty == Part.MIRROR)]
+        # Total internal reflection
+        result[(cosTheta2 < 0)*
+               (surfaceProperty == Part.TRANSPARENT)] = reflected[(cosTheta2 < 0)*
+                                                                  (surfaceProperty == Part.TRANSPARENT)]
         
         return result
         
