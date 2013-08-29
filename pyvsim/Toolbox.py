@@ -1758,9 +1758,14 @@ class Seeding(Primitives.Assembly):
         
         scatterangle = np.arccos(np.sum(lineofsight*lightvector,1)/
                                  lightintensity)
-        scatterangle[lightintensity == 0] = 0
+        # Replacing nans by suitable value
+        scatterangle[np.isnan(scatterangle)] = 9999
+        minangle = np.min(scatterangle)
+        scatterangle[scatterangle == 9999] = minangle
+#         plt.plot(scatterangle)
+#         plt.show()
         
-#        print self.diameters
+        print "Diameter range ", np.min(self.diameters), np.max(self.diameters)
         if np.min(self.diameters) != np.max(self.diameters):
             diams  = np.linspace(np.min(self.diameters),
                                  np.max(self.diameters),
@@ -1768,7 +1773,10 @@ class Seeding(Primitives.Assembly):
         else:
             diams = np.array([np.min(self.diameters), 
                               np.max(self.diameters)+1e-6])
-#        print np.min(scatterangle), np.max(scatterangle)
+            
+        print "Angle range ", np.min(scatterangle), np.max(scatterangle)
+        plt.plot(scatterangle)
+        plt.show()
         if np.min(scatterangle) != np.max(scatterangle):
             angles = np.linspace(np.min(scatterangle),
                                  np.max(scatterangle),
