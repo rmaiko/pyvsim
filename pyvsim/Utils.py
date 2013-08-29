@@ -169,7 +169,18 @@ def tetraVolume(p1,p2,p3,p4):
     This function works only for list of vectors, for performance reasons
     will not check the inputs, will throw an error instead.
     
-    (This works faster than numpy.linalg.det repeated over the list
+    (This works faster than numpy.linalg.det repeated over the list of
+    tetrahedrons)
+    
+    Parameters
+    ----------
+    p1, p2, p3, p4 : numpy.ndarray (N,3)
+        The points of the N tetrahedrons.
+        
+    Returns
+    -------
+    v : numpy.ndarray (N)
+        The volume of the tetrahedrons.
     """
     vecs = np.array([p1-p4, p2-p4, p3-p4])
     if p1.ndim == 3:
@@ -187,10 +198,32 @@ def tetraVolume(p1,p2,p3,p4):
                              vecs[0,:,0]*vecs[2,:,1]*vecs[1,:,2] -
                              vecs[1,:,0]*vecs[0,:,1]*vecs[2,:,2]) 
 
-def jet(value, minval, maxval, saturationIndicator = False):
+def jet(value, minval = None, maxval = None, saturationIndicator = False):
     """
     Returns the RGB values to emulate a "jet" colormap from Matlab
+    
+    Parameters
+    ----------
+    value : numpy.ndarray(N)
+        The value to be represented by the colormap
+        
+    minval : float
+        The minimum value of the scale. Defaults to the minimum of the values in
+        the parameter "value"
+        
+    maxval : float 
+        The maximum value of the scale. Defaults to the maximum of the values in
+        the parameter "value".
+        
+    saturationIndication : boolean
+        Substitute the default saturation values (red and blue) for white,
+        providing better contrast when saturated values are of interest.
     """
+    if minval is None:
+        minval = np.min(value)
+    if maxval is None:
+        maxval = np.max(value)
+        
     val   = 4 * (value - minval)/(maxval-minval)
     rmask = val - 1.5 < -val + 4.5
     gmask = val - 0.5 < -val + 3.5
@@ -701,6 +734,27 @@ def linesIntersection(v,p):
     return np.dot(part1,part2).squeeze()
 
 def readSTL(filename):
+    """"
+    Reads an STL file and converts it into a pyvsim Part. Note that the 
+    coordinate system of the STL file is used for the pyvsim Part.
+    
+    This function uses the facilities of VTK for STL reading. Sometimes this
+    causes a warning window to pop-up, but most of times the files are read
+    successfully.
+    
+    Parameters
+    ----------
+    filename : string
+        The filename (including path) of the stl file.
+        
+    Returns
+    -------
+    part : pyvsim.Primitives.Part
+        A part with the STL data. With the following default parameters:
+        
+        * name : the Part name is the filename
+        * surfaceProperty : opaque
+    """
     import vtk
     import pyvsim.Primitives
     STLReader   = vtk.vtkSTLReader()
@@ -724,6 +778,7 @@ def readSTL(filename):
     obj.points          = np.array(pts)
     obj.connectivity    = np.array(cts)
     obj.name            = filename
+    obj.surfaceProperty = obj.OPAQUE
     
     print "Read %i triangles" % np.size(cts,0)
     
