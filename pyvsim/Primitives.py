@@ -58,10 +58,10 @@ class Component(Core.PyvsimObject):
     There is also a implementation of the visitor pattern using the 
     :meth:`~Core.Component.acceptVisitor` method
     """
-    MIRROR                    = 0
-    TRANSPARENT               = 1
-    OPAQUE                    = 2
-    DUMP                      = 3
+    MIRROR                    = "MIRROR"
+    TRANSPARENT               = "TRANSPARENT"
+    OPAQUE                    = "OPAQUE"
+    DUMP                      = "DUMP"
     PLOTDIMS                  = -1
     
     def __init__(self):
