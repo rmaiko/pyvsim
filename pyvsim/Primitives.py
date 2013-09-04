@@ -36,6 +36,10 @@ import weakref
 # Global constants
 GLOBAL_NDIM  = 3
 GLOBAL_TOL   = 1e-8
+SURFPROPS    = {"MIRROR"      : 1,
+                "TRANSPARENT" : 2,
+                "OPAQUE"      : 3,
+                "DUMP"        : 4}
 
 class Component(Core.PyvsimObject):
     """
@@ -1977,14 +1981,14 @@ class RayBundle(Assembly):
         Nparent         = np.zeros_like(surface)
         N1              = np.ones_like(surface)
         N2              = np.ones_like(surface)
-        surfaceProperty = np.zeros(len(surface))
+        surfaceProperty = np.zeros(len(surface), dtype = np.uint8)
         #cosTheta1       = -NdotV
 
         for n, surf in enumerate(surface):
             if surf is not None:
                 Nsurf[n]           = surf.refractiveIndex(self.wavelength[n])
                 Nparent[n]         = surf.parent.refractiveIndex(self.wavelength[n])
-                surfaceProperty[n] = surf.surfaceProperty
+                surfaceProperty[n] = SURFPROPS[surf.surfaceProperty]
                                                                       
         # If entering surface, N1 is the external index of refraction, N2 is
         # the internal
@@ -2012,24 +2016,24 @@ class RayBundle(Assembly):
         result = currVector
         # Then substitute those who were successfully refracted / pass through
         result[(cosTheta2 <= 1 + GLOBAL_TOL) * 
-               (surfaceProperty == Part.TRANSPARENT)] = Utils.normalize(
+               (surfaceProperty == SURFPROPS[Part.TRANSPARENT])] = Utils.normalize(
                                                          refracted[(cosTheta2 <= 1 + GLOBAL_TOL)* 
-                                                                   (surfaceProperty == Part.TRANSPARENT)])
+                                                                   (surfaceProperty == SURFPROPS[Part.TRANSPARENT])])
         # Then zero those rays who found a dump
         if tracingRule == RayBundle.TRACING_FOV:
-            result[(surfaceProperty == Part.OPAQUE) + 
-                   (surfaceProperty == Part.DUMP)] = 0 * result[(surfaceProperty == Part.OPAQUE) + 
-                                                                (surfaceProperty == Part.DUMP)]
+            result[(surfaceProperty == SURFPROPS[Part.OPAQUE]) + 
+                   (surfaceProperty == SURFPROPS[Part.DUMP])] = 0 * result[(surfaceProperty == SURFPROPS[Part.OPAQUE]) + 
+                                                                (surfaceProperty == SURFPROPS[Part.DUMP])]
         else:
-            result[(surfaceProperty == Part.DUMP)]   = 0 * result[(surfaceProperty == Part.DUMP)]
-            result[(surfaceProperty == Part.OPAQUE)] = reflected[(surfaceProperty == Part.OPAQUE)]
+            result[(surfaceProperty == SURFPROPS[Part.DUMP])]   = 0 * result[(surfaceProperty == SURFPROPS[Part.DUMP])]
+            result[(surfaceProperty == SURFPROPS[Part.OPAQUE])] = reflected[(surfaceProperty == SURFPROPS[Part.OPAQUE])]
             
         # Then put reflected rays
-        result[(surfaceProperty == Part.MIRROR)] = reflected[(surfaceProperty == Part.MIRROR)]
+        result[(surfaceProperty == SURFPROPS[Part.MIRROR])] = reflected[(surfaceProperty == SURFPROPS[Part.MIRROR])]
         # Total internal reflection
         result[(cosTheta2 < 0)*
-               (surfaceProperty == Part.TRANSPARENT)] = reflected[(cosTheta2 < 0)*
-                                                                  (surfaceProperty == Part.TRANSPARENT)]
+               (surfaceProperty == SURFPROPS[Part.TRANSPARENT])] = reflected[(cosTheta2 < 0)*
+                                                                  (surfaceProperty == SURFPROPS[Part.TRANSPARENT])]
         
         return result
         
