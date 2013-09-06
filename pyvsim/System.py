@@ -35,6 +35,7 @@ import Core
 import json
 import re
 import cPickle
+import weakref
 try:
     import vtk
     VTK_PRESENT = True
@@ -569,10 +570,17 @@ class pyvsimJSONEncoder(json.JSONEncoder):
             temp["object_module"] = str(obj.__class__.__module__)
             temp["object_type"]   = str(obj.__class__.__name__)
             temp["object_id"]   = id(obj)
+            
+            if isinstance(obj, weakref.ProxyTypes):
+                temp["isproxy"] = True
+            else:
+                temp["isproxy"] = False
+                
             if isinstance(obj, np.ndarray):
                 temp["dtype"]       = str(obj.dtype)
                 temp["data"]        = obj.tolist()
                 return temp
+            
             if self.serializedObjects.has_key(id(obj)):
                 temp["object_dict"] = None
             else: 
@@ -623,7 +631,7 @@ class pyvsimJSONDecoder(json.JSONDecoder):
                     obj["data"] = self.treatArray(obj)
                     myobject = obj["data"]
                 else:
-                    p = re.split("[\.\']",obj["object_module"])
+                    p           = re.split("[\.\']",obj["object_module"])
                     pkg         = __import__(p[0])
                     mod         = getattr(pkg,p[1])
                     myobject    = getattr(mod,obj["object_type"])()
@@ -634,8 +642,11 @@ class pyvsimJSONDecoder(json.JSONDecoder):
                     self.cornFlakes[obj["object_id"]].__dict__ = obj["object_dict"]
             except KeyError:
                 pass
-                
-            return self.cornFlakes[obj["object_id"]]  
+            
+            if obj["isproxy"]:
+                return weakref.proxy(self.cornFlakes[obj["object_id"]])
+            else:
+                return self.cornFlakes[obj["object_id"]]  
        
         return obj
     

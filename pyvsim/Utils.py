@@ -80,16 +80,16 @@ def hexaInterpolation(p, hexapoints, values):
     
     Parameters
     ----------
-    p : numpy.array (N, 3)
+    p : numpy.ndarray  :math:`(N,3)`
         List of points to be interpolated
-    hexapoints : numpy.array (8, 3)
+    hexapoints : numpy.ndarray  :math:`(8,3)`
         List of points defining the hexahedron
-    values : numpy.array (M, 8)
+    values : numpy.ndarray  :math:`(M,3)`
         List of values at the vertices of the hexahedron
         
     Returns
     -------
-    interpolated : numpy.array (N, M)
+    interpolated : numpy.ndarray  :math:`(N,M)`
         Values interpolated at points p
     """
     assert (hexapoints.shape == (8,3))
@@ -174,12 +174,12 @@ def tetraVolume(p1,p2,p3,p4):
     
     Parameters
     ----------
-    p1, p2, p3, p4 : numpy.ndarray (N,3)
+    p1, p2, p3, p4 : numpy.ndarray :math:`(N,3)`
         The points of the N tetrahedrons.
         
     Returns
     -------
-    v : numpy.ndarray (N)
+    v : numpy.ndarray :math:`(N)`
         The volume of the tetrahedrons.
     """
     vecs = np.array([p1-p4, p2-p4, p3-p4])
@@ -204,7 +204,7 @@ def jet(value, minval = None, maxval = None, saturationIndicator = False):
     
     Parameters
     ----------
-    value : numpy.ndarray(N)
+    value : numpy.ndarray :math:`(N)`
         The value to be represented by the colormap
         
     minval : float
@@ -246,12 +246,12 @@ def metersToRGB(wl):
     
     Parameters
     ----------
-    wl : scalar
+    wl : scalar or numpy.ndarray :math:`(N)`
         The wavelength in meters
         
     Returns
     -------
-    [R,G,B] : numpy.array (3)
+    [R,G,B] : numpy.ndarray :math:`(N,3)`
         The normalized (0..1) RGB value for this wavelength
     """
     gamma = 0.8
@@ -277,7 +277,7 @@ def aeq(a,b,tol=1e-8):
     
     Parameters
     ----------
-    a,b : numpy.arrays or scalars
+    a,b : scalar of numpy.ndarray
         Values to be compared, must have the same size
     tol = 1e-8
         The tolerance of the comparison
@@ -322,17 +322,17 @@ def rotateVector(x,angle,axis):
     
     Parameters
     ----------
-    x : numpy.array (N, 3)
+    x : numpy.ndarray :math:`(N,3)`
         A vector or a list of vectors (N rows, 3 columns) to be
         rotated
     angle : double
         scalar (in radians)
-    axis : numpy.array (3)
+    axis : numpy.ndarray :math:`(3)`
         A vector around which the vector is rotated
         
     Returns
     -------
-    vectors : numpy.array (N, 3)
+    vectors : numpy.ndarray :math:`(N,3)`
         The vectors after rotation
         
     Examples
@@ -370,19 +370,19 @@ def rotatePoints(points,angle,axis,origin):
     
     Parameters
     ----------
-    points : numpy.array (N, 3)
+    points : numpy.ndarray :math:`(N,3)`
         A point (size = 3) or a list of points (N rows, 3 columns) to be
         rotated
     angle : scalar
         scalar (in radians)
-    axis : numpy.array (3)
+    axis : numpy.ndarray :math:`(3)`
         A vector around which the points are rotated
-    origin : numpy.array (3)
+    origin : numpy.ndarray :math:`(3)`
         A point around which the points are rotated
         
     Returns
     -------
-    points : numpy.array (N, 3)
+    points : numpy.ndarray :math:`(N,3)`
         A list of rotated points
         
     Examples
@@ -414,12 +414,12 @@ def normalize(vectors):
     
     Parameters
     ----------
-    vectors : numpy.array (N, 3)
+    vectors : numpy.ndarray :math:`(N,3)`
         A list of vectors to be normalized
         
     Returns
     -------
-    vectors : numpy.array (N, 3)
+    vectors : numpy.ndarray :math:`(N,3)`
         The normalized vectors
     
     Examples
@@ -451,12 +451,12 @@ def norm(vectors):
     
     Parameters
     ----------
-    vectors : numpy.array (N, 3)
+    vectors : numpy.ndarray :math:`(N,3)`
         A list of vectors
         
     Returns
     -------
-    norms : numpy.array (N)
+    norms : numpy.ndarray :math:`(N)`
         A list with the euclidean norm of the vectors
         
     Examples
@@ -593,15 +593,15 @@ def KQ(A):
     
     Parameters
     ----------
-    A : numpy.array
+    A : numpy.ndarray :math:`(3,3)`
         A square matrix. *Attention*, DLT matrices need to have their last
         column taken away for this procedure.
     
     Returns
     -------
-    K : numpy.array
+    K : numpy.ndarray :math:`(3,3)`
         The camera matrix, normalized by its :math:`[-1,-1]` element.
-    Q : numpy.array
+    Q : numpy.ndarray :math:`(3,3)`
         The camera orientation matrix
     """
     R, Q = scipy.linalg.rq(A)
@@ -627,16 +627,16 @@ def pointSegmentDistance(p1, p2, x):
     
     Parameters
     ----------
-    p1 : numpy.array (N,3)
+    p1 : numpy.ndarray  :math:`(N,3)`
         Coordinates of segments' initial points
-    p2 : numpy.array (N,3)
+    p2 : numpy.ndarray  :math:`(N,3)`
         Coordinates of segments' final points
     x : numpy.array(3)
         Coordinates of point
         
     Returns
     -------
-    distance : numpy.array (N)
+    distance : numpy.ndarray  :math:`(N)`
         Distance between each of the segments and the point
         
     Examples
@@ -683,15 +683,15 @@ def linesIntersection(v,p):
     
     Parameters
     ----------
-    v : numpy.array (N, M)
+    v : numpy.ndarray  :math:`(N,M)`
         A list of vectors with the direction of the lines (for 3D vectors, 
         M = 3)
-    p : numpy.array (N, M)
+    p : numpy.ndarray  :math:`(N,M)`
         A list of vectors with a point in the line
         
     Returns
     -------
-    x : numpy.array (M)
+    x : numpy.ndarray  :math:`(M)`
         The point that minimizes the square of the distance to each line
         
     Raises
@@ -794,19 +794,19 @@ def DLT(uvlist, xyzlist):
     
     Parameters
     ----------
-    uvlist : numpy.array
-        A (N,2) matrix containing points at the sensor coordinates
-    xyzlist: numpy.array
-        A (N,3) matrix containing points at the world coordinates
+    uvlist : numpy.ndarray
+        A  :math:`(N,2)` matrix containing points at the sensor coordinates
+    xyzlist: numpy.ndarray
+        A  :math:`(N,3)` matrix containing points at the world coordinates
         
     Returns
     -------
-    M : numpy.array (3x4)
+    M : numpy.ndarray  :math:`(3,4)`
         A matrix with the transformation to be used with homogeneous
         coordinates. The matrix M is normalized by the norm of the elements
         M(2,0:3), because then the depth of points is automatically given as
         the third (the homogeneous) coordinate.
-    dMdX : numpy.array
+    dMdX : numpy.ndarray
         A matrix containing the factors to calculate the partial derivatives
         of the UV coordinates with respect to the XYZ coordinates. By 
         multiplying dMdX * M * XYZ1, one gets the derivatives in the following
@@ -914,16 +914,17 @@ def DLTnormalization(pointslist):
     
     Parameters
     ----------
-    pointslist: numpy.array
-        A matrix with the size (N,C) where N is the number of points and C is 
+    pointslist: numpy.ndarray
+        A matrix with the size  :math:`(N,C)` where  :math:`N` is the number of 
+        points and  :math:`C` is 
         the number of coordinates
         
     Returns
     -------
-    normalized_points: numpy.array
+    normalized_points: numpy.ndarray
         A matrix with the same size as the input with the normalized coordinates
     T: numpy.array
-        A matrix with the form (C+1, C+1) representing the transformation to be
+        A matrix with the form  :math:`(C+1, C+1)` representing the transformation to be
         used with homogeneous coordinates
         
     Examples
@@ -965,9 +966,9 @@ def pointInHexa(p,hexapoints):
        
     Parameters
     ----------
-    p : numpy.array (N, 3)
+    p : numpy.ndarray  :math:`(N,3)`
         List of points to be tested
-    hexapoints : numpy.array (8, 3)
+    hexapoints : numpy.ndarray  :math:`(8,3)`
         List of points defining an hexahedron, must obey the conventional order
         of defining hexas. Also works in the case hexa has negative volume
         (this was made especifically for cases when laser sheet is reflected)
@@ -1029,13 +1030,13 @@ def quadInterpolation(p,pquad,values):
     
     Parameters
     ----------
-    p : numpy.array (N, 3)
-    pquad : numpy.array (4, 3)
-    values : numpy.array (4, M)
+    p : numpy.ndarray  :math:`(N,3)`
+    pquad : numpy.ndarray  :math:`(4,3)`
+    values : numpy.ndarray  :math:`(4,M)`
     
     Returns
     -------
-    result : numpy.array (N, M)        
+    result : numpy.ndarray  :math:`(N,M)`   
     
     Examples
     --------
@@ -1147,12 +1148,12 @@ def quadArea(p1,p2,p3,p4):
         
     Parameters
     ----------
-    p1, p2, p3, p4 : numpy.array (N,3)
+    p1, p2, p3, p4 : numpy.ndarray  :math:`(N,3)`
         Points or list of points defining quadrilaterals
         
     Returns
     -------
-    result : (N)
+    result : numpy.ndarray  :math:`(N)`
         The area of the quadrilaterals
         
     Examples

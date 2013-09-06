@@ -46,11 +46,12 @@ class PyvsimObject(object):
     def __init__(self):
         self._id                           = PyvsimObject.instanceCounter
         self.name                          = str(self._id)
+        self.name = str(id(self))
         PyvsimObject.instanceCounter      += 1
         self.transientFields               = []
         
     @property
-    def id(self):               return self._id
+    def id(self):               return id(self) #self._id
 
     def __getstate__(self):
         """

@@ -379,7 +379,7 @@ class Assembly(Component):
         self._bounds                    = None
         self.surfaceProperty            = Component.TRANSPARENT
         Component.__init__(self)
-        self.name                       = 'Assembly '+str(self._id)
+        self.name                       = 'Assembly '+ str(self.id)
         # Ray tracing properties
         self.material                   = Library.IdealMaterial(1)
         self.surfaceProperty            = Component.TRANSPARENT     
@@ -566,8 +566,10 @@ class Assembly(Component):
                                        None)             
 
         self._items[n] = component
-            
-        component.parent = weakref.proxy(self)
+        # WARNING - this creates a memory leak if not weak reference is used,
+        # the problem is that python does not support good weak referencing
+#         component.parent = weakref.proxy(self)
+        component.parent = self
         self._bounds = None
         return len(self._items)
         
@@ -823,7 +825,7 @@ class Points(Component):
     
     def __init__(self):
         Component.__init__(self)
-        self.name                       = 'Line '+str(self._id)
+        self.name                       = 'Line '+str(self.id)
         self.points                     = np.array([])
         self.connectivity               = None
         self.color                      = None
@@ -881,7 +883,7 @@ class Line(Component):
     PLOTDIMS                  = 1
     def __init__(self):
         Component.__init__(self)
-        self.name                       = 'Line '+str(self._id)
+        self.name                       = 'Line '+str(self.id)
         self.points                     = np.array([])
         self.color                      = None
         self.width                      = None
@@ -1376,7 +1378,7 @@ class Plane(Part):
     PLOTDIMS                  = 3
     def __init__(self, dimension = np.array([0,1,1]), fastInit=False):
         Part.__init__(self)
-        self.name           = 'Plane '+str(self._id)
+        self.name           = 'Plane '+str(self.id)
         self.connectivity   = np.array([[0,1,2], [0,2,3]])
         self.normals        = None
         self._dimension     = dimension
@@ -1491,7 +1493,7 @@ class Volume(Part):
         3--------0
         """
         Part.__init__(self)
-        self.name           = 'Volume '+str(self._id)
+        self.name           = 'Volume '+str(self.id)
         self._dimension     = dimension
         # normals pointing outside 
         self.connectivity   = np.array([[1,4,0],[1,5,4], # normal +z
@@ -1616,7 +1618,7 @@ class RayBundle(Assembly):
     PLOTDIMS                  = -1
     def __init__(self):
         Assembly.__init__(self)
-        self.name                       = 'Bundle ' + str(self._id)
+        self.name                       = 'Bundle ' + str(self.id)
         self.material                   = None
         # Ray tracing configuration
         self.maximumRayTrace            = 10

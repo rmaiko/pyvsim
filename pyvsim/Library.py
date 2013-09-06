@@ -33,7 +33,7 @@ class Material(Core.PyvsimDatabasable):
     def __init__(self):
         Core.PyvsimObject.__init__(self)
         Core.PyvsimDatabasable.__init__(self)
-        self.name           = 'Material property '+str(self._id)
+        self.name           = 'Material property '+str(self.id)
         self.source         = "None"   
         
     def refractiveIndex(self, wavelength, position = None):

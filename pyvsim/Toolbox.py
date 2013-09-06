@@ -53,7 +53,7 @@ class Mirror(Primitives.Plane):
     """
     def __init__(self):
         Primitives.Plane.__init__(self)
-        self.name               = 'Mirror '+str(self._id)
+        self.name               = 'Mirror '+ str(self.id)
         self.surfaceProperty    = self.MIRROR
         
 class Dump(Primitives.Plane):
@@ -67,7 +67,7 @@ class Dump(Primitives.Plane):
     """
     def __init__(self):
         Primitives.Plane.__init__(self)
-        self.name               = 'Dump '+str(self._id)
+        self.name               = 'Dump '+ str(self.id)
         self.surfaceProperty    = self.DUMP
 
 class Sensor(Primitives.Plane):
@@ -103,7 +103,7 @@ class Sensor(Primitives.Plane):
            y
         """
         Primitives.Plane.__init__(self)
-        self.name                   = 'Sensor '+str(self._id)
+        self.name                   = 'Sensor '+ str(self.id)
         # self.heigth = 0.024                   x      y        z
         self.dimension              = np.array([0,  0.0090,  0.0122])
 #        self.dimension              = np.array([0,  0.024,  0.036])
@@ -219,12 +219,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        param_coords : numpy.ndarray (N,2)
+        param_coords : numpy.ndarray :math:`(N,2)`
             The parametric coordinates in the range -1..1. 
             
         Returns
         -------
-        sensor_coords : numpy.ndarray (N,2)
+        sensor_coords : numpy.ndarray :math:`(N,2)`
             The sensor coordinates in meters
         """
         dim_uv  = self.dimension[1:][::-1]/2
@@ -240,12 +240,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        param_coords : numpy.ndarray (N,2)
+        param_coords : numpy.ndarray :math:`(N,2)`
             The parametric coordinates in the range -1..1. 
             
         Returns
         -------
-        sensor_coords : numpy.ndarray (N,2)
+        sensor_coords : numpy.ndarray :math:`(N,2)`
             The sensor coordinates in meters
         """
         dim_uv  = 2/self.dimension[1:][::-1]
@@ -259,12 +259,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        param_coords : numpy.ndarray (N,2)
+        param_coords : numpy.ndarray :math:`(N,2)`
             The parametric coordinates in the range -1..1. 
             
         Returns
         -------
-        sensor_coords : numpy.ndarray (N,3)
+        sensor_coords : numpy.ndarray :math:`(N,3)`
             The sensor coordinates in meters
         """
         return self.parametricToPhysical(self.sensorToParametric(sensor_coords))
@@ -282,12 +282,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        coords : numpy.ndarray (N,3)
+        coords : numpy.ndarray :math:`(N,3)`
             The position in the sensor in normalized coordinates (range -1..1)
         
         Returns
         -------
-        pixels : numpy.ndarray (N,2)
+        pixels : numpy.ndarray :math:`(N,2)`
             The fractional position in sensor pixels in the format [row column] 
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
@@ -308,12 +308,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        coords : numpy.ndarray (N,3)
+        coords : numpy.ndarray :math:`(N,3)`
             The position in the sensor in normalized coordinates (range -1..1)
         
         Returns
         -------
-        pixels : numpy.ndarray (N,2)
+        pixels : numpy.ndarray :math:`(N,2)`
             The fractional position in sensor pixels in the format [row column] 
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
@@ -327,12 +327,12 @@ class Sensor(Primitives.Plane):
         
         Parameters
         ----------
-        coords : numpy.ndarray (N,3)
+        coords : numpy.ndarray :math:`(N,3)`
             The position in world coordinates
         
         Returns
         -------
-        pixels : numpy.ndarray (N,2)
+        pixels : numpy.ndarray :math:`(N,2)`
             The fractional position in sensor pixels in the format [row column] 
         
         DOES NOT CHECK IF OUTSIDE SENSOR BOUNDARIES!!!
@@ -626,7 +626,7 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
     def __init__(self):
         Primitives.Part.__init__(self)
         Core.PyvsimDatabasable.__init__(self)
-        self.name            = 'Lens '+str(self._id)
+        self.name            = 'Lens '+ str(self.id)
         self.dbName          = "Lenses"
         self.dbParameters    = ["color", "opacity", "diameter", "length",
                                 "flangeFocalDistance", "F", "H_fore_scalar",
@@ -929,7 +929,7 @@ class Camera(Primitives.Assembly):
     """ 
     def __init__(self):
         Primitives.Assembly.__init__(self)
-        self.name                       = 'Camera '+str(self._id)
+        self.name                       = 'Camera '+ str(self.id)
         self.lens                       = None
         self.sensor                     = None
         self.body                       = None
@@ -995,7 +995,7 @@ class Camera(Primitives.Assembly):
         ----------
         angle : float (radians)
             The scheimpflug angle
-        axis : numpy.array (3)
+        axis : numpy.ndarray :math:`(3)`
             The axis of rotation
         """
         self.lens.alignTo(self.x, 
@@ -1039,20 +1039,21 @@ class Camera(Primitives.Assembly):
         
     def mapPoints(self, pts, skipPupilAngle = False):
         """
-        This method determines the position that a set of points x,y,z map on
-        the camera sensor.
+        This method determines the position that a set of points :math:`x,y,z` 
+        map on the camera sensor.
         
         In order to optimize calculation speed, a lot of memory is used, but 
-        the method seems to run smoothly up to 2M points in a 5x5 mapping (2GB
-        of available RAM) 
+        the method seems to run smoothly up to :math:`2\cdot10^6` points in 
+        a :math:`5 \\times 5` mapping (2GB of available RAM) 
         
         The number of elements in the bottleneck matrix is:
         
-        N = npts * 3 * mappingResolution[0] * mappingResolution[1]
+        .. math::
+            N = npts \\cdot 3 \\cdot mappingResolution[0] \\cdot mappingResolution[1]
         
         Parameters
         ----------
-        pts : numpy.array (N,3)
+        pts : numpy.ndarray :math:`(N,3)`
             A collection of points in the space
             
         skipPupilAngle : boolean
@@ -1062,23 +1063,31 @@ class Camera(Primitives.Assembly):
             
         Returns
         -------
-        uv : numpy.array (N,3)
+        uv : numpy.ndarray :math:`(N,3)`
             The points (in sensor homogeneous coordinates) mapped to the
             sensor
-        w  : numpy.array (N)
+            
+        w  : numpy.ndarray :math:`(N)`
             The distance from the center of projection, as calculated by the
             DLT matrix
-        dudv : numpy.array (N,6)
+            
+        dudv : numpynd.array :math:`(N,6)`
             The derivatives of the coordinates u,v with respect to x,y,z in the
             following order:
-            [du/dx,  du/dy,  du/dz,  dv/dx,  dv/dy,  dv/dz]
-        lineOfSight : numpy.array (N,3)
+            
+            .. math::
+                \\left [{du \\over dx},  {du \\over dy},  {du \\over dz}, 
+                        {dv \\over dx},  {dv \\over dy},  {dv \\over dz} \\right ]
+            
+        lineOfSight : numpy.ndarray :math:`(N,3)`
             The line of sight vectors (the direction of the light ray that
             goes from the point to the camera center of projection)
-        imdim : numpy.array(N)
+            
+        imdim : numpy.ndarray :math:`(N)`
             The diameter of the image as generated by a point source (consider
             geometrical size + diffraction-limited size)
-        pupilSolidAngle : numpy.array(N)
+            
+        pupilSolidAngle : numpy.ndarray :math:`(N,3)`
             The solid angle formed by the entrance pupil and the given points. 
             If flag skipPupilAngle is true, returns None
         """
@@ -1157,10 +1166,12 @@ class Camera(Primitives.Assembly):
         
         Parameters
         ----------
-        sensorParamCoords : numpy.array (N,2)
+        sensorParamCoords : numpy.ndarray :math:`(N,2)`
             The UV coordinates of the point in the sensor originating the rays
+            
         maximumRayTrace : float
             The maximum distance for the ray to be traced
+            
         restart : boolean (False)
             If the previous tracing needs to be continued, setting this flag
             to True will make the process continue from its last point 
@@ -1173,7 +1184,7 @@ class Camera(Primitives.Assembly):
             # sensor 
             initialVectors = self.lens.rayVector(sensorCoords)
             bundle         = Primitives.RayBundle()
-            bundle.name    = self.name + "RayTracingBundle"
+            bundle.name    = str(self.name) + "RayTracingBundle"
             bundle.append(initialVectors, 
                           self.lens.PinholeFore, 
                           self.referenceWavelength)
@@ -1314,6 +1325,7 @@ class Camera(Primitives.Assembly):
         """
         vv,vh = self._depthOfField()
         # Make sure rays intersect volume by expanding it a little
+        print vh.points, vv.points
         vv.expand(0.005)
         self.parent += vv
         self._calculateMappings(vv)
@@ -1397,6 +1409,7 @@ class Camera(Primitives.Assembly):
 
         """ p_fore and p_aft are the points in space limiting the in-focus
         region, were there no obstructions, reflection, etc """
+        print p_fore
         
         p_fore_horz = np.empty_like(p_fore)
         p_fore_vert = np.empty_like(p_fore)
@@ -1469,14 +1482,16 @@ class Camera(Primitives.Assembly):
         
         Parameters
         ----------
-        theoreticalPoint : numpy.array (3)
+        theoreticalPoint : numpy.ndarray :math:`(3)`
             This is the point in space where the camera would be imaging if it
             were isolated (no mirrors, refractions, etc)
-        angles : numpy.array (N) [0, 90]
+            
+        angles : numpy.ndarray :math:`(N)`, :math:`[0, 90]`
             The angles (with relation to the optical axis) for analysis of 
             astigmatism in the system. The typical configuration performs the
-            analysis only on the lens xy and xz planes, respectively.         
-        tol : float (1e-3)
+            analysis only on the lens xy and xz planes, respectively.  
+                   
+        tol : float :math:`(1e-3)`
             The tolerance in finding the ray intersection. This value is kept
             relatively high because in the case of astigmatism, the Y and Z
             axes of the camera might not be aligned with the astigmatism axes,
@@ -1486,11 +1501,12 @@ class Camera(Primitives.Assembly):
             
         Returns
         -------
-        pts : numpy.array (N,3)
+        pts : numpy.ndarray :math:`(N,3)`
             Each point is the intersection of the marginal rays casted from
             the intersection of the entrance pupil and a plane at an angle
             determined by the parameter "angle" in the input. 
-        angle : numpy.array (N)
+            
+        angle : numpy.ndarray :math:`(N)`
             The solid angle formed by the point and the entrance pupil
         """
         pupilPoints   = np.ones((2*len(angles),3))
@@ -1630,7 +1646,7 @@ class Camera(Primitives.Assembly):
 class Seeding(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
-        self.name                   = 'Seeding ' + str(self._id)
+        self.name                   = 'Seeding ' + str(self.id)
         self.volume                 = Primitives.Volume()
         self.cloud                  = Primitives.Points()
         self                       += self.volume
@@ -1650,7 +1666,7 @@ class Seeding(Primitives.Assembly):
         
         Parameters
         ----------
-        wavelength : scalar or numpy.array
+        wavelength : scalar or numpy.ndarray
             The wavelength of the incoming light given in *meters*
         
         Returns
@@ -1781,7 +1797,7 @@ class CalibrationPlate(Seeding):
 class Laser(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
-        self.name                       = 'Laser '+str(self._id)
+        self.name                       = 'Laser '+ str(self.id)
         self.transientFields.extend(["profileInterpolator"])
         self.body                       = None
         self.rays                       = None
@@ -1984,12 +2000,12 @@ class Laser(Primitives.Assembly):
         
         Parameters
         ----------
-        pts : numpy.array (N,3)
+        pts : numpy.ndarray :math:`(N,3)`
             A number of points in space
         
         Returns
         -------
-        intensity : numpy.array (N,3)
+        intensity : numpy.ndarray :math:`(N,3)`
             A vector which norm is the light intensity (in :math:`J/m^2`) pointing to
             the direction that the light emanating from the laser is
         """
