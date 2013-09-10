@@ -31,7 +31,7 @@ import copy
 import Utils
 import Library
 import Core
-import weakref
+# import weakref
 
 # Global constants
 GLOBAL_NDIM  = 3
@@ -171,7 +171,7 @@ class Component(Core.PyvsimObject):
         update that to P+vector
         
         This is a way of implementing the `Chain of Responsibility 
-        <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>` 
+        <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>`_ 
         pattern, so that these geometrical operations are executed recursively.
         
         *This is a protected method, do not use it unless you are inheriting
@@ -230,7 +230,7 @@ class Component(Core.PyvsimObject):
             P = Utils.rotatePoints(P,angle,axis,pivotPoint)
             
         This is a way of implementing the `Chain of Responsibility 
-        <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>` 
+        <http://http://en.wikipedia.org/wiki/Chain-of-responsibility_pattern>`_ 
         pattern, so that these geometrical operations are executed recursively.
         
         *This is a protected method, do not use it unless you are inheriting
