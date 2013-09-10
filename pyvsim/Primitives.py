@@ -107,7 +107,7 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        p0, p1 - numpy.array (N x 3)
+        p0, p1 - numpy.ndarray :math:` (N, 3)`
             Coordinates defining N segments by 2 points (each p0, p1 pair), 
             which will be tested for intersection with the polygons defined in 
             the structure.
@@ -154,7 +154,7 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        vector : numpy.array (1 x 3)
+        vector : numpy.ndarray :math:` (1, 3)`
             Vector to translate the component. An array with x, y and z 
             coordinates
         """
@@ -179,7 +179,7 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        vector : numpy.array (1 x 3)
+        vector : numpy.ndarray :math:` (1, 3)`
             Vector to translate the component. An array with x, y and z 
             coordinates
                 
@@ -200,9 +200,9 @@ class Component(Core.PyvsimObject):
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.array (1 x 3)
+        axis : numpy.ndarray :math:` (1, 3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.array (1 x 3)
+        pivotPoint : numpy.ndarray :math:` (1, 3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         """
@@ -240,9 +240,9 @@ class Component(Core.PyvsimObject):
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.array (1 x 3)
+        axis : numpy.ndarray :math:`(1,3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.array (1 x 3)
+        pivotPoint : numpy.ndarray :math:` (1,3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         
@@ -271,13 +271,13 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        x_new, [y_new, z_new] : numpy.array(1,3)
+        x_new, [y_new, z_new] : numpy.ndarray :math:`(1,3)`
             New vectors defining the orientation of the part. The vectors need
             NOT to be normalized, but MUST be orthogonal.
             
             Vectors y_new or z_new can be omitted (one at a time) and will be
             implicitly calculated
-        pivotPoint : numpy.array(1,3)
+        pivotPoint : numpy.ndarray :math:`(1,3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around local origin.
         tol : 1e-8
@@ -490,7 +490,7 @@ class Assembly(Component):
         
         Parameters
         ----------
-        wavelength : scalar or numpy.array
+        wavelength : scalar or numpy.ndarray :math:`(N)`
             The wavelength of the incoming light given in *meters*
         
         Returns
@@ -511,7 +511,7 @@ class Assembly(Component):
         
         Returns
         -------
-        bounds : numpy.array(2,3)
+        bounds : numpy.ndarray :math:`(2,3)`
             An array containing the following elements: 
             [[xmin, ymin, zmin],
              [xmax, ymax, zmax]]
@@ -646,12 +646,12 @@ class Assembly(Component):
         
         Parameters
         ----------
-        bounds : numpy.array([[xmin,ymin,zmin],[xmax,ymax,zmax]])
+        bounds : numpy.ndarray :math:`([[xmin,ymin,zmin],[xmax,ymax,zmax]])`
             the dimensions of the bounding box
-        p0 : numpy.array (N x 3)
+        p0 : numpy.ndarray :math:`(N,3)`
             segment initial point - accepts simultaneous calculation of N 
             points
-        p1 : numpy.array (N x 3)
+        p1 : numpy.ndarray :math:`(N,3)`
             segment final point   - accepts simultaneous calculation of N 
             points
         
@@ -662,7 +662,7 @@ class Assembly(Component):
         +----------------------+----+
         |if not intersection   |  0 | 
         +----------------------+----+
-        if N lives were given, will return a N-long numpy.array
+        if N lives were given, will return a N-long numpy.ndarray
         """
         [xmin,xmax] =  bounds
 
@@ -706,7 +706,7 @@ class Assembly(Component):
         
         Parameters
         ----------
-        p0, p1 - numpy.array (N x 3)
+        p0, p1 - numpy.ndarray :math:`(N,3)`
             Coordinates defining N segments by 2 points (each p0, p1 pair), 
             which will be tested for intersection with the polygons defined in 
             the structure.
@@ -981,7 +981,7 @@ class Part(Component):
         
         Parameters
         ----------
-        wavelength : scalar or numpy.array
+        wavelength : scalar or numpy.ndarray
             The wavelength of the incoming light given in *meters*
         
         Returns
@@ -998,7 +998,7 @@ class Part(Component):
         
         Returns
         -------
-        bounds : numpy.array
+        bounds : numpy.ndarray :math:`(6)`
             An array with the following data [xmin, xmax, ymin, ymax, zmin,
             zmax]. Defining a box aligned to axis bounding the Part
         """
@@ -1098,7 +1098,7 @@ class Part(Component):
         
         Parameters
         ----------
-        p0, p1 - numpy.array (N x 3)
+        p0, p1 - numpy.ndarray :math:`(N,3)`
             Coordinates defining N segments by 2 points (each p0, p1 pair), 
             which will be tested for intersection with the polygons defined in 
             the structure.
@@ -1258,16 +1258,16 @@ class Part(Component):
         
         Parameters
         ----------
-        triangleIndexes : numpy.array (N x 3)
+        triangleIndexes : numpy.ndarray :math:`(N,3)`
             indexes of the triangles vertices (the order is important, otherwise
             the normals can be inverted. As this method is vectorized, it is
             possible to execute N calculations at the same time.
-        intersectionCoords : numpy.array (N x 3)
+        intersectionCoords : numpy.ndarray :math:`(N,3)`
             coordinates of the intersection points
             
         Returns
         -------
-        result : numpy.array (N x 3)
+        result : numpy.ndarray :math:`(N,3)`
             normal vectors
         """
         triangleCoords  = self.points[self.connectivity[triangleIndexes]]
@@ -1300,7 +1300,7 @@ class Part(Component):
         
         Parameters
         ----------
-        vector : numpy.array (1 x 3)
+        vector : numpy.ndarray :math:`(1,3)`
             Vector to translate the component. An array with x, y and z 
             coordinates
         """
@@ -1327,9 +1327,9 @@ class Part(Component):
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.array (1 x 3)
+        axis : numpy.ndarray :math:`(1,3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.array (1 x 3)
+        pivotPoint : numpy.ndarray :math:`(1,3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         """
@@ -1562,12 +1562,12 @@ class Volume(Part):
         
         Parameters
         ----------
-        p : numpy.array (N,3)
+        p : numpy.ndarray :math:`(N,3)`
             A collection of points
             
         Returns
         -------
-        result : numpy.array (N) 
+        result : numpy.ndarray :math:`(N)`
             An array with "1" corresponding to points in the hexa or "0" 
             otherwise
         """
@@ -1578,14 +1578,14 @@ class Volume(Part):
         This is a convienience function to interpolate the data in the ".data"
         field of this object. As the field is not under surveillance, it is
         the responsibility of the user to ensure that the field contains a
-        numpy.array with the shape (M,8), i.e. one data point for each
+        numpy.ndarray  with the shape :math:`(M,8)`, i.e. one data point for each
         vertex
         
         
         
         Parameters
         ----------
-        p : numpy.array (N,3)
+        p : numpy.ndarray :math:`(N,3)`
             A collection of points
             
         verify : boolean (True)
@@ -1594,7 +1594,7 @@ class Volume(Part):
             
         Returns
         -------
-        result : numpy.array (N,M) 
+        result : numpy.ndarray :math:`(N,M)` 
             An array with the data from the field ".data" interpolated
         """
         if not verify:
@@ -1644,14 +1644,14 @@ class RayBundle(Assembly):
         
         Parameters
         ----------
-        initialVector : numpy.array (N x 3)
+        initialVector : numpy.ndarray :math:`(N,3)`
             if N rays are given, each element is the initial vector for ray
             tracing of each ray
-        initialPosition : numpy.array (N x 3)
+        initialPosition : numpy.ndarray :math:`(N,3)`
             if no parameter is passed, rays will depart from the origin of the
             bundle. Otherwise they will depart from the given points. If N
             points were given, a single common starting point can be given
-        wavelength : numpy.array (N)
+        wavelength : numpy.ndarray :math:`(N)`
             the wavelength of the rays in meters (this changes the color and
             the behavior of the rays, if any dispersing element is present in
             the simulation
@@ -1747,7 +1747,7 @@ class RayBundle(Assembly):
         
         Parameters
         ----------
-        translation : numpy.array (3)
+        translation : numpy.ndarray :math:` (3)`
             A [dx, dy, dz] vector
         """
         try:
@@ -1765,9 +1765,9 @@ class RayBundle(Assembly):
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.array (1 x 3)
+        axis : numpy.ndarray :math:` (1, 3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.array (1 x 3)
+        pivotPoint : numpy.ndarray :math:` (1, 3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         """
@@ -1930,15 +1930,15 @@ class RayBundle(Assembly):
         
         Parameters
         ----------
-        currVector : numpy.array (N x 3)
+        currVector : numpy.ndarray :math:` (N, 3)`
             The current ray path
-        t : numpy.array (N)
+        t : numpy.ndarray :math:` (N)`
             The position of the intersection given by the equation
             p = p0 + t*(p1 - p0). The value of t must be between zero 
             (exclusive) and 1 (inclusive) to be considered valid.
-        N : numpy.array (N x 3)
+        N : numpy.ndarray :math:` (N, 3)`
             The normal vector of the intersected surface
-        surface : numpy.array(N) of Components
+        surface : numpy.ndarray :math:`(N)` of Components
             The references to the intersected surfaces
         tracing rule : RayBundle.TRACING_FOV or TRACING_LASER_REFLECTION
             This parameter tells if ray tracing should stop at opaque surfaces
@@ -1947,7 +1947,7 @@ class RayBundle(Assembly):
             
         Returns
         -------
-        vectors : numpy.array (N x 3)
+        vectors : numpy.ndarray :math:` (N, 3)`
             the vectors indicating the direction that ray paths must continue
             in ray tracing
             
