@@ -1325,7 +1325,7 @@ class Camera(Primitives.Assembly):
         """
         vv,vh = self._depthOfField()
         # Make sure rays intersect volume by expanding it a little
-        print vh.points, vv.points
+#         print vh.points, vv.points
         vv.expand(0.005)
         self.parent += vv
         self._calculateMappings(vv)
