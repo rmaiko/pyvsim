@@ -91,7 +91,7 @@ class PyvsimObject(object):
         """
         Generates a unique string to identify the object
         """
-        return ("PYVSIMOBJECT%%" + str(type(self)) +
+        return (self.name+" - PYVSIMOBJECT%%" + str(type(self)) +
                 "%%IDNUMBER%%" + str(self.id))
 
     
