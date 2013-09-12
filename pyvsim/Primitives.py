@@ -46,11 +46,11 @@ class Component(Core.PyvsimObject):
     The class component is a representation of elements used in the simulation.
     
     Most of its methods are abstract (throw a NotImplementedError) because the
-    really useful classes are its derivatives::
+    really useful classes are its derivatives:
     
-    * :class:`~.Core.Assembly`
-    * :class:`~.Core.Part`
-    * :class:`~.Core.Line`
+    * Assembly
+    * Part
+    * Line
     
     However, this class exists to stipulate a common interface for all elements
     in simulation, allowing a tree-like nesting of them.
@@ -60,7 +60,7 @@ class Component(Core.PyvsimObject):
     implemented, and if you try to change them, you will get an error.
     
     There is also a implementation of the visitor pattern using the 
-    :meth:`~Core.Component.acceptVisitor` method
+    acceptVisitor method
     """
     MIRROR                    = "MIRROR"
     TRANSPARENT               = "TRANSPARENT"
@@ -107,7 +107,7 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        p0, p1 - numpy.ndarray :math:` (N, 3)`
+        p0, p1 - numpy.ndarray :math:`(N, 3)`
             Coordinates defining N segments by 2 points (each p0, p1 pair), 
             which will be tested for intersection with the polygons defined in 
             the structure.
@@ -141,7 +141,7 @@ class Component(Core.PyvsimObject):
         part
             A list with references to this object. This is, in this case, 
             redundant, but that makes the function signature uniform with the
-            `:class:~Core.Assembly`
+            Assembly class
         """
         return None
         
@@ -150,11 +150,11 @@ class Component(Core.PyvsimObject):
         This method should be used when there is a change in the component
         position. This method operates only with the origin position, and
         delegates the responsibility to the inheriting class by means of the
-        :meth:`~Core.Component.translateImplementation()` method.
+        translateImplementation method.
         
         Parameters
         ----------
-        vector : numpy.ndarray :math:` (1, 3)`
+        vector : numpy.ndarray :math:`(1, 3)`
             Vector to translate the component. An array with x, y and z 
             coordinates
         """
@@ -179,7 +179,7 @@ class Component(Core.PyvsimObject):
         
         Parameters
         ----------
-        vector : numpy.ndarray :math:` (1, 3)`
+        vector : numpy.ndarray :math:`(1, 3)`
             Vector to translate the component. An array with x, y and z 
             coordinates
                 
@@ -194,15 +194,15 @@ class Component(Core.PyvsimObject):
         This method should be used when there is a change in the component
         position. This method operates only with the origin and the x, y and z
         vectors. It delegates the responsibility to the inheriting class by 
-        means of the :meth:`~Core.Component.rotateImplementation()` method.
+        means of the rotateImplementation method.
         
         Parameters
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.ndarray :math:` (1, 3)`
+        axis : numpy.ndarray :math:`(1, 3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.ndarray :math:` (1, 3)`
+        pivotPoint : numpy.ndarray :math:`(1, 3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         """
@@ -242,7 +242,7 @@ class Component(Core.PyvsimObject):
             Angle : scalar (in radians)
         axis : numpy.ndarray :math:`(1,3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.ndarray :math:` (1,3)`
+        pivotPoint : numpy.ndarray :math:`(1,3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         
@@ -263,7 +263,7 @@ class Component(Core.PyvsimObject):
         With the new vector base, a rotation matrix M is calculated, and the
         `formulation to convert rotation matrix to axis-angle 
         <http://http://en.wikipedia.org/wiki/Rotation_matrix#Conversion_from_and_to_axis-angle>`_
-        is used for convenience (as then the method :meth:`~Core.Component.rotate`
+        is used for convenience (as then the method rotate
         can be directly called).
         
         Obs: No concerns about code efficiency are made, as this method will
@@ -701,7 +701,7 @@ class Assembly(Component):
         """
         This method searches for intersections between a given set of line
         segments and the Parts included in this Assembly. Please check the
-        documentation at `:class:~Core.Part` for a better description of its
+        documentation at Part class for a better description of its
         internals.
         
         Parameters
@@ -737,7 +737,7 @@ class Assembly(Component):
         part
             A list with references to this object. This is, in this case, 
             redundant, but that makes the function signature uniform with the
-            `:class:~Core.Assembly`
+            Assembly class
         """
         nlins               = np.size(p0,0)
         ndim                = np.size(p0,1)
@@ -787,7 +787,7 @@ class Assembly(Component):
     def translateImplementation(self, vector):
         """
         This method iterates the translation to all the items found in the list,
-        making the `:meth:~Core.Component.translate` method be executed through
+        making the translate method be executed through
         the whole components tree.
         """
         for part in self._items:
@@ -796,7 +796,7 @@ class Assembly(Component):
     def rotateImplementation(self, angle, axis, pivotPoint):
         """
         This method iterates the rotation to all the items found in the list,
-        making the `:meth:~Core.Component.rotate` method be executed through
+        making the rotate method be executed through
         the whole components tree.
         """
         for part in self._items:
@@ -805,7 +805,7 @@ class Assembly(Component):
     def clearData(self):
         """
         This method iterates the clearData to all the items found in the list,
-        making the `:meth:~Core.Component.clearData` method be executed through
+        making the clearData method be executed through
         the whole components tree.
         """
         self._bounds = None
@@ -1129,7 +1129,7 @@ class Part(Component):
         part
             A list with references to this object. This is, in this case, 
             redundant, but that makes the function signature uniform with the
-            `:class:~Core.Assembly`
+            Assembly class
         """
         #
         # Some assertions to guarantee that the input data is correct:
@@ -1453,19 +1453,8 @@ class Plane(Part):
     
 class Volume(Part):
     """
-    This class is used to represent a general hexahedron. Even though some
-    methods will force it to become a cuboid (where all angles are right), such
-    as::
-    
-    * :meth:`~Core.Volume.width`
-    * :meth:`~Core.Volume.depth`
-    * :meth:`~Core.Volume.heigth`
-    * :meth:`~Core.Volume.dimension`
-    
-    These methods can be safely ignored a set of points can be directly given,
-    allowing quadrilaterally-faced hexas to be represented (check 
-    `Wikipedia's article <http://en.wikipedia.org/wiki/Hexahedron>`_ for more
-    information)
+    This class is used to represent a general hexahedron. Most methods, however,
+    only work if the faces of the hexa are planar
     """
     PLOTDIMS          = 3
     PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
@@ -1747,7 +1736,7 @@ class RayBundle(Assembly):
         
         Parameters
         ----------
-        translation : numpy.ndarray :math:` (3)`
+        translation : numpy.ndarray :math:`(3)`
             A [dx, dy, dz] vector
         """
         try:
@@ -1765,9 +1754,9 @@ class RayBundle(Assembly):
         ----------
         angle
             Angle : scalar (in radians)
-        axis : numpy.ndarray :math:` (1, 3)`
+        axis : numpy.ndarray :math:`(1, 3)`
             Vector around which the rotation occurs.
-        pivotPoint : numpy.ndarray :math:` (1, 3)`
+        pivotPoint : numpy.ndarray :math:`(1, 3)`
             Point in space around which the rotation occurs. If not given, 
             rotates around origin.
         """
@@ -1930,13 +1919,13 @@ class RayBundle(Assembly):
         
         Parameters
         ----------
-        currVector : numpy.ndarray :math:` (N, 3)`
+        currVector : numpy.ndarray :math:`(N, 3)`
             The current ray path
-        t : numpy.ndarray :math:` (N)`
+        t : numpy.ndarray :math:`(N)`
             The position of the intersection given by the equation
             p = p0 + t*(p1 - p0). The value of t must be between zero 
             (exclusive) and 1 (inclusive) to be considered valid.
-        N : numpy.ndarray :math:` (N, 3)`
+        N : numpy.ndarray :math:`(N, 3)`
             The normal vector of the intersected surface
         surface : numpy.ndarray :math:`(N)` of Components
             The references to the intersected surfaces
@@ -1947,7 +1936,7 @@ class RayBundle(Assembly):
             
         Returns
         -------
-        vectors : numpy.ndarray :math:` (N, 3)`
+        vectors : numpy.ndarray :math:`(N, 3)`
             the vectors indicating the direction that ray paths must continue
             in ray tracing
             
