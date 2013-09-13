@@ -150,6 +150,6 @@ def chupatudo(filename, outpath, package = None):
 if __name__ == "__main__":
     inpath   = os.path.abspath("./pyvsim")
     outpath  = os.path.abspath("./docsource")
-    forbidden = ["couchdb","Oldversion","source",".git","build","examples"]
+    forbidden = ["couchdb","Oldversion","source",".git","build","analysis"]
     xupadir(inpath, outpath, forbidden,"pyvsim")     
     
