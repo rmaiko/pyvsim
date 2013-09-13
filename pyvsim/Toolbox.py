@@ -1409,7 +1409,7 @@ class Camera(Primitives.Assembly):
 
         """ p_fore and p_aft are the points in space limiting the in-focus
         region, were there no obstructions, reflection, etc """
-        print p_fore
+#         print p_fore
         
         p_fore_horz = np.empty_like(p_fore)
         p_fore_vert = np.empty_like(p_fore)
