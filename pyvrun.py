@@ -10,6 +10,10 @@ import argparse
 import sys
 
 def readscenario(filename):
+    """
+    Reads a JSON file containing a scenario structure, instantiates every
+    object and saves it to another JSON file for human-readability.
+    """
     f = open(filename)
     content = f.read()
     f.close()
@@ -27,6 +31,10 @@ def readscenario(filename):
     return env
     
 def readinstructions(filename):
+    """
+    Reads a JSON file with instruction for loading a simulation and executing
+    it. 
+    """
     f = open(filename)
     content = f.read()
     f.close()
@@ -34,8 +42,6 @@ def readinstructions(filename):
     structure = json.loads(content)
     
     environment = pyvsim.System.load(structure["scenario"])
-#     print environment["camera1"].__dict__
-#     print environment["laser"].__dict__
     
     commands    = structure["commands"]
     
@@ -45,9 +51,14 @@ def readinstructions(filename):
         if not action.executed:
             raise ValueError("Object " + action.name + " not found!")
     
-    pyvsim.System.plot(environment)
+    return environment
     
 class Command(object):
+    """
+    This class exploits the visitor pattern to traverse the environment tree, 
+    find an object by name and send it an order to execute a given method, or 
+    a change of a given parameter.
+    """
     def __init__(self, name, commands):
         self.executed = False
         self.name      = str(name)
@@ -59,27 +70,43 @@ class Command(object):
             self.executed = True
             
 def popelements(key, dictionary):
+    """
+    Instantiates the objects in a scenario. It is restricted to objects from
+    the :doc:`Toolbox` module, STL files and assemblies.
+    
+    Parameters
+    ----------
+    key : str
+        The name of the object to be instantiated
+    dictionary : dict
+        A dictionary with the following mandatory keys:
+            
+            * type : "STL", "Assembly" or the name of the class in the Toolbox
+              module
+            * filename, **iif** type = "STL", is the name of the STL file to be
+             read
+    """
     print "Parsing ", key
     
     if dictionary["type"] == "Assembly":
         blob      = pyvsim.Primitives.Assembly()
-        blob.name = str(key)
         for name, value in dictionary.items():
             if name != "type":
                 print "Recursive call to ", name
                 blob += popelements(name, value)
+                
     elif dictionary["type"] == "STL":
         blob      = pyvsim.Utils.readSTL(dictionary["filename"])
-        blob.name = str(key)
         print "Read ", dictionary["filename"]," ", blob, "\n\n"
         del dictionary["filename"]
         configelement(blob, dictionary)
+        
     else:
         mod         = pyvsim.Toolbox
         blob        = getattr(mod, dictionary["type"])()
-        blob.name   = str(key)
         configelement(blob, dictionary)
      
+    blob.name   = str(key)
     return blob
 
 def configelement(blob, configs):
@@ -134,7 +161,8 @@ def configelement(blob, configs):
                 print "Setting ", key, " at ", configurable_n_1, " to ", item
                 setattr(configurable_n_1, path[-1], item)
                 
-def main(args):
+if __name__ == "__main__":
+    args = sys.argv[1:]
     parser = argparse.ArgumentParser("Executes pyvsim in a command line interface")
     parser.add_argument("--geometry",
                         dest    = "run",
@@ -159,20 +187,5 @@ def main(args):
     arguments = parser.parse_args(args)
 
     env = arguments.run(arguments.filename)
-#     print arguments
     if arguments.plot:
         pyvsim.System.plot(env)
-                
-if __name__ == "__main__":
-    args = sys.argv[1:]
-    main(args)
-#     env = readscenario("./examples/test340.json")
-#     print env
-#     pyvsim.System.plot(env)
-#     
-#     readinstructions("./examples/test_340_commands.json")
-
-    
-#     env = System.load("a340.pyvsim")
-#     print "Loaded"
-#     System.plot(env)
