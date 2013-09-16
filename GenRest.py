@@ -31,6 +31,23 @@ import re
 
 # test
 def xupadir(inpath, outpath, forbidden = [], package = None):
+    """
+    A routine to sweep directories, find .py files in them,
+    and generate ReST files for the generation of documentation.
+    
+    Parameters
+    ----------
+    inpath : str
+        The input directory (will sweep subdirs)
+        
+    outpath : str
+        The destination directory to save .rst files
+        
+    forbidden : list of str
+        Directories that shall not be swept
+        
+    package  : used only for recursion
+    """
     sys.path.insert(0, os.path.abspath(inpath))
     files = os.listdir(inpath)
     for filename in files:
@@ -48,6 +65,40 @@ def xupadir(inpath, outpath, forbidden = [], package = None):
                             outpath, forbidden, filename)
                         
 class module_file(object):
+    """
+    **This class is not secure** and is used only for generating an intermediate
+    file to create documentation. A file can be left open in case the writing
+    process crashes (the python interpreter is expected to collect all garbage 
+    in this case, so it may not be a problem)
+    
+    This behavior is there so that the following classes respect the same
+    interface:
+    
+    * module_file
+    * class_file
+    * func_file
+    
+    The main objective of this class is writing a file with the following 
+    content::
+        ============
+        mymodulename
+        ============
+        
+        .. currentmodule:: mymodule
+        .. autoclass:: mymodule.myclassname
+        
+        Contents
+        ========
+        
+        .. toctree::
+            :maxdepth: 2
+            
+            myfunction1
+            
+            myfunction2
+            
+            myfunctionN
+    """
     def __init__(self, package, name, outpath):
         self.name = name
         fname = name + ".rst"
@@ -69,12 +120,40 @@ class module_file(object):
         self.file.write("    :maxdepth: 2  \n\n")
         
     def addthing(self, name): 
+        """
+        Adds an item to the table of contents in the module file
+        """
         self.file.write("    " + name + "\n")
         
     def flush(self):
+        """
+        Closes file and writes output
+        """
         self.file.close()
         
 class class_file(object):
+    """
+    **This class is not secure** and is used only for generating an intermediate
+    file to create documentation. A file can be left open in case the writing
+    process crashes (the python interpreter is expected to collect all garbage 
+    in this case, so it may not be a problem)
+    
+    This behavior is there so that the following classes respect the same
+    interface:
+    
+    * module_file
+    * class_file
+    * func_file
+    
+    The main objective of this class is writing a file with the following 
+    content::
+        ===========
+        myclassname
+        ===========
+        
+        .. currentmodule:: mymodule
+        .. autoclass:: mymodule.myclassname
+    """
     def __init__(self, package, name, outpath):
         self.name = name
         fname = name + ".rst"
@@ -88,9 +167,34 @@ class class_file(object):
         self.file.write("    :members: \n")            
                 
     def flush(self):
+        """
+        Closes file and writes output
+        """
         self.file.close()
         
 class func_file(object):
+    """
+    **This class is not secure** and is used only for generating an intermediate
+    file to create documentation. A file can be left open in case the writing
+    process crashes (the python interpreter is expected to collect all garbage 
+    in this case, so it may not be a problem)
+    
+    This behavior is there so that the following classes respect the same
+    interface:
+    
+    * module_file
+    * class_file
+    * func_file
+    
+    The main objective of this class is writing a file with the following 
+    content::
+        =============
+        myfunctioname
+        =============
+        
+        .. currentmodule:: mymodule
+        .. autofunction:: mymodule.myfunctioname
+    """
     def __init__(self, package, name, outpath):
         self.name = name
         fname = name + ".rst"
@@ -103,9 +207,21 @@ class func_file(object):
         self.file.write(".. autofunction:: "+package+"."+name+"\n\n")  
                 
     def flush(self):
+        """
+        Closes file and writes output
+        """
         self.file.close()        
                 
 def chupatudo(filename, outpath, package = None):
+    """
+    Reads a file and generates ReST files for each class
+    and function defined at the lowest indentation level.
+    
+    Parameters
+    ----------
+    filename : str
+        The absolute path to the
+    """
     module_name = re.search("(.*)(\.py)", 
                             os.path.split(filename)[1]).group(1)
     print module_name
