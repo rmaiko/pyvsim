@@ -390,32 +390,58 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     
     tic.tic()
-    theta = np.linspace(0*np.pi/180,100*np.pi/180,1001)
+    # Define a range of scattering angles. Will go from 0 to 100 deg in 101
+    # steps
+    theta = np.linspace(0*np.pi/180,100*np.pi/180,101)
+    # Create a range of diameters
     diam = np.arange(0.0,3.1,0.0062)
+    # Create a cumulative probability density function representing the particle 
+    # size distribution
     pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
+    # We need in fact not a cumulative one, but a real distribution, so let's
+    # derive it
     perc = np.diff(pdf)
+    # We were working with microns, but the code needs meters as input
+    # Take care - too big particles will make it crash because it will use too
+    # much memory
     diam = diam[1:]*1e-6
-    scs1 = distributedSCS(1.45386, 
-                          diam, 
-                          perc, 
-                          532e-9,
-                          theta)[0]
+    # Now we take the scattering cross section of the distribution. Note that
+    # we are taking only one line of the vector (the [0] line), as it
+    # represents light polarized perpendicular to the propagation plane
+    # (worst case)
+    scs1 = distributedSCS(refractiveIndex = 1.45386, 
+                          diameters       = diam, 
+                          percentage      = perc, 
+                          wavelength      = 532e-9,
+                          theta           = theta)[0]
                                                        
     tic.toc()
+    # I think you can compare directly the values of SCS1. Here a filtering
+    # is done to represent a lens (as they have a finite aperture size, so
+    # the angle it will "see" is actually a range
+    #
+    # Just comment out this area
     apertureAngle = 0
     kernel = np.ones(apertureAngle*len(theta)/180)
     kernel = kernel / len(kernel)
     print "Kernel is %d elements long" % len(kernel)
     
+    # This is useful in case you need to check the particle size distribution
     #for s in scs1:
     #    print s
     #for n,s in enumerate(perc):
     #    print diam[n], s    
+#     plt.figure(facecolor = [1,1,1])
+#     plt.plot(diam,perc)
+#     plt.show()
         
+    # Plotting the distribution scattering properties
     plt.figure(facecolor = [1,1,1])
     plt.hold(True)
     plt.plot(theta*180/np.pi, scs1, label = "Whole distribution")
     
+    # This is used to plot the individual contributions (scattering of a single
+    # diameter)
     for n in range(0,len(diam),int(len(diam)/5.)):
         print n, diam[n]
         scs2 = distributedSCS(1.45386, 
@@ -432,6 +458,7 @@ if __name__ == "__main__":
             plt.plot(theta*180/np.pi,scs2, 
                      label = "D=%s micron contribution" % (diam[n]*1e6))
     
+    # Formatting the plot
     plt.xlabel("Scattering angle")
     plt.ylabel("Scattering cross section (m^2)/(sr)")
     plt.legend(loc=3)
