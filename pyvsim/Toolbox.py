@@ -44,12 +44,7 @@ GLOBAL_NDIM = 3
 
 class Mirror(Primitives.Plane):
     """
-    This class initializes a 1x1m mirror, which can be resized by the
-    methods::
-    
-    * :meth:`~Primitives.Plane.dimension` (preferred); or
-    * :meth:`~Primitives.Plane.length`
-    * :meth:`~Primitives.Plane.heigth`  
+    This class initializes a :math:`1 \\times 1`m mirror. 
     """
     def __init__(self):
         Primitives.Plane.__init__(self)
@@ -58,12 +53,8 @@ class Mirror(Primitives.Plane):
         
 class Dump(Primitives.Plane):
     """
-    This class initializes a 1x1m beam dump, that will stop any ray that
-    arrives at it.
-    
-    * :meth:`~Primitives.Plane.dimension` (preferred); or
-    * :meth:`~Primitives.Plane.length`
-    * :meth:`~Primitives.Plane.heigth`  
+    This class initializes a :math:`1 \\times 1`m beam dump, that will stop any 
+    ray that arrives at it. 
     """
     def __init__(self):
         Primitives.Plane.__init__(self)
@@ -89,42 +80,51 @@ class Sensor(Primitives.Plane):
     But were not implemented until now.
     """
     def __init__(self):
-        """
-        --|----------------------------------> 
-          |                            |     z
-          |                            |
-          |                            | 
-          |                            |
-          |                            |      
-          |                            |      
-          |                            | 
-          |                            |
-          v ___________________________| 
-           y
-        """
         Primitives.Plane.__init__(self)
         self.name                   = 'Sensor '+ str(self.id)
-        # self.heigth = 0.024                   x      y        z
+        #                                        x      y        z
+        #: Determines the dimension of the sensor in the axes :math:`x,y,z`,
+        #: (:math:`x=0`)
         self.dimension              = np.array([0,  0.0090,  0.0122])
-#        self.dimension              = np.array([0,  0.024,  0.036])
-
-        
         #                                      # ROW         # COLUMN
         #                                      #0.0089         0.0118
+        #: Determines the number of pixels in the :math:`y,z` directions, 
+        #: respectively.
         self.resolution             = np.array([1200,         1600])
+        #: The size of each pixel (in meters) in the :math:`y,z` directions
         self.pixelSize              = np.array([7.40,         7.40])*1e-6
+        #: Determines the ratio between light sensitive and "dark" areas for
+        #: pixels in the :math:`y,z` directions, respectively
         self.fillRatio              = np.array([0.75,         0.75])
+        #: The maximum number of electrons that can be stored in a pixel
         self.fullWellCapacity       = 40e3
+        #: The amount of electrons generated for each incoming photon
         self.quantumEfficiency      = 0.5
-        self.gain                   = 2.1 #photons / count
+        #: The number of electrons needed to raise the value of the A/D 
+        #: converter by one count (in the A/D converter)
+        self.gain                   = 2.1 #electrons / count
+        #: The quantity of bits in the A/D converter
         self.bitDepth               = 14
+        #: Background noise mean level (in A/D converter counts)
         self.backgroundMeanLevel    = 244
+        #: Standard deviation of background level (gaussian noise assumed) in 
+        #: sensor counts
         self.backgroundNoiseStd     = 50
+        #: This field stores data that is obtained directly from light intensity
+        #: measurements. This is converted to electrons, but allows fractional
+        #: values and is noiseless
         self.rawData                = None
+        #: Stores sensor data that is lost due to saturation (may be used to 
+        #: check images without regenerating them)
         self.saturationData         = None
+        #: Stores the position of dead pixels
         self.deadPixels             = None
+        #: Stores the position of hot pixels 
         self.hotPixels              = None
+        #: This field can be used by future-implemented functions for storing
+        #: relevant data for the simulation (colors, light vector direction)
         self.virtualData            = None
+        #: Sensor color in RGB
         self.color                  = [1,0,0]
         self.clear()
         
@@ -177,7 +177,7 @@ class Sensor(Primitives.Plane):
         if self.deadPixels is not None: 
             s = s * self.deadPixels
             s = s + self.hotPixels
-        self.saturationData = (s > 1)
+        self.saturationData = (s > 1)*s
         # Corrects if any place is less than zero (may happen due to noise)
         s = s - s*(s < 0)
         # Corrects saturations
@@ -277,8 +277,9 @@ class Sensor(Primitives.Plane):
         There is an inversion of the UV columns because of the unfortunate 
         parametric coordinate system that maps:
          
-        u -> sensor.z
-        v -> sensor.y
+        :math:`u \\mapsto z(sensor)`
+        
+        :math:`v \\mapsto y(sensor)`
         
         Parameters
         ----------
@@ -300,11 +301,12 @@ class Sensor(Primitives.Plane):
         Transforms (normalized) parametric coordinates into pixel position on the
         sensor.
         
-        There is an inversion of the UV columns because of the unfortunate 
+        There is an inversion of the :math:`u,v` columns because of the unfortunate 
         parametric coordinate system that maps:
          
-        u -> sensor.z
-        v -> sensor.y
+        :math:`u \\mapsto z(sensor)`
+        
+        :math:`v \\mapsto y(sensor)`
         
         Parameters
         ----------
@@ -633,30 +635,50 @@ class Lens(Primitives.Part, Core.PyvsimDatabasable):
                                 "H_aft_scalar", "E_scalar", "X_scalar",
                                 "_Edim", "_Xdim", "distortionParameters"]
         # Plotting parameters
+        #: Lens body color (for display only)
         self.color                        = [0.2,0.2,0.2]
         self.opacity                      = 0.8
+        #: Lens body diameter (for display only)
         self.diameter                     = 0.076
+        #: Lens body length (for display only)
         self.length                       = 0.091
         self._createPoints()
         # Main planes model
+        #: Lens `flange focal distance <http://en.wikipedia.org/wiki/Flange_focal_distance>`_
         self.flangeFocalDistance          =  0.0440
+        #: Lens `focal length <http://en.wikipedia.org/wiki/Focal_length>`_
         self.F                            =  0.1000
+        #: Lens front `principal plane <http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/priplan.html>`_
         self._H_fore_scalar               =  0.0460
+        #: Lens aft `principal plane <http://hyperphysics.phy-astr.gsu.edu/hbase/geoopt/priplan.html>`_
         self._H_aft_scalar                =  0.0560
+        #: Lens `entrance pupil <http://en.wikipedia.org/wiki/Entrance_pupil>`_ position (measured from flange)
         self._E_scalar                    =  0.0214
+        #: Lens `exit pupil <http://en.wikipedia.org/wiki/Exit_pupil>`_ position, measured from flange
         self._X_scalar                    =  0.0362568218298555
+        #: Lens `entrance pupil <http://en.wikipedia.org/wiki/Entrance_pupil>`_ diameter at f/1
         self._Edim                        =  0.1000
+        #: Lens `exit pupil <http://en.wikipedia.org/wiki/Exit_pupil>`_ at f/1
         self._Xdim                        =  0.0802568218
         # Adjustable parameters
+        #: Lens focusing distance (as in the lens focusing ring)
         self._focusingDistance            =  10
+        #: Selects between normal and macro mode (allows objects to be nearer the
+        #: lens than the sensor)
         self.macro                        = False
+        #: f-stop
         self.aperture                     =  2
+        #: Radial distortion parameters
         self.distortionParameters         = np.array([0,0,0,0,
                                                       0,0,0,0,
                                                       0,0,0,0])
         #Calculated parameters
+        #: Assuming a lens with no floating elements, this is the displacement
+        #: needed to allow focusing at a certain position
         self.focusingOffset               = 0
+        #: Center of projection position
         self.PinholeFore                  = None
+        #: "Virtual pinhole" position (to meet the center of projection)
         self.PinholeAft                   = None
         self._calculatePositions()
         
@@ -930,25 +952,45 @@ class Camera(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Camera '+ str(self.id)
+        #: Camera lens
         self.lens                       = None
+        #: Camera sensor
         self.sensor                     = None
         self.body                       = None
         # Plotting properties
+        #: Camera body color (for plotting only)
         self.color                      = [0.172,0.639,0.937]
         self.opacity                    = 0.650
+        #: Camera body dimensions (for plotting only)
         self.dimension                  = np.array([0.175,0.066,0.084])
         # Geometrical properties
+        #: Distance between camera flange and sensor (+ to front)
         self.sensorPosition             = -0.017526
         self._scheimpflugAngle          = 0
         # Mapping properties
+        #: Number of rays to be cast in :math:`y` and :math:`z` directions for
+        #: creation of the :math:`(x,y,z)-(u,v)` mapping
         self.mappingResolution          = [2, 2]
+        #: Allowable circle of confusion diameter used for depth of field calculation
         self.circleOfConfusionDiameter  = 29e-6
+        #: Wavelength used for creation of the mapping
         self.referenceWavelength        = 532e-9
+        #: 2D vector of 4x3 matrices that perform the :math:`(x,y,z)-(u,v)` mapping
         self.mapping                    = None
+        #: Determinant of the mapping matrices (used to verify if the 
+        #: :math:`(x,y,z)-(u,v)` mapping
+        #: mapping goes from a right handed coordinate system to another
+        #: right handed, or there is a flip
         self.detmapping                 = None
+        #: Derivative of the :math:`(x,y,z)-(u,v)` mapping
         self.dmapping                   = None
+        #: If there are optical elements between mapping region and camera,
+        #: a "virtual aperture" area is calculated for light intensity 
+        #: measurements
         self.virtualApertureArea        = None
+        #: For each mapping subregion, this stores their center in the sensor plane
         self.sensorSamplingCenters      = None
+        #: For each mapping subregion, this stores their center in world coordinates
         self.physicalSamplingCenters    = None
         # Create and position subcomponents:
         self._positionComponents()
@@ -1648,6 +1690,7 @@ class Seeding(Primitives.Assembly):
         Primitives.Assembly.__init__(self)
         self.name                   = 'Seeding ' + str(self.id)
         self.volume                 = Primitives.Volume()
+        #: Primitives.Points object with particle positions
         self.cloud                  = Primitives.Points()
         self                       += self.volume
         self                       += self.cloud
@@ -1798,29 +1841,56 @@ class Laser(Primitives.Assembly):
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Laser '+ str(self.id)
+        #: The transientFields for the laser class includes the "profileInterpolator"
+        #: that is a complex scipy object which good serialization is not guaranteed
         self.transientFields.extend(["profileInterpolator"])
+        #: Laser head body
         self.body                       = None
+        #: Ray bundle used for laser calculation (both safety and trajectory)
         self.rays                       = None
+        #: Assembly of volumes used for power interpolation
         self.volume                     = None
         # Plotting properties
+        #: Laser head color
         self.color                      = [0.1,0.1,0.1]
         self.opacity                    = 1.000
+        #: Laser head dimension
         self.dimension                  = np.array([1.060, 0.250, 0.270])
+        #: Laser beam wavelength (in meters)
         self.wavelength                 = 532e-9
         # Beam properties
         self._profile                   = None
         self.profileInterpolator        = None
+        #: Laser pulse energy (Joules)
         self._pulseEnergy               = 0.500
+        #: Beam divergence (in radians) for laser sheet creation
         self._beamDivergence            = np.array([0.0005, 0.25])
+        #: Beam diameter (in meters)
         self._beamDiameter              = 0.01#0.018
         [X,Y] = np.meshgrid(np.arange(-6,7), 
                             np.arange(-6,7))
         self.profile                    = np.exp(-0.15*(X**2+Y**2))
         # Ray tracing characteristics
+        #: Start and end point of measurement area (used to save cycles in laser
+        #: power calculation)
         self.usefulLength               = np.array([1, 3])
+        #: Discretization refinement of measurement area (reduce to a minimum, 
+        #: if possible, as each point has to be checked for belonging to the
+        #: measurement area
         self.usefulLengthDiscretization = 0.1
-        self.safeEnergyDensity                 = 5e-3 #1e-3
+        #: Laser safe energy (in Joules/m^2), this is a value deemed safe for
+        #: double-pulsed YAG lasers
+        self.safeEnergyDensity          = 5e-3 #1e-3
+        #: Safety tracing resolution (amount of rays cast in the :math:`y` and
+        #: :math:`z` direction of the laser when safety tracing is performed
         self.safetyTracingRays          = [7,5]
+        #: Safety tracing commands concerning lenght and resolution. This parameter
+        #: is a list of lists. The internal lists have two elements, the first is
+        #: the maximum tracing distance (measured from the beginning of the tracing)
+        #: and the second is the resolution (how long the tracing steps are). 
+        #: The outer list are the different tracing regions. For example:
+        #:[[1,1],[10,0.1]] will trace 1 meter with 1 meter step and then up to
+        #: 10 meters with 0.1m steps.
         self.safetyTracingStrategy      = [[7,7],
                                            [15,0.05],
                                            [100,100]]
