@@ -29,7 +29,6 @@ the program to define standard behaviors such as:
     limitations under the License.
 """
 import Utils
-_todoc = ["PyvsimObject", "PyvsimDatabasable"]
 
 class PyvsimObject(object):
     """
@@ -41,17 +40,19 @@ class PyvsimObject(object):
     * Identification and naming of objects
     """
     instanceCounter          = 0
-    _todoc = ["acceptVisitor", "__repr__","__getstate__"]
 
     def __init__(self):
         self._id                           = PyvsimObject.instanceCounter
+        
+        #: Name of the object, used for displaying and referencing the object
         self.name                          = str(self._id)
         self.name = str(id(self))
         PyvsimObject.instanceCounter      += 1
+        #: Fields to be excluded in the serialization process, empty list by default
         self.transientFields               = []
         
     @property
-    def id(self):               return id(self) #self._id
+    def id(self):               return self._id
 
     def __getstate__(self):
         """
@@ -83,7 +84,7 @@ class PyvsimObject(object):
         Parameters
         ----------
         visitor 
-            an object inheriting from `:class:~System.Visitor`
+            an object inheriting from :doc:`Visitor`
         """
         visitor.visit(self)
         
@@ -100,9 +101,6 @@ class PyvsimDatabasable(PyvsimObject):
     This class provides another serialization method for some objects  - in a
     database.
     """
-    _todoc = ["fetchFromDB", 
-               "listDB",
-               "contributeToDB"]
 #    DB_OBJ  = Utils.readConfig("Database","databaseType")
 #    DB_URL  = Utils.readConfig("Database","databaseAddress")
 #    DB_USER = Utils.readConfig("Database","databaseUsername")
