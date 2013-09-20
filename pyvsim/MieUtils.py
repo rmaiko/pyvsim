@@ -274,20 +274,20 @@ def mieScatteringCrossSections(refractiveIndex,
         The refractive index of the particles. The real part of the index
         is the classical (as used in Snell's law) and the complex is related
         to light absorption
-    particleDiameters : numpy.array (N)
+    particleDiameters : numpy.ndarray (N)
         A list of particle diameters to be calculated
     wavelength : real, meters
         The wavelength of the light source
-    theta : numpy.array (M), radians
+    theta : numpy.ndarray (M), radians
         A list of scattering angles to be calculated
         
     Returns
     -------
-    (sigma1, sigma2) : tuple of numpy.array (M,N)
+    (sigma1, sigma2) : tuple of numpy.ndarray (M,N)
         The differential scattering cross sections for the given particle 
-        diameters (column number) and scattering angles (row number). Sigma1
+        diameters (column number) and scattering angles (row number). :math:`\\sigma_1`
         stands for light that is polarized perpendicular to the propagation 
-        plane, and sigma2 for light polarized parallel to the propagation plane
+        plane, and :math:`\\sigma_2` for light polarized parallel to the propagation plane
     
     Polarization parameter:
     1 = accounts for light polarized perpendicular to propagation plane
@@ -350,24 +350,24 @@ def distributedSCS(refractiveIndex,
         The refractive index of the particles. The real part of the index
         is the classical (as used in Snell's law) and the complex is related
         to light absorption
-    particleDiameters : numpy.array (N)
+    particleDiameters : numpy.ndarray (N)
         A list of particle diameters to be calculated
-    percentage : numpy.array (N)
+    percentage : numpy.ndarray (N)
         The value of the cumulative distribution function (CDF) of the particle
         diameter distribution sampled at the points given in the
         particleDiameter array
     wavelength : real, meters
         The wavelength of the light source
-    theta : numpy.array (M), radians
+    theta : numpy.ndarray (M), radians
         A list of scattering angles to be calculated. If not given, defaults
         to a 501-element array from 0 to 180deg
          
     Returns
     -------
-    (sigma1, sigma2) : tuple of numpy.array (M)
+    (sigma1, sigma2) : tuple of numpy.ndarray (M)
         The differential scattering cross sections for the given distribution. 
-        Sigma1 stands for light that is polarized perpendicular to the 
-        propagation plane, and sigma2 for light polarized parallel to the 
+        :math:`\\sigma_1` stands for light that is polarized perpendicular to the 
+        propagation plane, and :math:`\\sigma_2` for light polarized parallel to the 
         propagation plane
         
     Raises
@@ -396,7 +396,9 @@ if __name__ == "__main__":
     # Create a range of diameters
     diam = np.arange(0.0,3.1,0.0062)
     # Create a cumulative probability density function representing the particle 
-    # size distribution
+    # size distribution. This can be substituted by another function (This was
+    # interpolated from a paper) or a list of values (as lont as the diam and
+    # the pdf lists have the same lenght)
     pdf  = scipy.special.gammainc(13.9043,10.9078*diam)**0.2079
     # We need in fact not a cumulative one, but a real distribution, so let's
     # derive it
