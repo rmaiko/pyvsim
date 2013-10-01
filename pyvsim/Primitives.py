@@ -74,19 +74,53 @@ class Component(Core.PyvsimObject):
         self._x                         = np.array([1,0,0])
         self._y                         = np.array([0,1,0])
         self._z                         = np.array([0,0,1])
+        #: Reference to the component parent. Ideally this should be a weak
+        #: reference to avoid memory leaks. As python does not provide a clean
+        #: implementation of weakref, one must use always the remove method of
+        #: :doc:`Assembly` to clear this field and avoid leaks
         self.parent                     = None
         self._depth                     = None          
                
     @property
-    def x(self):                return self._x
+    def x(self):
+        """
+        Local x coordinate of the component. This functionality is
+        unaware of the inheriting components, but this coordinate is chosen as
+        the optical axis of all elements in Toolbox (e.g. :doc:`Camera` optical
+        axis, :doc:`Laser` beam direction, :doc:`Mirror` normal to the surface).
+        """
+        return self._x
     @property
-    def y(self):                return self._y
+    def y(self):
+        """
+        Local y coordinate of the component
+        """
+        return self._y
     @property
-    def z(self):                return self._z
+    def z(self):
+        """
+        Local z coordinate of the component
+        """
+        return self._z
     @property
-    def origin(self):           return self._origin 
+    def origin(self):
+        """
+        Local origin of the component 
+        """
+        return self._origin 
     @property
-    def bounds(self):           return None
+    def bounds(self):
+        """
+        Returns the extremities of the aligned to axis bounding box of the
+        component in the format::
+        
+            [[xmin, ymin, zmin],
+            [xmax, ymax, zmax]]
+            
+        If the component is not visible by ray tracing rays, the function
+        shall return None
+        """
+        return None
     @property
     def depth(self):
         """
@@ -381,7 +415,13 @@ class Assembly(Component):
         Component.__init__(self)
         self.name                       = 'Assembly '+ str(self.id)
         # Ray tracing properties
+        #: The assembly material is important in the case it is an
+        #: environment (the root element of the simulation). As a default,
+        #: assemblies are initialized as IdealMaterial (no chromatic dispersion)
+        #: and refractiveIndex = 1
         self.material                   = Library.IdealMaterial(1)
+        #: Surface property of the assembly is not important, but it is set as
+        #: default to Component.TRANSPARENT
         self.surfaceProperty            = Component.TRANSPARENT     
         
     def __repr__(self):
@@ -826,10 +866,14 @@ class Points(Component):
     def __init__(self):
         Component.__init__(self)
         self.name                       = 'Line '+str(self.id)
+        #: A :math:`(N,3)` numpy.ndarray representing the points position
         self.points                     = np.array([])
+        #: None as default, as points are not connected
         self.connectivity               = None
+        #: The color of the points on display
         self.color                      = None
         self.opacity                    = 0.5
+        #: Toggles between visibility of each point or only their bounding box
         self.visible                    = True
                 
     def translateImplementation(self, vector):
@@ -884,10 +928,15 @@ class Line(Component):
     def __init__(self):
         Component.__init__(self)
         self.name                       = 'Line '+str(self.id)
+        #: A :math:`(N,3)` numpy.ndarray representing the points position
         self.points                     = np.array([])
+        #: The color of the line as an RGB vector or an :math:`(N,3)` vector
+        #: for color varying lines
         self.color                      = None
+        #: Line plotting width
         self.width                      = None
         self.opacity                    = 0.5
+        #: Toggle line visibility
         self.visible                    = True
                 
     def translateImplementation(self, vector):
@@ -934,30 +983,54 @@ class Part(Component):
     This implementation of the Component class is the representation of a surface
     using triangle elements. 
     
-    This is supposed to be the standard element in np.piVSim, as raytracing with
+    This is supposed to be the standard element in pyvsim, as raytracing with
     such surfaces is relatively easy and plotting is also made easy by using 
     libraries such as VTK, Matplotlib and OpenGL.
     
     Another benefit is the possibility of directly reading this topology from a
     STL file, that can be exported from a CAD program.
+    
+    It is important to notice that the triangle definition defines a series of 
+    behaviors within pyvsim, such as defining whether a ray is entering or 
+    leaving a body.
+    
+    The definition of a triangle is given in the figure below:
+    
+    .. figure:: ./triangle_points.png
+        :align: center
+        :scale: 100%
+        
+    And it is important to remember that in a closed surface, the normal always
+    points outwards.
     """
     PLOTDIMS                  = 3
     
     def __init__(self):
         Component.__init__(self)
         self.name                       = 'Part ' + str(self.id)
+        #: A :math:`(N,3)` array containing the coordinates of the part points
         self.points                     = np.array([])
+        #: The connections between points defining triangles. Given as an
+        #: :math:`(N,3)` array of indexes of points. The order of definition
+        #: affects the direction of the triangle normal
         self.connectivity               = np.array([])
+        #: Field for storing extra data about the part
         self.data                       = None
+        #: Stores each triangle normal vector in a :math:`(N,3)` array
         self.normals                    = None
+        #: Part color
         self.color                      = None
+        #: Part opacity
         self.opacity                    = 0.5
+        #: Toggles visibility
         self.visible                    = True
         # Ray tracing properties
+        #: Material of the part (initialized as IdealMaterial(1))
         self.material                   = Library.IdealMaterial(1)
+        #: Surface property (initialized as Component.OPAQUE)
         self.surfaceProperty            = Component.OPAQUE
+        
         # Variables for raytracing
-        self.surfaceProperty            = Component.OPAQUE
         self._bounds                    = None
         self._triangleVectors           = None
         self._trianglePoints            = None
@@ -1367,6 +1440,13 @@ class Plane(Part):
     
     As a default, the :math:`\\vec{x}` vector is the normal for the triangles.
     
+    The point numbering convention and the axis alignment is shown in the 
+    figure below:
+    
+    .. figure:: ./plane_points.png
+        :align: center
+        :scale: 100%
+    
     This class can represent **only** rectangles, so that most of its methods
     are greatly simplified. If you need to represent a parallelogram, you
     would have to implement your own class.
@@ -1387,6 +1467,10 @@ class Plane(Part):
   
     @property
     def dimension(self):
+        """
+        :math:`(x,y,z)` dimensions of the plane. :math:`x=0` as plane has no
+        thickness
+        """
         return self._dimension
     @dimension.setter
     def dimension(self, d):
@@ -1453,8 +1537,15 @@ class Plane(Part):
     
 class Volume(Part):
     """
-    This class is used to represent a general hexahedron. Most methods, however,
+    This is another convenience class an hexahedron. Most methods, however,
     only work if the faces of the hexa are planar
+                  
+    The point numbering convention and orientation is given in the figure
+    below:
+    
+    .. figure:: ./volume_points.png
+        :scale: 100%
+        :align: center
     """
     PLOTDIMS          = 3
     PARAMETRIC_COORDS = np.array([[+0,+0.5,+0.5],
@@ -1465,32 +1556,38 @@ class Volume(Part):
                                   [+1,-0.5,+0.5],
                                   [+1,-0.5,-0.5],
                                   [+1,+0.5,-0.5],])
+    CONNECTIVITY      =  np.array([[1,4,0],[1,5,4],  # normal +z
+                                   [7,2,3],[7,6,2],  # normal -z
+                                   [0,7,3],[0,4,7],  # normal +y
+                                   [6,5,1],[6,1,2],  # normal -y
+                                   [4,6,7],[4,5,6],  # normal +x
+                                   [0,3,2],[2,1,0]]) # normal -x
+    
     def __init__(self, dimension = np.array([1,1,1]), fastInit=False):
         """
-        This is another convenience class to represent volumes (a hexahedron).
-                      
-        The point numbering convention is::
+        The initialization can create the points automatically, based on a 
+        given dimension, or the user can define them. In this case the flag
+        "fastInit" should be set to True, which saves some time, as the points
+        don't have to be overwritten.
         
-           6--------5
-          /        /|    (X)
-         /        / |    ^
-        7--------4  |    |
-        |        |  |    +-> (Z)
-        |   2    |  1   /
-        |        | /   v
-        |        |/    (Y)
-        3--------0
+        Parameters
+        ----------
+        dimension : numpy.ndarray :math:`(3)`
+            The dimensions of the hexa along the :math:`x`, :math:`y` and :math:`z`,
+            respectively. If fastInit flag is set to True, this input is
+            ignored.
+            
+        fastInit : boolean
+            Indicates whether the program must calculate the hexa points at
+            initialization. If the flag is set to True no points are calculated,
+            and the user must set them manually.
         """
         Part.__init__(self)
         self.name           = 'Volume '+str(self.id)
         self._dimension     = dimension
-        # normals pointing outside 
-        self.connectivity   = np.array([[1,4,0],[1,5,4], # normal +z
-                                        [7,2,3],[7,6,2], # normal -z
-                                        [0,7,3],[0,4,7], # normal +y
-                                        [6,5,1],[6,1,2], # normal -y
-                                        [4,6,7],[4,5,6], # normal +x
-                                        [0,3,2],[2,1,0]]) # normal -x
+        #: The connectivity of the hexa is defined so that triangle normals
+        #: always point outside the volume. This is important for ray tracing. 
+        self.connectivity   = Volume.CONNECTIVITY
         self.normals        = None
         if not fastInit:
             self._resize()
@@ -1511,7 +1608,24 @@ class Volume(Part):
         
     def expand(self, factor):
         """
-        Inflates the volume by "factor"
+        Offsets each point of the volume by a multiplicative "factor" in the
+        direction of the centerpoint. 
+        
+        The procedure is shown in the figure below:
+        
+        .. figure:: ./inflate.png
+            :align: center
+            :scale: 100%
+            
+        The original vector (:math:`V_o`) and the resulting vector (:math:`V_r`)
+        are related by the factor :math:`f` as:
+        
+        :math:`V_r = V_o \\cdot f`
+        
+        Parameters
+        ----------
+        factor : float
+            The offset factor
         """
         center = np.mean(self.points,0)
         for n in range(np.size(self.points,0)):
@@ -1522,9 +1636,14 @@ class Volume(Part):
         Transforms a vector or a list of vectors in parametric coordinates with
         the following properties:
         
-        [x,y,z] (global) -> [x',y',z'] (parametrical)
+        :math:`\\left( x,y,z \\right) \\mapsto \\left(u,v,w \\right)`
         
-        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
+        Where :math:`x,y,z` are world coordinates and :math:`u,v,w` are 
+        parametric coordinates defined so that:
+        
+        :math:`0 \\leq u,v,w \\leq 1`
+        
+        represents a point inside the volume.
         """                
         return Utils.hexaInterpolation(c, 
                                        self.points, 
@@ -1535,9 +1654,14 @@ class Volume(Part):
         Transforms a vector or a list of vectors in parametric coordinates with
         the following properties:
         
-        [x,y,z] (global) -> [x',y',z'] (parametrical)
+        :math:`\\left( x,y,z \\right) \\mapsto \\left(u,v,w \\right)`
         
-        0 <= x',y',z' <= 1 if [x,y,z] lies inside the volume 
+        Where :math:`x,y,z` are world coordinates and :math:`u,v,w` are 
+        parametric coordinates defined so that:
+        
+        :math:`0 \\leq u,v,w \\leq 1`
+        
+        represents a point inside the volume.
         """     
         return Utils.hexaInterpolation(p, 
                                        Volume.PARAMETRIC_COORDS[:,1:3], 
@@ -1600,7 +1724,8 @@ class RayBundle(Assembly):
     having them wrapped in a single class is that it allows full vectorization
     of the raytracing procedure.
     
-    This can be called a disposable class
+    This class shall be used in a disposable fashion, as it is not possible to
+    eliminate rays from it, etc.
     """
     TRACING_FOV               = 1
     TRACING_LASER_REFLECTION  = 0
@@ -1610,18 +1735,48 @@ class RayBundle(Assembly):
         self.name                       = 'Bundle ' + str(self.id)
         self.material                   = None
         # Ray tracing configuration
+        #: Defines the maximum ray length during ray tracing
         self.maximumRayTrace            = 10
+        #: Defines the maximum length of a segment of ray during the tracing
+        #: procedure (should be kept as long as possible to save computational
+        #: time unless a special purpose tracing is needed)
         self.stepRayTrace               = 10
+        #: Memory is pre allocated to increase ray tracing performance. The 
+        #: number of pre allocated steps is defined here. Reallocation is 
+        #: very expensive, so a wise definition of this parameter is needed
         self.preAllocatedSteps          = 10
+        #: Defines the light wavelength of the rays. This is important in the 
+        #: cases where materials with chromatic dispersion are used
         self.wavelength                 = None
+        #: A numpy.ndarray with the shape (N,3) with the starting points of the
+        #: N rays in the bundle
         self.startingPoints             = None
+        #: A numpy.ndarray with the shape (N,3) with the starting vectors of the
+        #: N rays in the bundle
         self.initialVectors             = None
         # Ray tracing statistics
+        #: The points followed by each ray. The ray path matrix is organized as
+        #: a 3D matrix, with the first index being the simulation step, the
+        #: second is the ray number and the third is the coordinate. So the shape
+        #: is (M,N,3), with M the number of allocated steps, N the number of rays
+        #: in the bundle and 3 as the number of spatial coodinates
         self.rayPaths                   = None
+        #: Stores in a (N,3) matrix the last vector of each ray. This is used as
+        #: a transition matrix and also in the case where ray tracing is to be
+        #: restarted
         self.rayLastVectors             = None
+        #: Stores references to the objects that each ray intersects. This is a
+        #: (M,N) pointer matrix. M is the number of allocated steps and N is the
+        #: number of rays in the bundle
         self.rayIntersections           = None
+        #: A (N) matrix with the length of each ray, calculated from its origin.
+        #: If the ray does not intersect anything at this step, the value None
+        #: will be stored
         self.rayLength                  = None
+        #: The number of tracing steps executed to the moment
         self.steps                      = None
+        #: A (N) matrix with references to the object at the last point of each
+        #: ray. If no object is at this point, None is returned
         self.finalIntersections         = None
         
     @property
