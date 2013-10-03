@@ -1798,8 +1798,8 @@ class Seeding(Primitives.Assembly):
                               np.max(self.diameters)+1e-6])
             
         print "Angle range ", np.min(scatterangle), np.max(scatterangle)
-        plt.plot(scatterangle)
-        plt.show()
+#         plt.plot(scatterangle)
+#         plt.show()
         if np.min(scatterangle) != np.max(scatterangle):
             angles = np.linspace(np.min(scatterangle),
                                  np.max(scatterangle),
