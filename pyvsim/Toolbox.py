@@ -948,6 +948,21 @@ class Camera(Primitives.Assembly):
     by using direct linear transformations (a pinhole model). Lens imperfections
     and ambient influence can be modeled by using several DLTs (which is 
     controlled by the parameter mappingResolution).
+    
+    The reference points and origin of used in the development of this class
+    are shown in the figure below:
+    
+    .. figure:: ./camera_points.png
+        :align: center
+        :scale: 100%
+        
+    The following points are noteworthy:
+    
+    * The camera points at the :math:`x` direction. :math:`y` is pointing up and
+       :math:`z` points to the right.
+    * The origin of the camera is the center of its flange (the connection with
+      its lens)
+    * The sensor is positioned at a negative :math:`x` position
     """ 
     def __init__(self):
         Primitives.Assembly.__init__(self)
@@ -971,7 +986,8 @@ class Camera(Primitives.Assembly):
         #: Number of rays to be cast in :math:`y` and :math:`z` directions for
         #: creation of the :math:`(x,y,z)-(u,v)` mapping
         self.mappingResolution          = [2, 2]
-        #: Allowable circle of confusion diameter used for depth of field calculation
+        #: Allowable circle of confusion diameter used for depth of field calculation,
+        #: standard value - :math:`29 \cdot 10^{-6}m`
         self.circleOfConfusionDiameter  = 29e-6
         #: Wavelength used for creation of the mapping
         self.referenceWavelength        = 532e-9
@@ -1164,7 +1180,7 @@ class Camera(Primitives.Assembly):
         dvdx    = duvw[:,3:]
 #        print dudx
         lineofsight  = np.cross(dudx,dvdx)
-                    # cheap norm                   # invert if mirror                              
+         # invert if mirror                              
         lineofsightnorm = (np.sqrt(np.sum(lineofsight*lineofsight,1))*
                            np.sign(self.detmapping[i,j]))
         lineofsight  = -lineofsight / np.tile(lineofsightnorm,(3,1)).T
@@ -1838,6 +1854,79 @@ class CalibrationPlate(Seeding):
         
         
 class Laser(Primitives.Assembly):
+    """
+    This class is used to represent a laser light source with the associated optics
+    for sheet formation. This is a simplification that saves a lot of computing 
+    power (instead of adding lenses).
+    
+    There are two main methods in this class, that are:
+    
+    * trace
+    * traceReflections
+    
+    The first (**trace**) is used to determine the laser path until the measurement 
+    area. This
+    also leaves interpolating volumes, that are used for determining how much
+    power a point in it receives. The method **trace** can be thought of an 
+    initialization for the method **illuminate**.
+    
+    An important parameter for the **trace** method is the **usefulLength**. This
+    establishes the starting and the ending point of the measurement area, and is
+    given as a list. For example - :math:`[1,2]` determines that the measurement
+    area starts :math:`1`m from the laser output and goes up to :math:`2`m.
+    
+    The measurement area will be discretized with elements which length is 
+    specified in the property **usefulLengthDiscretization**. For example, if this
+    parameter is set to :math:`0.5`m, the measurement region described above will
+    be composed of two interpolating volumes.
+    
+    A pictographic description of this scenario is shown below:
+    
+    .. figure:: ./trace.png
+        :align: center
+        :scale: 100%
+        
+        The origin and the orientation of the object are shown in this figure. 
+        The beam exits pointing at the :math:`x` direction. The origin is the
+        laser beam starting point.
+    
+    The number of interpolating volumes should be kept as low as possible when
+    creating synthetic images (as it is a bottleneck in the calculation). In
+    the ideal case there should be only one.
+    
+    The method **traceReflections** is used to trace the laser path (and its
+    reflections) for determining a laser safety area. The calculation is very 
+    simple and is based on the concept of luminous energy per unit of area as
+    shown below:
+    
+    .. figure:: ./laser_density_1.png
+        :align: center
+        :scale: 100%
+        
+    The simulation does not take into account energy losses during propagation,
+    so the estimation is very conservative.
+    
+    For the evaluation of complex geometries, the laser beam can be divided in
+    several regions. Each region is then calculated independently, as shown in
+    the figure below:
+    
+    .. figure:: ./laser_density_2.png
+        :align: center
+        :scale: 100%
+        
+    The discretization is determined by the parameter **safetyTracingRays**, which
+    is a 2-element list which determines how many **rays** (not areas) will be
+    created in the laser :math:`y` and :math:`z` directions.
+    
+    It is important to consider that reflections in irregular areas will need a
+    multitude of rays for proper execution. This can be computationally expensive.
+    
+    Finally, when plotting the result of the **traceReflections** method, the
+    energy density will be represented by the ray colors. The scale is logarithmic,
+    and regions below the density specified in the **safeEnergyDensity**
+    parameter will be depicted with white rays (for better contrast with deep
+    blue rays, that represent low but still dangerous power)
+    """
     def __init__(self):
         Primitives.Assembly.__init__(self)
         self.name                       = 'Laser '+ str(self.id)
@@ -1879,7 +1968,7 @@ class Laser(Primitives.Assembly):
         #: measurement area
         self.usefulLengthDiscretization = 0.1
         #: Laser safe energy (in Joules/m^2), this is a value deemed safe for
-        #: double-pulsed YAG lasers
+        #: double-pulsed YAG lasers (5e-3)
         self.safeEnergyDensity          = 5e-3 #1e-3
         #: Safety tracing resolution (amount of rays cast in the :math:`y` and
         #: :math:`z` direction of the laser when safety tracing is performed
