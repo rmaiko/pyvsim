@@ -1380,6 +1380,49 @@ class Camera(Primitives.Assembly):
         functions to relate world coordinates to sensor coordinates. This
         should be called whenever the ambient is set up, so the camera can 
         be used for synthetic image generation and displaying.
+        
+        The procedure is capable of estimating the focusing region by using a
+        hybrid ray tracing procedure. This is needed because the conjugation
+        equation ( :math:`f^{-1} = p^{-1} + {p^{\prime}}^{-1}` ) is not
+        capable of representing the cases where there is a refraction between
+        the measurement area and the camera.
+        
+        The approach consists then on taking the theoretical focusing points
+        (as calulated by the conjugation equation) and using them to calculate
+        initial vectors (departing from the exit pupil) for a ray tracing. The
+        focusing point is then the intersection between the rays. The procedure
+        is shown in the figure below:
+        
+        .. figure:: ./focal_calc.png
+            :scale: 100%
+            :align: center
+            
+        The program implements 4 rays per point (departing from directions
+        :math:`y,z,-y,-z` in the camera reference). This is sufficient for most
+        cases, and is just an approximation in the case the refracting surface
+        is not perpendicular to the camera axis (except the case when it's
+        inclined in the cameras :math:`y` or :math:`z` axes only), because in
+        this case astigmatism is present.
+        
+        The line intersection is performed between the rays starting from 
+        :math:`y,-y` and :math:`z,-z` separately, which generate the 
+        points denominated VV anh VH. When these points do not coincide, the system is
+        astigmatic.
+        
+        This approach is in fact adapted to consider the depth of field. The 
+        extension is natural and involves calculating the theoretical forward
+        and aft tolerances for focusing (this is a funcion of the parameter
+        **circleOfConfusionDiameter**). The procedure is shown in the figure 
+        below:
+        
+        .. figure:: ./focal_calc_2.png
+            :scale: 100%
+            :align: center
+            
+        For each subfield (which number is defined by the **mappingResolution**
+        property) 8 points are calculated. These points are then used to derive
+        a direct linear transformation (DLT) matrix relating the world coodinates
+        to the sensor coordinates.
         """
         vv,vh = self._depthOfField()
         # Make sure rays intersect volume by expanding it a little
@@ -1630,7 +1673,8 @@ class Camera(Primitives.Assembly):
         ----------
         centeronly : boolean
             If the camera mapping resolution has created more than a single 
-            mapping matrix (>2), setting this value to True makes the routine
+            mapping matrix (parameter set > 2), setting this value to True makes 
+            the routine
             create only one camera (for the center mapping). Otherwise it will
             create as many cameras as mapping matrices.
             
@@ -1873,11 +1917,11 @@ class Laser(Primitives.Assembly):
     An important parameter for the **trace** method is the **usefulLength**. This
     establishes the starting and the ending point of the measurement area, and is
     given as a list. For example - :math:`[1,2]` determines that the measurement
-    area starts :math:`1`m from the laser output and goes up to :math:`2`m.
+    area starts :math:`1m` from the laser output and goes up to :math:`2m`.
     
     The measurement area will be discretized with elements which length is 
     specified in the property **usefulLengthDiscretization**. For example, if this
-    parameter is set to :math:`0.5`m, the measurement region described above will
+    parameter is set to :math:`0.5m`, the measurement region described above will
     be composed of two interpolating volumes.
     
     A pictographic description of this scenario is shown below:
@@ -1967,8 +2011,8 @@ class Laser(Primitives.Assembly):
         #: if possible, as each point has to be checked for belonging to the
         #: measurement area
         self.usefulLengthDiscretization = 0.1
-        #: Laser safe energy (in Joules/m^2), this is a value deemed safe for
-        #: double-pulsed YAG lasers (5e-3)
+        #: Laser safe energy (in :math:`J/{m^2}`), this is a value deemed safe for
+        #: double-pulsed YAG lasers (:math:`5 \cdot 10^{-3}J/m^2`)
         self.safeEnergyDensity          = 5e-3 #1e-3
         #: Safety tracing resolution (amount of rays cast in the :math:`y` and
         #: :math:`z` direction of the laser when safety tracing is performed
@@ -1978,8 +2022,9 @@ class Laser(Primitives.Assembly):
         #: the maximum tracing distance (measured from the beginning of the tracing)
         #: and the second is the resolution (how long the tracing steps are). 
         #: The outer list are the different tracing regions. For example:
-        #:[[1,1],[10,0.1]] will trace 1 meter with 1 meter step and then up to
-        #: 10 meters with 0.1m steps.
+        #: :math:`[[1,1],[10,0.1]]` will trace :math:`1m` with :math:`1m` step 
+        #: and then up to :math:`10m` with :math:`0.1m` steps. The strategy can
+        #: be composed of an arbitrary number of steps.
         self.safetyTracingStrategy      = [[7,7],
                                            [15,0.05],
                                            [100,100]]
