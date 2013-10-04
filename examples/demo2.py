@@ -15,14 +15,17 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-import numpy as np
-from pyvsim import *
+
 if __name__ == '__main__':
+    import sys
+    sys.path.append("../")
+    import numpy as np
+    from pyvsim import *
     """
     This demo shows a simple render of a famous image, but with 
     physically correct angles
     """
-    vol = Volume()
+    vol = Primitives.Volume()
     vol.points = np.array([[0   ,0,0],
                            [1   ,0,0],
                            [0.5 ,0.866,0],
@@ -35,10 +38,10 @@ if __name__ == '__main__':
     sellmeierCoeffs     = np.array([[1.03961212, 0.00600069867],
                                     [0.23179234, 0.02001791440],
                                     [70.01046945, 103.560653000]])
-    vol.material = Glass(sellmeierCoeffs)
+    vol.material = Library.Glass(sellmeierCoeffs)
     vol.material.name = "The dark side of the moon glass"
     
-    r = RayBundle()
+    r = Primitives.RayBundle()
     n = 200
     v = Utils.normalize(np.array([0.5,0.17,0]))
     p = np.array([-0.5,0.1,0.05])
@@ -46,15 +49,15 @@ if __name__ == '__main__':
     w = np.linspace(380e-9, 780e-9, n) #all the visible spectrum
     r.append(v, p, w)
     
-    a = Assembly()
+    a = Primitives.Assembly()
     a.append(vol)
     a.append(r)
     
     r.maximumRayTrace = 2
     r.trace()
     
-    save(obj = a, filename = "./test.dat", mode = "json")
+    System.save(obj = a, filename = "./test.dat", mode = "json")
 
-    dec = load(filename = "./test.dat")
+    dec = System.load(filename = "./test.dat")
     
-    plot(dec,displayAxes=False)
+    System.plot(dec,displayAxes=False)

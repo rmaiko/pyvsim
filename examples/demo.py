@@ -23,6 +23,8 @@ if __name__=="__main__":
     
     Usage: python demo.py
     """
+    import sys
+    sys.path.append("../")
     import pyvsim.Primitives
     import pyvsim.Library
     import pyvsim.System
@@ -128,10 +130,6 @@ if __name__=="__main__":
     temp = pyvsim.System.load("./test_pickle.dat")
     print "Successfully saved and loaded pickle"
     tic.toc()
-#     print temp
-    print "\n After pickle ", temp.__hash__() == temp[0].parent.__hash__()
-    print type(temp)
-    print type(temp[0].parent)
     pyvsim.System.plot(temp)
     print
     
@@ -139,11 +137,6 @@ if __name__=="__main__":
     pyvsim.System.save(assembly, "./test.dat", mode="json") # Human-readable, very slow
     ambient = pyvsim.System.load("./test.dat")
     print "Successfully saved and loaded json"
-#     print ambient
-    print "\n After json ", ambient.__hash__() == ambient[0].parent.__hash__()
-    print type(ambient)
-    print type(ambient[0].parent)
-    print
     tic.toc()
     
     # Loaded scenarios can be manipulated exactly the same way as scenarios
@@ -151,12 +144,6 @@ if __name__=="__main__":
     ambient.translate(np.array([0,-1.5,0])) # Translate everything
     ambient.remove(2)                       # Remove second volume
     ambient.items[1].clearData()
-    print ambient
-    print ambient[0].parent
-#     print ambient[1].parent
-#     print ambient.items
-#     print ambient[0].parent.items
-    print "After deletion ", ambient.__hash__() == ambient[0].parent.__hash__()
     ambient.items[1].trace()                # Retrace
     # Plotting the changed scenario
     pyvsim.System.plot(ambient)

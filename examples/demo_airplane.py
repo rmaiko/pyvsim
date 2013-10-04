@@ -19,6 +19,8 @@ limitations under the License.
 """
 This is a demo of field of view calculation in an airplane mockup.
 """
+import sys
+sys.path.append("../")
 import numpy as np
 import pyvsim.Utils
 import pyvsim.Toolbox
