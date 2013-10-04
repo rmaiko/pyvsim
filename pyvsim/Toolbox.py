@@ -1180,7 +1180,7 @@ class Camera(Primitives.Assembly):
         dvdx    = duvw[:,3:]
 #        print dudx
         lineofsight  = np.cross(dudx,dvdx)
-         # invert if mirror                              
+        # invert if mirror                              
         lineofsightnorm = (np.sqrt(np.sum(lineofsight*lineofsight,1))*
                            np.sign(self.detmapping[i,j]))
         lineofsight  = -lineofsight / np.tile(lineofsightnorm,(3,1)).T
