@@ -231,7 +231,7 @@ class VTKPlotter(Visitor):
         point.SetVerts(vertices)   
         
         mapper = vtk.vtkPolyDataMapper()
-        mapper.SetInput(point) 
+        mapper.SetInputData(point) 
         
         actor = vtk.vtkLODActor()
         actor.SetMapper(mapper)
@@ -261,7 +261,7 @@ class VTKPlotter(Visitor):
         me.SetLines(cts)
                           
         dataMapper = vtk.vtkPolyDataMapper()
-        dataMapper.SetInput(me)
+        dataMapper.SetInputData(me)
 
         dataActor =vtk.vtkLODActor()
         dataActor.SetMapper(dataMapper)
@@ -321,7 +321,7 @@ class VTKPlotter(Visitor):
             actor.GetPointData().SetNormals(nrm)
             
         dataMapper = vtk.vtkPolyDataMapper()
-        dataMapper.SetInput(actor)
+        dataMapper.SetInputData(actor)
         
         dataActor =vtk.vtkLODActor()
         dataActor.SetMapper(dataMapper)
